@@ -1,5 +1,6 @@
 package com.jvn.lodged.config;
 
+import com.jvn.lodged.world.LodgedArrowBodyPart;
 import java.util.List;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.common.ModConfigSpec;
@@ -14,8 +15,13 @@ public final class LodgedConfig {
     private static final ModConfigSpec.BooleanValue RECOVER_INFINITY_ARROWS;
     private static final ModConfigSpec.BooleanValue RECOVER_CREATIVE_ARROWS;
     private static final ModConfigSpec.BooleanValue PRESERVE_ARROW_ITEM_STACK;
+    private static final ModConfigSpec.BooleanValue PREVENT_PLAYER_ARROW_DESPAWN;
+    private static final ModConfigSpec.BooleanValue PREVENT_NON_PLAYER_ARROW_DESPAWN;
     private static final ModConfigSpec.BooleanValue ENABLE_PLAYER_ARROW_REMOVAL;
-    private static final ModConfigSpec.DoubleValue PLAYER_ARROW_REMOVAL_RECOVER_CHANCE;
+    private static final ModConfigSpec.DoubleValue PLAYER_ARROW_REMOVAL_HEAD_SUCCESS_CHANCE;
+    private static final ModConfigSpec.DoubleValue PLAYER_ARROW_REMOVAL_CHEST_SUCCESS_CHANCE;
+    private static final ModConfigSpec.DoubleValue PLAYER_ARROW_REMOVAL_ARM_SUCCESS_CHANCE;
+    private static final ModConfigSpec.DoubleValue PLAYER_ARROW_REMOVAL_LEG_SUCCESS_CHANCE;
     private static final ModConfigSpec.DoubleValue PLAYER_ARROW_REMOVAL_BREAK_DAMAGE;
     private static final ModConfigSpec.BooleanValue ALLOW_ARROW_REMOVAL_IN_CREATIVE;
     private static final ModConfigSpec.BooleanValue REQUIRE_INVENTORY_SCREEN_FOR_REMOVAL;
@@ -62,15 +68,40 @@ public final class LodgedConfig {
                 .translation("lodged.configuration.preserveArrowItemStack")
                 .define("preserveArrowItemStack", true);
 
+        PREVENT_PLAYER_ARROW_DESPAWN = builder
+                .comment("If true, arrows stuck in players will not naturally despawn from the vanilla stuck-arrow renderer.")
+                .translation("lodged.configuration.preventPlayerArrowDespawn")
+                .define("preventPlayerArrowDespawn", true);
+
+        PREVENT_NON_PLAYER_ARROW_DESPAWN = builder
+                .comment("If true, arrows stuck in non-player living entities will not naturally despawn from the vanilla stuck-arrow renderer.")
+                .translation("lodged.configuration.preventNonPlayerArrowDespawn")
+                .define("preventNonPlayerArrowDespawn", false);
+
         ENABLE_PLAYER_ARROW_REMOVAL = builder
                 .comment("If true, players can remove arrows lodged in their own body from the inventory player preview.")
                 .translation("lodged.configuration.enablePlayerArrowRemoval")
                 .define("enablePlayerArrowRemoval", true);
 
-        PLAYER_ARROW_REMOVAL_RECOVER_CHANCE = builder
-                .comment("Chance that a successfully removed player arrow is recovered as an item. Values are clamped from 0.0 to 1.0.")
-                .translation("lodged.configuration.playerArrowRemovalRecoverChance")
-                .defineInRange("playerArrowRemovalRecoverChance", 0.75D, 0.0D, 1.0D);
+        PLAYER_ARROW_REMOVAL_HEAD_SUCCESS_CHANCE = builder
+                .comment("Chance that removing a player arrow from the head succeeds and recovers the arrow item. Values are clamped from 0.0 to 1.0.")
+                .translation("lodged.configuration.playerArrowRemovalHeadSuccessChance")
+                .defineInRange("playerArrowRemovalHeadSuccessChance", 0.35D, 0.0D, 1.0D);
+
+        PLAYER_ARROW_REMOVAL_CHEST_SUCCESS_CHANCE = builder
+                .comment("Chance that removing a player arrow from the chest succeeds and recovers the arrow item. Values are clamped from 0.0 to 1.0.")
+                .translation("lodged.configuration.playerArrowRemovalChestSuccessChance")
+                .defineInRange("playerArrowRemovalChestSuccessChance", 0.65D, 0.0D, 1.0D);
+
+        PLAYER_ARROW_REMOVAL_ARM_SUCCESS_CHANCE = builder
+                .comment("Chance that removing a player arrow from an arm succeeds and recovers the arrow item. Values are clamped from 0.0 to 1.0.")
+                .translation("lodged.configuration.playerArrowRemovalArmSuccessChance")
+                .defineInRange("playerArrowRemovalArmSuccessChance", 0.85D, 0.0D, 1.0D);
+
+        PLAYER_ARROW_REMOVAL_LEG_SUCCESS_CHANCE = builder
+                .comment("Chance that removing a player arrow from a leg succeeds and recovers the arrow item. Values are clamped from 0.0 to 1.0.")
+                .translation("lodged.configuration.playerArrowRemovalLegSuccessChance")
+                .defineInRange("playerArrowRemovalLegSuccessChance", 0.85D, 0.0D, 1.0D);
 
         PLAYER_ARROW_REMOVAL_BREAK_DAMAGE = builder
                 .comment("Damage dealt when player arrow removal fails and breaks the arrow. Damage is in half-hearts, so 2.0 equals one heart.")
@@ -136,12 +167,25 @@ public final class LodgedConfig {
         return PRESERVE_ARROW_ITEM_STACK.get();
     }
 
+    public static boolean preventPlayerArrowDespawn() {
+        return PREVENT_PLAYER_ARROW_DESPAWN.get();
+    }
+
+    public static boolean preventNonPlayerArrowDespawn() {
+        return PREVENT_NON_PLAYER_ARROW_DESPAWN.get();
+    }
+
     public static boolean enablePlayerArrowRemoval() {
         return ENABLE_PLAYER_ARROW_REMOVAL.get();
     }
 
-    public static double playerArrowRemovalRecoverChance() {
-        return PLAYER_ARROW_REMOVAL_RECOVER_CHANCE.get();
+    public static double playerArrowRemovalSuccessChance(LodgedArrowBodyPart bodyPart) {
+        return switch (bodyPart) {
+            case HEAD -> PLAYER_ARROW_REMOVAL_HEAD_SUCCESS_CHANCE.get();
+            case CHEST -> PLAYER_ARROW_REMOVAL_CHEST_SUCCESS_CHANCE.get();
+            case ARM -> PLAYER_ARROW_REMOVAL_ARM_SUCCESS_CHANCE.get();
+            case LEG -> PLAYER_ARROW_REMOVAL_LEG_SUCCESS_CHANCE.get();
+        };
     }
 
     public static float playerArrowRemovalBreakDamage() {

@@ -20,6 +20,9 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
     private static final float MODEL_HEIGHT = 24.0F / 16.0F;
     private static final float MODEL_HALF_WIDTH = 6.0F / 16.0F;
     private static final float MODEL_HALF_DEPTH = 5.0F / 16.0F;
+    private static final float HEAD_MAX_MODEL_Y = 0.42F;
+    private static final float LEG_MIN_MODEL_Y = 0.95F;
+    private static final float ARM_MIN_ABS_MODEL_X = 0.27F;
     private static final float MIN_DIRECTION_LENGTH = 1.0E-4F;
 
     public static final LodgedArrowVisual DEFAULT = new LodgedArrowVisual(
@@ -83,6 +86,22 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
                 directionX / directionLength,
                 directionY / directionLength,
                 directionZ / directionLength);
+    }
+
+    public LodgedArrowBodyPart bodyPart() {
+        if (modelY <= HEAD_MAX_MODEL_Y) {
+            return LodgedArrowBodyPart.HEAD;
+        }
+
+        if (modelY >= LEG_MIN_MODEL_Y) {
+            return LodgedArrowBodyPart.LEG;
+        }
+
+        if (Math.abs(modelX) >= ARM_MIN_ABS_MODEL_X) {
+            return LodgedArrowBodyPart.ARM;
+        }
+
+        return LodgedArrowBodyPart.CHEST;
     }
 
     void save(CompoundTag tag) {

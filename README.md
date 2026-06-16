@@ -36,4 +36,10 @@ The common NeoForge config includes:
 - `recoverInfinityArrows`
 - `recoverCreativeArrows`
 - `preserveArrowItemStack`
+- `preventPlayerArrowDespawn`
+- `preventNonPlayerArrowDespawn`
+- `playerArrowRemovalHeadSuccessChance`
+- `playerArrowRemovalChestSuccessChance`
+- `playerArrowRemovalArmSuccessChance`
+- `playerArrowRemovalLegSuccessChance`
 - `entityDenylist`

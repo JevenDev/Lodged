@@ -47,8 +47,8 @@ final class PlayerArrowRemoval {
 
         player.setArrowCount(Math.max(0, player.getArrowCount() - 1));
 
-        double recoverChance = LodgedConfig.playerArrowRemovalRecoverChance();
-        boolean recovered = recoverChance >= 1.0D || (recoverChance > 0.0D && player.getRandom().nextDouble() < recoverChance);
+        double successChance = LodgedConfig.playerArrowRemovalSuccessChance(removedArrow.visual().bodyPart());
+        boolean recovered = successChance >= 1.0D || (successChance > 0.0D && player.getRandom().nextDouble() < successChance);
         if (recovered) {
             recoverArrow(player, removedArrow.stack());
             playSound(player, SoundEvents.ITEM_PICKUP, 0.2F, 2.0F);
