@@ -14,9 +14,9 @@ import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ContainerScreenEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -27,32 +27,34 @@ public final class LodgedInventoryArrowUi {
     private static final int MODEL_RIGHT = 75;
     private static final int MODEL_BOTTOM = 78;
     private static final int HIT_ZONE_SIZE = 8;
-    private static final double MODEL_PIXEL_SCALE = 30.0D;
-    private static final double MODEL_SCREEN_TOP_OFFSET = 16.0D;
+    private static final float PREVIEW_SCALE = 30.0F;
+    private static final float PREVIEW_Y_OFFSET = 0.0625F;
+    private static final float PLAYER_RENDER_SCALE = 0.9375F;
+    private static final float MODEL_RENDER_Y_OFFSET = -1.501F;
 
     private static float yawDegrees;
     private static boolean draggingPreview;
     private static boolean customYawActive;
+    private static int hoveredArrowIndex = -1;
 
     private LodgedInventoryArrowUi() {
     }
 
     @SubscribeEvent
-    public static void onContainerBackgroundRender(ContainerScreenEvent.Render.Background event) {
-        if (!LodgedConfig.enablePlayerArrowRemoval() || !(event.getContainerScreen() instanceof InventoryScreen screen)) {
+    public static void onScreenRenderPre(ScreenEvent.Render.Pre event) {
+        if (!LodgedConfig.enablePlayerArrowRemoval() || !(event.getScreen() instanceof InventoryScreen screen)) {
+            hoveredArrowIndex = -1;
             return;
         }
 
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
+            hoveredArrowIndex = -1;
             return;
         }
 
-        GuiGraphics guiGraphics = event.getGuiGraphics();
         ArrowHitZone hoveredZone = findHoveredZone(screen, player, event.getMouseX(), event.getMouseY());
-        if (hoveredZone != null) {
-            renderHover(guiGraphics, hoveredZone);
-        }
+        hoveredArrowIndex = hoveredZone == null ? -1 : hoveredZone.index();
     }
 
     @SubscribeEvent
@@ -113,6 +115,10 @@ public final class LodgedInventoryArrowUi {
         if (event.getScreen() instanceof InventoryScreen) {
             resetPreviewRotation();
         }
+    }
+
+    public static int hoveredArrowIndex() {
+        return hoveredArrowIndex;
     }
 
     public static void renderInventoryPlayer(
@@ -204,7 +210,7 @@ public final class LodgedInventoryArrowUi {
         int arrowCount = Math.min(arrows.size(), player.getArrowCount());
         arrowCount = Math.min(arrowCount, LodgedConfig.maxRemovablePlayerArrows());
         for (int index = 0; index < arrowCount; index++) {
-            ArrowHitZone zone = zoneFor(screen, arrows.get(index), index);
+            ArrowHitZone zone = zoneFor(screen, player, arrows.get(index), index, mouseX, mouseY);
             if (zone.contains(mouseX, mouseY)) {
                 return zone;
             }
@@ -212,20 +218,58 @@ public final class LodgedInventoryArrowUi {
         return null;
     }
 
-    private static ArrowHitZone zoneFor(InventoryScreen screen, LodgedArrowVisual arrow, int index) {
-        int left = screen.getGuiLeft();
-        int top = screen.getGuiTop();
-        int centerX = left + ((MODEL_LEFT + MODEL_RIGHT) / 2);
-        double yawRadians = Math.toRadians(yawDegrees);
-        double screenOffsetX = ((double) arrow.modelX() * Math.cos(yawRadians) - (double) arrow.modelZ() * Math.sin(yawRadians)) * MODEL_PIXEL_SCALE;
-        int x = centerX + (int) Math.round(screenOffsetX) - (HIT_ZONE_SIZE / 2);
-        int y = top + MODEL_TOP + (int) Math.round(MODEL_SCREEN_TOP_OFFSET + arrow.modelY() * MODEL_PIXEL_SCALE) - (HIT_ZONE_SIZE / 2);
+    private static ArrowHitZone zoneFor(
+            InventoryScreen screen,
+            LocalPlayer player,
+            LodgedArrowVisual arrow,
+            int index,
+            double mouseX,
+            double mouseY) {
+        Vector3f projected = projectArrowToScreen(screen, player, arrow, mouseX, mouseY);
+        int x = (int) Math.round(projected.x()) - (HIT_ZONE_SIZE / 2);
+        int y = (int) Math.round(projected.y()) - (HIT_ZONE_SIZE / 2);
         return new ArrowHitZone(index, x, y, HIT_ZONE_SIZE);
     }
 
-    private static void renderHover(GuiGraphics guiGraphics, ArrowHitZone zone) {
-        guiGraphics.fill(zone.x(), zone.y(), zone.x() + zone.size(), zone.y() + zone.size(), 0x55FFF1A8);
-        guiGraphics.renderOutline(zone.x(), zone.y(), zone.size(), zone.size(), 0xFFFFF1A8);
+    private static Vector3f projectArrowToScreen(
+            InventoryScreen screen,
+            LocalPlayer player,
+            LodgedArrowVisual arrow,
+            double mouseX,
+            double mouseY) {
+        int left = screen.getGuiLeft();
+        int top = screen.getGuiTop();
+        float centerX = left + ((MODEL_LEFT + MODEL_RIGHT) / 2.0F);
+        float centerY = top + ((MODEL_TOP + MODEL_BOTTOM) / 2.0F);
+        float entityScale = player.getScale();
+        float previewScale = PREVIEW_SCALE / entityScale;
+        float pitchRadians = currentPreviewPitchRadians(centerY, mouseY);
+        float yawRadians = -currentPreviewYawDegrees(centerX, mouseX) * ((float) Math.PI / 180.0F);
+
+        Matrix4f matrix = new Matrix4f()
+                .translation(centerX, centerY, 50.0F)
+                .scale(previewScale, previewScale, -previewScale)
+                .translate(0.0F, (player.getBbHeight() / 2.0F) + (PREVIEW_Y_OFFSET * entityScale), 0.0F)
+                .rotateZ((float) Math.PI)
+                .rotateX(pitchRadians)
+                .scale(entityScale, entityScale, entityScale)
+                .rotateY(yawRadians)
+                .scale(-1.0F, -1.0F, 1.0F)
+                .scale(PLAYER_RENDER_SCALE, PLAYER_RENDER_SCALE, PLAYER_RENDER_SCALE)
+                .translate(0.0F, MODEL_RENDER_Y_OFFSET, 0.0F);
+        return matrix.transformPosition(arrow.modelX(), arrow.modelY(), arrow.modelZ(), new Vector3f());
+    }
+
+    private static float currentPreviewPitchRadians(float centerY, double mouseY) {
+        float pitch = (float) Math.atan((centerY - mouseY) / 40.0F);
+        return pitch * 20.0F * ((float) Math.PI / 180.0F);
+    }
+
+    private static float currentPreviewYawDegrees(float centerX, double mouseX) {
+        if (customYawActive) {
+            return yawDegrees;
+        }
+        return (float) Math.atan((centerX - mouseX) / 40.0F) * 20.0F;
     }
 
     private static boolean isInPlayerPreview(InventoryScreen screen, double mouseX, double mouseY) {
@@ -241,6 +285,7 @@ public final class LodgedInventoryArrowUi {
         yawDegrees = 0.0F;
         draggingPreview = false;
         customYawActive = false;
+        hoveredArrowIndex = -1;
     }
 
     private record ArrowHitZone(int index, int x, int y, int size) {
