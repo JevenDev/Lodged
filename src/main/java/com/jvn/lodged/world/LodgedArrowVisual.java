@@ -97,7 +97,7 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
     }
 
     public LodgedArrowBodyPart bodyPart() {
-        if (modelY <= MODEL_HEAD_BOTTOM) {
+        if (modelY < MODEL_HEAD_BOTTOM) {
             return LodgedArrowBodyPart.HEAD;
         }
 

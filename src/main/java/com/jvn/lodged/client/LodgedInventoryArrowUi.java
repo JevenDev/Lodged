@@ -5,6 +5,7 @@ import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.mixin.client.LevelRendererAccessor;
 import com.jvn.lodged.network.ClientArrowState;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
+import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import java.util.List;
 import net.minecraft.client.Minecraft;
@@ -33,6 +34,7 @@ public final class LodgedInventoryArrowUi {
     private static final float PREVIEW_Y_OFFSET = 0.0625F;
     private static final float PLAYER_RENDER_SCALE = 0.9375F;
     private static final float MODEL_RENDER_Y_OFFSET = -1.501F;
+    private static final float DEGREES_TO_RADIANS = (float) (Math.PI / 180.0D);
 
     private static float yawDegrees;
     private static boolean draggingPreview;
@@ -291,12 +293,31 @@ public final class LodgedInventoryArrowUi {
                 .scale(-1.0F, -1.0F, 1.0F)
                 .scale(PLAYER_RENDER_SCALE, PLAYER_RENDER_SCALE, PLAYER_RENDER_SCALE)
                 .translate(0.0F, MODEL_RENDER_Y_OFFSET, 0.0F);
-        return matrix.transformPosition(arrow.modelX(), arrow.modelY(), arrow.modelZ(), new Vector3f());
+        Vector3f modelPosition = renderModelPosition(arrow, centerX, centerY, mouseX, mouseY);
+        return matrix.transformPosition(modelPosition.x(), modelPosition.y(), modelPosition.z(), new Vector3f());
+    }
+
+    private static Vector3f renderModelPosition(
+            LodgedArrowVisual arrow,
+            float centerX,
+            float centerY,
+            double mouseX,
+            double mouseY) {
+        if (arrow.bodyPart() != LodgedArrowBodyPart.HEAD) {
+            return new Vector3f(arrow.modelX(), arrow.modelY(), arrow.modelZ());
+        }
+
+        return new Matrix4f()
+                .rotate(new Quaternionf().rotationZYX(
+                        0.0F,
+                        currentHeadYawRadians(centerX, mouseX),
+                        currentHeadPitchRadians(centerY, mouseY)))
+                .transformPosition(arrow.modelX(), arrow.modelY(), arrow.modelZ(), new Vector3f());
     }
 
     private static float currentPreviewPitchRadians(float centerY, double mouseY) {
         float pitch = (float) Math.atan((centerY - mouseY) / 40.0F);
-        return pitch * 20.0F * ((float) Math.PI / 180.0F);
+        return pitch * 20.0F * DEGREES_TO_RADIANS;
     }
 
     private static float currentPreviewYawDegrees(float centerX, double mouseX) {
@@ -304,6 +325,17 @@ public final class LodgedInventoryArrowUi {
             return yawDegrees;
         }
         return (float) Math.atan((centerX - mouseX) / 40.0F) * 20.0F;
+    }
+
+    private static float currentHeadYawRadians(float centerX, double mouseX) {
+        if (customYawActive) {
+            return 0.0F;
+        }
+        return (float) Math.atan((centerX - mouseX) / 40.0F) * 20.0F * DEGREES_TO_RADIANS;
+    }
+
+    private static float currentHeadPitchRadians(float centerY, double mouseY) {
+        return -currentPreviewPitchRadians(centerY, mouseY);
     }
 
     private static boolean isInPlayerPreview(InventoryScreen screen, double mouseX, double mouseY) {

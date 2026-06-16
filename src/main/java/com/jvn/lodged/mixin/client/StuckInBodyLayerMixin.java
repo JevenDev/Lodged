@@ -3,6 +3,7 @@ package com.jvn.lodged.mixin.client;
 import com.jvn.lodged.client.LodgedInventoryArrowUi;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.network.ClientArrowState;
+import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.List;
@@ -28,9 +29,6 @@ public abstract class StuckInBodyLayerMixin {
     private static final int HOVER_OUTLINE_GREEN = 241;
     private static final int HOVER_OUTLINE_BLUE = 168;
     private static final int HOVER_OUTLINE_ALPHA = 255;
-    private static final float MODEL_HEAD_BOTTOM = 0.0F;
-    private static final float MODEL_LEG_TOP = 12.0F / 16.0F;
-    private static final float MODEL_BODY_HALF_WIDTH = 4.0F / 16.0F;
 
     @Shadow
     protected abstract void renderStuckItem(
@@ -122,23 +120,13 @@ public abstract class StuckInBodyLayerMixin {
     }
 
     private static ModelPart partFor(PlayerModel<LivingEntity> model, LodgedArrowVisual arrow) {
-        if (arrow.modelY() <= MODEL_HEAD_BOTTOM) {
-            return model.head;
-        }
-
-        if (arrow.modelY() >= MODEL_LEG_TOP) {
-            return arrow.modelX() < 0.0F ? model.rightLeg : model.leftLeg;
-        }
-
-        if (arrow.modelX() < -MODEL_BODY_HALF_WIDTH) {
-            return model.rightArm;
-        }
-
-        if (arrow.modelX() > MODEL_BODY_HALF_WIDTH) {
-            return model.leftArm;
-        }
-
-        return model.body;
+        LodgedArrowBodyPart bodyPart = arrow.bodyPart();
+        return switch (bodyPart) {
+            case HEAD -> model.head;
+            case LEG -> arrow.modelX() < 0.0F ? model.rightLeg : model.leftLeg;
+            case ARM -> arrow.modelX() < 0.0F ? model.rightArm : model.leftArm;
+            case CHEST -> model.body;
+        };
     }
 
     private record ArrowAnchor(ModelPart part, float localX, float localY, float localZ) {
