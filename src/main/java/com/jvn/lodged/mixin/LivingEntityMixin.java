@@ -13,6 +13,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin {
+    private static final int PROTECTED_ARROW_DESPAWN_TIME = Integer.MAX_VALUE;
+    private static final int PROTECTED_ARROW_DESPAWN_TOP_UP_THRESHOLD = Integer.MAX_VALUE / 2;
+
     @Shadow
     public int removeArrowTime;
 
@@ -23,7 +26,9 @@ public abstract class LivingEntityMixin {
             return;
         }
 
-        this.removeArrowTime = Integer.MAX_VALUE;
+        if (this.removeArrowTime < PROTECTED_ARROW_DESPAWN_TOP_UP_THRESHOLD) {
+            this.removeArrowTime = PROTECTED_ARROW_DESPAWN_TIME;
+        }
     }
 
     @Inject(method = "readAdditionalSaveData", at = @At("RETURN"))

@@ -34,12 +34,11 @@ public final class LodgedArrowStorage {
         return arrows;
     }
 
-    public static int count(LivingEntity entity) {
-        return readAll(entity).size();
+    public static int restoreArrowCount(LivingEntity entity) {
+        return restoreArrowCount(entity, storedArrowCount(entity));
     }
 
-    public static int restoreArrowCount(LivingEntity entity) {
-        int arrowCount = count(entity);
+    public static int restoreArrowCount(LivingEntity entity, int arrowCount) {
         if (arrowCount > entity.getArrowCount()) {
             entity.setArrowCount(arrowCount);
         }
@@ -101,5 +100,13 @@ public final class LodgedArrowStorage {
             return persistentData.getList(STORAGE_KEY, Tag.TAG_COMPOUND);
         }
         return new ListTag();
+    }
+
+    private static int storedArrowCount(LivingEntity entity) {
+        CompoundTag persistentData = entity.getPersistentData();
+        if (!persistentData.contains(STORAGE_KEY, Tag.TAG_LIST)) {
+            return 0;
+        }
+        return persistentData.getList(STORAGE_KEY, Tag.TAG_COMPOUND).size();
     }
 }

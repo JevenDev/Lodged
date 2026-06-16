@@ -4,8 +4,10 @@ import com.jvn.lodged.Lodged;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.network.payload.SyncPlayerArrowsPayload;
-import com.jvn.lodged.world.LodgedArrowVisual;
+import com.jvn.lodged.world.LodgedArrowData;
 import com.jvn.lodged.world.LodgedArrowStorage;
+import com.jvn.lodged.world.LodgedArrowVisual;
+import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -32,14 +34,19 @@ public final class LodgedNetwork {
     }
 
     public static void syncPlayerArrows(ServerPlayer player) {
-        LodgedArrowStorage.restoreArrowCount(player);
+        List<LodgedArrowData> storedArrows = LodgedArrowStorage.readAll(player);
+        LodgedArrowStorage.restoreArrowCount(player, storedArrows.size());
         int maxArrows = LodgedConfig.maxRemovablePlayerArrows();
-        List<LodgedArrowVisual> arrows = LodgedArrowStorage.readAll(player)
-                .stream()
-                .limit(maxArrows)
-                .map(arrow -> arrow.visual())
-                .toList();
+        int arrowCount = Math.min(storedArrows.size(), maxArrows);
+        List<LodgedArrowVisual> arrows = new ArrayList<>(arrowCount);
+        for (int index = 0; index < arrowCount; index++) {
+            arrows.add(storedArrows.get(index).visual());
+        }
         PacketDistributor.sendToPlayer(player, new SyncPlayerArrowsPayload(arrows));
+    }
+
+    public static void clearPlayerArrowRemovalCooldown(ServerPlayer player) {
+        PlayerArrowRemoval.clearCooldown(player);
     }
 
     public static ResourceLocation id(String path) {

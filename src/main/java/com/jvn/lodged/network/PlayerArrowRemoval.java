@@ -60,6 +60,10 @@ final class PlayerArrowRemoval {
         LodgedNetwork.syncPlayerArrows(player);
     }
 
+    static void clearCooldown(ServerPlayer player) {
+        LAST_REQUEST_TICK.remove(player.getUUID());
+    }
+
     private static boolean canAttemptRemoval(ServerPlayer player, int arrowIndex) {
         if (!LodgedConfig.enablePlayerArrowRemoval() || !player.isAlive()) {
             return false;
@@ -81,7 +85,7 @@ final class PlayerArrowRemoval {
             return false;
         }
 
-        return arrowIndex < LodgedArrowStorage.count(player);
+        return true;
     }
 
     private static void recoverArrow(Player player, ItemStack storedStack) {

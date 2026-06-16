@@ -120,6 +120,13 @@ public final class LodgedArrowEvents {
     }
 
     @SubscribeEvent
+    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            LodgedNetwork.clearPlayerArrowRemovalCooldown(serverPlayer);
+        }
+    }
+
+    @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
         syncPlayer(event.getEntity());
     }
