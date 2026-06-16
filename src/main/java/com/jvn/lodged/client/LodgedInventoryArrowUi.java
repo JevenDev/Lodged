@@ -4,7 +4,8 @@ import com.jvn.lodged.Lodged;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.network.ClientArrowState;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
-import java.util.Random;
+import com.jvn.lodged.world.LodgedArrowVisual;
+import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -26,6 +27,8 @@ public final class LodgedInventoryArrowUi {
     private static final int MODEL_RIGHT = 75;
     private static final int MODEL_BOTTOM = 78;
     private static final int HIT_ZONE_SIZE = 8;
+    private static final double MODEL_PIXEL_SCALE = 30.0D;
+    private static final double MODEL_SCREEN_TOP_OFFSET = 16.0D;
 
     private static float yawDegrees;
     private static boolean draggingPreview;
@@ -93,7 +96,7 @@ public final class LodgedInventoryArrowUi {
             return;
         }
 
-        yawDegrees += (float) event.getDragX() * 2.0F;
+        yawDegrees -= (float) event.getDragX() * 2.0F;
         event.setCanceled(true);
     }
 
@@ -197,10 +200,11 @@ public final class LodgedInventoryArrowUi {
     }
 
     private static ArrowHitZone findHoveredZone(InventoryScreen screen, LocalPlayer player, double mouseX, double mouseY) {
-        int arrowCount = Math.min(ClientArrowState.removableArrowCount(), player.getArrowCount());
+        List<LodgedArrowVisual> arrows = ClientArrowState.removableArrows();
+        int arrowCount = Math.min(arrows.size(), player.getArrowCount());
         arrowCount = Math.min(arrowCount, LodgedConfig.maxRemovablePlayerArrows());
         for (int index = 0; index < arrowCount; index++) {
-            ArrowHitZone zone = zoneFor(screen, player, index);
+            ArrowHitZone zone = zoneFor(screen, arrows.get(index), index);
             if (zone.contains(mouseX, mouseY)) {
                 return zone;
             }
@@ -208,24 +212,14 @@ public final class LodgedInventoryArrowUi {
         return null;
     }
 
-    private static ArrowHitZone zoneFor(InventoryScreen screen, LocalPlayer player, int index) {
+    private static ArrowHitZone zoneFor(InventoryScreen screen, LodgedArrowVisual arrow, int index) {
         int left = screen.getGuiLeft();
         int top = screen.getGuiTop();
         int centerX = left + ((MODEL_LEFT + MODEL_RIGHT) / 2);
-        Random random = new Random((long) player.getId() * 31L + (long) (index + 1) * 9973L);
-
-        int baseX = random.nextInt(25) - 12;
-        int baseY = 16 + random.nextInt(42);
-        int face = Math.floorMod(random.nextInt(4) + currentQuarterTurns(), 4);
-        int rotatedX = switch (face) {
-            case 1 -> 13 + (baseX / 4);
-            case 2 -> -baseX;
-            case 3 -> -13 + (baseX / 4);
-            default -> baseX;
-        };
-
-        int x = centerX + rotatedX - (HIT_ZONE_SIZE / 2);
-        int y = top + MODEL_TOP + baseY - (HIT_ZONE_SIZE / 2);
+        double yawRadians = Math.toRadians(yawDegrees);
+        double screenOffsetX = ((double) arrow.modelX() * Math.cos(yawRadians) - (double) arrow.modelZ() * Math.sin(yawRadians)) * MODEL_PIXEL_SCALE;
+        int x = centerX + (int) Math.round(screenOffsetX) - (HIT_ZONE_SIZE / 2);
+        int y = top + MODEL_TOP + (int) Math.round(MODEL_SCREEN_TOP_OFFSET + arrow.modelY() * MODEL_PIXEL_SCALE) - (HIT_ZONE_SIZE / 2);
         return new ArrowHitZone(index, x, y, HIT_ZONE_SIZE);
     }
 
@@ -241,10 +235,6 @@ public final class LodgedInventoryArrowUi {
                 && mouseX < left + MODEL_RIGHT
                 && mouseY >= top + MODEL_TOP
                 && mouseY < top + MODEL_BOTTOM;
-    }
-
-    private static int currentQuarterTurns() {
-        return Math.floorMod(Math.round(yawDegrees / 90.0F), 4);
     }
 
     private static void resetPreviewRotation() {

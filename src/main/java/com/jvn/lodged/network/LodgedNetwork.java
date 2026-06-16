@@ -4,7 +4,9 @@ import com.jvn.lodged.Lodged;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.network.payload.SyncPlayerArrowsPayload;
+import com.jvn.lodged.world.LodgedArrowVisual;
 import com.jvn.lodged.world.LodgedArrowStorage;
+import java.util.List;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -12,7 +14,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class LodgedNetwork {
-    private static final String NETWORK_VERSION = "1";
+    private static final String NETWORK_VERSION = "2";
 
     private LodgedNetwork() {
     }
@@ -30,8 +32,13 @@ public final class LodgedNetwork {
     }
 
     public static void syncPlayerArrows(ServerPlayer player) {
-        int arrowCount = Math.min(LodgedArrowStorage.count(player), LodgedConfig.maxRemovablePlayerArrows());
-        PacketDistributor.sendToPlayer(player, new SyncPlayerArrowsPayload(arrowCount));
+        int maxArrows = LodgedConfig.maxRemovablePlayerArrows();
+        List<LodgedArrowVisual> arrows = LodgedArrowStorage.readAll(player)
+                .stream()
+                .limit(maxArrows)
+                .map(arrow -> arrow.visual())
+                .toList();
+        PacketDistributor.sendToPlayer(player, new SyncPlayerArrowsPayload(arrows));
     }
 
     public static ResourceLocation id(String path) {

@@ -4,7 +4,8 @@
   "package": "com.jvn.lodged.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "client.InventoryScreenMixin"
+    "client.InventoryScreenMixin",
+    "client.StuckInBodyLayerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

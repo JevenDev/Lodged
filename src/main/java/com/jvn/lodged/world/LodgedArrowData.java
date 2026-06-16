@@ -4,7 +4,13 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 
-public record LodgedArrowData(ItemStack stack, boolean fromPlayer, boolean infinityGenerated, boolean creativeGenerated, long gameTime) {
+public record LodgedArrowData(
+        ItemStack stack,
+        boolean fromPlayer,
+        boolean infinityGenerated,
+        boolean creativeGenerated,
+        long gameTime,
+        LodgedArrowVisual visual) {
     private static final String STACK_KEY = "stack";
     private static final String FROM_PLAYER_KEY = "from_player";
     private static final String INFINITY_GENERATED_KEY = "infinity_generated";
@@ -18,6 +24,7 @@ public record LodgedArrowData(ItemStack stack, boolean fromPlayer, boolean infin
         tag.putBoolean(INFINITY_GENERATED_KEY, infinityGenerated);
         tag.putBoolean(CREATIVE_GENERATED_KEY, creativeGenerated);
         tag.putLong(GAME_TIME_KEY, gameTime);
+        visual.save(tag);
         return tag;
     }
 
@@ -31,6 +38,7 @@ public record LodgedArrowData(ItemStack stack, boolean fromPlayer, boolean infin
                 tag.getBoolean(FROM_PLAYER_KEY),
                 tag.getBoolean(INFINITY_GENERATED_KEY),
                 tag.getBoolean(CREATIVE_GENERATED_KEY),
-                tag.getLong(GAME_TIME_KEY));
+                tag.getLong(GAME_TIME_KEY),
+                LodgedArrowVisual.load(tag));
     }
 }

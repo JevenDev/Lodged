@@ -69,7 +69,8 @@ public final class LodgedArrowEvents {
                 fromPlayer,
                 infinityGenerated,
                 creativeGenerated,
-                target.level().getGameTime()));
+                target.level().getGameTime(),
+                LodgedArrowVisual.fromImpact(target, arrow, hitResult.getLocation())));
 
         if (target instanceof ServerPlayer player) {
             LodgedNetwork.syncPlayerArrows(player);
