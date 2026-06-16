@@ -14,6 +14,12 @@ public final class LodgedConfig {
     private static final ModConfigSpec.BooleanValue RECOVER_INFINITY_ARROWS;
     private static final ModConfigSpec.BooleanValue RECOVER_CREATIVE_ARROWS;
     private static final ModConfigSpec.BooleanValue PRESERVE_ARROW_ITEM_STACK;
+    private static final ModConfigSpec.BooleanValue ENABLE_PLAYER_ARROW_REMOVAL;
+    private static final ModConfigSpec.DoubleValue PLAYER_ARROW_REMOVAL_RECOVER_CHANCE;
+    private static final ModConfigSpec.DoubleValue PLAYER_ARROW_REMOVAL_BREAK_DAMAGE;
+    private static final ModConfigSpec.BooleanValue ALLOW_ARROW_REMOVAL_IN_CREATIVE;
+    private static final ModConfigSpec.BooleanValue REQUIRE_INVENTORY_SCREEN_FOR_REMOVAL;
+    private static final ModConfigSpec.IntValue MAX_REMOVABLE_PLAYER_ARROWS;
     private static final ModConfigSpec.ConfigValue<List<? extends String>> ENTITY_DENYLIST;
 
     static {
@@ -55,6 +61,36 @@ public final class LodgedConfig {
                 .comment("If true, store the original arrow ItemStack so spectral and tipped arrow data can be recovered.")
                 .translation("lodged.configuration.preserveArrowItemStack")
                 .define("preserveArrowItemStack", true);
+
+        ENABLE_PLAYER_ARROW_REMOVAL = builder
+                .comment("If true, players can remove arrows lodged in their own body from the inventory player preview.")
+                .translation("lodged.configuration.enablePlayerArrowRemoval")
+                .define("enablePlayerArrowRemoval", true);
+
+        PLAYER_ARROW_REMOVAL_RECOVER_CHANCE = builder
+                .comment("Chance that a successfully removed player arrow is recovered as an item. Values are clamped from 0.0 to 1.0.")
+                .translation("lodged.configuration.playerArrowRemovalRecoverChance")
+                .defineInRange("playerArrowRemovalRecoverChance", 0.75D, 0.0D, 1.0D);
+
+        PLAYER_ARROW_REMOVAL_BREAK_DAMAGE = builder
+                .comment("Damage dealt when player arrow removal fails and breaks the arrow. Damage is in half-hearts, so 2.0 equals one heart.")
+                .translation("lodged.configuration.playerArrowRemovalBreakDamage")
+                .defineInRange("playerArrowRemovalBreakDamage", 2.0D, 0.0D, 20.0D);
+
+        ALLOW_ARROW_REMOVAL_IN_CREATIVE = builder
+                .comment("If true, creative-mode players may remove arrows lodged in their own body.")
+                .translation("lodged.configuration.allowArrowRemovalInCreative")
+                .define("allowArrowRemovalInCreative", true);
+
+        REQUIRE_INVENTORY_SCREEN_FOR_REMOVAL = builder
+                .comment("If true, removal requests are only accepted while the player is in their own inventory menu.")
+                .translation("lodged.configuration.requireInventoryScreenForRemoval")
+                .define("requireInventoryScreenForRemoval", true);
+
+        MAX_REMOVABLE_PLAYER_ARROWS = builder
+                .comment("Maximum player lodged arrows exposed to the inventory removal UI. Set to 0 to follow maxTrackedArrowsPerEntity.")
+                .translation("lodged.configuration.maxRemovablePlayerArrows")
+                .defineInRange("maxRemovablePlayerArrows", 0, 0, 64);
 
         ENTITY_DENYLIST = builder
                 .comment("Entity type ids that should never track or drop lodged arrows.")
@@ -98,6 +134,31 @@ public final class LodgedConfig {
 
     public static boolean preserveArrowItemStack() {
         return PRESERVE_ARROW_ITEM_STACK.get();
+    }
+
+    public static boolean enablePlayerArrowRemoval() {
+        return ENABLE_PLAYER_ARROW_REMOVAL.get();
+    }
+
+    public static double playerArrowRemovalRecoverChance() {
+        return PLAYER_ARROW_REMOVAL_RECOVER_CHANCE.get();
+    }
+
+    public static float playerArrowRemovalBreakDamage() {
+        return PLAYER_ARROW_REMOVAL_BREAK_DAMAGE.get().floatValue();
+    }
+
+    public static boolean allowArrowRemovalInCreative() {
+        return ALLOW_ARROW_REMOVAL_IN_CREATIVE.get();
+    }
+
+    public static boolean requireInventoryScreenForRemoval() {
+        return REQUIRE_INVENTORY_SCREEN_FOR_REMOVAL.get();
+    }
+
+    public static int maxRemovablePlayerArrows() {
+        int configuredMax = MAX_REMOVABLE_PLAYER_ARROWS.get();
+        return configuredMax > 0 ? configuredMax : maxTrackedArrowsPerEntity();
     }
 
     public static List<? extends String> entityDenylist() {

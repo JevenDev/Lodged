@@ -4,7 +4,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 
-record LodgedArrowData(ItemStack stack, boolean fromPlayer, boolean infinityGenerated, boolean creativeGenerated, long gameTime) {
+public record LodgedArrowData(ItemStack stack, boolean fromPlayer, boolean infinityGenerated, boolean creativeGenerated, long gameTime) {
     private static final String STACK_KEY = "stack";
     private static final String FROM_PLAYER_KEY = "from_player";
     private static final String INFINITY_GENERATED_KEY = "infinity_generated";

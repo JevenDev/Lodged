@@ -1,9 +1,11 @@
 package com.jvn.lodged.world;
 
 import com.jvn.lodged.config.LodgedConfig;
+import com.jvn.lodged.network.LodgedNetwork;
 import java.util.List;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -17,6 +19,7 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.ProjectileImpactEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 
 public final class LodgedArrowEvents {
     private LodgedArrowEvents() {
@@ -43,10 +46,6 @@ public final class LodgedArrowEvents {
 
         Entity owner = arrow.getOwner();
         boolean fromPlayer = owner instanceof Player;
-        if (LodgedConfig.recoverPlayerArrowsOnly() && !fromPlayer) {
-            return;
-        }
-
         boolean creativeGenerated = owner instanceof Player player
                 && player.getAbilities().instabuild
                 && arrow.pickup == AbstractArrow.Pickup.CREATIVE_ONLY;
@@ -54,11 +53,9 @@ public final class LodgedArrowEvents {
                 && !creativeGenerated
                 && arrow.pickup == AbstractArrow.Pickup.CREATIVE_ONLY;
 
-        if (infinityGenerated && !LodgedConfig.recoverInfinityArrows()) {
-            return;
-        }
-
-        if (creativeGenerated && !LodgedConfig.recoverCreativeArrows()) {
+        boolean trackForDeathRecovery = canRecoverOnDeath(fromPlayer, infinityGenerated, creativeGenerated);
+        boolean trackForPlayerRemoval = target instanceof Player && LodgedConfig.enablePlayerArrowRemoval();
+        if (!trackForDeathRecovery && !trackForPlayerRemoval) {
             return;
         }
 
@@ -73,6 +70,10 @@ public final class LodgedArrowEvents {
                 infinityGenerated,
                 creativeGenerated,
                 target.level().getGameTime()));
+
+        if (target instanceof ServerPlayer player) {
+            LodgedNetwork.syncPlayerArrows(player);
+        }
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -83,6 +84,10 @@ public final class LodgedArrowEvents {
 
         LivingEntity entity = event.getEntity();
         List<LodgedArrowData> lodgedArrows = LodgedArrowStorage.removeAll(entity);
+        if (entity instanceof ServerPlayer player) {
+            LodgedNetwork.syncPlayerArrows(player);
+        }
+
         if (lodgedArrows.isEmpty() || !LodgedConfig.enableArrowRecovery()) {
             return;
         }
@@ -93,6 +98,10 @@ public final class LodgedArrowEvents {
         }
 
         for (LodgedArrowData lodgedArrow : lodgedArrows) {
+            if (!canRecoverOnDeath(lodgedArrow)) {
+                continue;
+            }
+
             ItemStack stack = lodgedArrow.stack();
             if (stack.isEmpty()) {
                 continue;
@@ -104,10 +113,50 @@ public final class LodgedArrowEvents {
         }
     }
 
+    @SubscribeEvent
+    public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        syncPlayer(event.getEntity());
+    }
+
+    @SubscribeEvent
+    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        syncPlayer(event.getEntity());
+    }
+
+    @SubscribeEvent
+    public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        syncPlayer(event.getEntity());
+    }
+
     private static boolean canTrack(LivingEntity target) {
-        return LodgedConfig.enableArrowRecovery()
-                && LodgedConfig.maxTrackedArrowsPerEntity() > 0
+        return LodgedConfig.maxTrackedArrowsPerEntity() > 0
                 && !isDeniedEntity(target);
+    }
+
+    private static boolean canRecoverOnDeath(LodgedArrowData lodgedArrow) {
+        return canRecoverOnDeath(lodgedArrow.fromPlayer(), lodgedArrow.infinityGenerated(), lodgedArrow.creativeGenerated());
+    }
+
+    private static boolean canRecoverOnDeath(boolean fromPlayer, boolean infinityGenerated, boolean creativeGenerated) {
+        if (!LodgedConfig.enableArrowRecovery()) {
+            return false;
+        }
+
+        if (LodgedConfig.recoverPlayerArrowsOnly() && !fromPlayer) {
+            return false;
+        }
+
+        if (infinityGenerated && !LodgedConfig.recoverInfinityArrows()) {
+            return false;
+        }
+
+        return !creativeGenerated || LodgedConfig.recoverCreativeArrows();
+    }
+
+    private static void syncPlayer(Player player) {
+        if (player instanceof ServerPlayer serverPlayer) {
+            LodgedNetwork.syncPlayerArrows(serverPlayer);
+        }
     }
 
     private static boolean isDeniedEntity(LivingEntity entity) {

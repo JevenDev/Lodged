@@ -2,6 +2,7 @@ package com.jvn.lodged;
 
 import com.mojang.logging.LogUtils;
 import com.jvn.lodged.config.LodgedConfig;
+import com.jvn.lodged.network.LodgedNetwork;
 import com.jvn.lodged.world.LodgedArrowEvents;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -17,6 +18,7 @@ public final class Lodged {
 
     public Lodged(IEventBus modEventBus, ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.COMMON, LodgedConfig.SPEC);
+        modEventBus.addListener(LodgedNetwork::registerPayloads);
         NeoForge.EVENT_BUS.register(LodgedArrowEvents.class);
     }
 }

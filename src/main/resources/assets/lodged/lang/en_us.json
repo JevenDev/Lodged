@@ -6,5 +6,11 @@
   "lodged.configuration.recoverInfinityArrows": "Recover Infinity arrows",
   "lodged.configuration.recoverCreativeArrows": "Recover creative arrows",
   "lodged.configuration.preserveArrowItemStack": "Preserve arrow item stack",
+  "lodged.configuration.enablePlayerArrowRemoval": "Enable player arrow removal",
+  "lodged.configuration.playerArrowRemovalRecoverChance": "Player arrow removal recover chance",
+  "lodged.configuration.playerArrowRemovalBreakDamage": "Player arrow removal break damage",
+  "lodged.configuration.allowArrowRemovalInCreative": "Allow arrow removal in Creative",
+  "lodged.configuration.requireInventoryScreenForRemoval": "Require inventory screen for removal",
+  "lodged.configuration.maxRemovablePlayerArrows": "Max removable player arrows",
   "lodged.configuration.entityDenylist": "Entity denylist"
 }
