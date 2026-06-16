@@ -7,6 +7,7 @@ import com.jvn.lodged.network.ClientArrowState;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowVisual;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -39,7 +40,6 @@ public final class LodgedInventoryArrowUi {
     private static float yawDegrees;
     private static boolean draggingPreview;
     private static boolean customYawActive;
-    private static boolean outlineRendered;
     private static int hoveredArrowIndex = -1;
 
     private LodgedInventoryArrowUi() {
@@ -60,29 +60,6 @@ public final class LodgedInventoryArrowUi {
 
         ArrowHitZone hoveredZone = findHoveredZone(screen, player, event.getMouseX(), event.getMouseY());
         hoveredArrowIndex = hoveredZone == null ? -1 : hoveredZone.index();
-    }
-
-    @SubscribeEvent
-    public static void onScreenRenderPost(ScreenEvent.Render.Post event) {
-        if (!outlineRendered || !(event.getScreen() instanceof InventoryScreen)) {
-            outlineRendered = false;
-            return;
-        }
-
-        outlineRendered = false;
-        Minecraft minecraft = Minecraft.getInstance();
-        if (!minecraft.levelRenderer.shouldShowEntityOutlines()) {
-            return;
-        }
-
-        PostChain entityEffect = ((LevelRendererAccessor) minecraft.levelRenderer).lodged$getEntityEffect();
-        if (entityEffect == null) {
-            return;
-        }
-
-        entityEffect.process(0.0F);
-        minecraft.getMainRenderTarget().bindWrite(false);
-        minecraft.levelRenderer.doEntityOutline();
     }
 
     @SubscribeEvent
@@ -149,8 +126,32 @@ public final class LodgedInventoryArrowUi {
         return hoveredArrowIndex;
     }
 
-    public static void markOutlineRendered() {
-        outlineRendered = true;
+    public static boolean prepareArrowOutlineTarget() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (!minecraft.levelRenderer.shouldShowEntityOutlines()) {
+            return false;
+        }
+
+        RenderTarget entityTarget = minecraft.levelRenderer.entityTarget();
+        if (entityTarget == null) {
+            return false;
+        }
+
+        entityTarget.clear(Minecraft.ON_OSX);
+        entityTarget.bindWrite(false);
+        return true;
+    }
+
+    public static void processArrowOutlineTarget() {
+        Minecraft minecraft = Minecraft.getInstance();
+        PostChain entityEffect = ((LevelRendererAccessor) minecraft.levelRenderer).lodged$getEntityEffect();
+        if (entityEffect == null) {
+            return;
+        }
+
+        entityEffect.process(0.0F);
+        minecraft.getMainRenderTarget().bindWrite(false);
+        minecraft.levelRenderer.doEntityOutline();
     }
 
     public static void renderInventoryPlayer(

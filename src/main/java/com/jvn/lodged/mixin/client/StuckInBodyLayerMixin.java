@@ -5,6 +5,7 @@ import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.network.ClientArrowState;
 import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowVisual;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.List;
 import net.minecraft.client.Minecraft;
@@ -25,10 +26,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(StuckInBodyLayer.class)
 public abstract class StuckInBodyLayerMixin {
-    private static final int HOVER_OUTLINE_RED = 255;
-    private static final int HOVER_OUTLINE_GREEN = 241;
-    private static final int HOVER_OUTLINE_BLUE = 168;
-    private static final int HOVER_OUTLINE_ALPHA = 255;
+    private static final int HOVER_HIGHLIGHT_RED = 255;
+    private static final int HOVER_HIGHLIGHT_GREEN = 241;
+    private static final int HOVER_HIGHLIGHT_BLUE = 168;
+    private static final int HOVER_HIGHLIGHT_ALPHA = 255;
+    private static final int HOVER_OUTLINE_BUFFER_SIZE = 1536;
 
     @Shadow
     protected abstract void renderStuckItem(
@@ -79,32 +81,49 @@ public abstract class StuckInBodyLayerMixin {
             ArrowAnchor anchor = anchorFor(lodged$getParentModel(), arrow);
             anchor.part().translateAndRotate(poseStack);
             poseStack.translate(anchor.localX(), anchor.localY(), anchor.localZ());
-            OutlineBufferSource outlineBuffer = createOutlineBuffer(buffer, highlighted);
-            this.renderStuckItem(
-                    poseStack,
-                    outlineBuffer == null ? buffer : outlineBuffer,
-                    packedLight,
-                    livingEntity,
-                    arrow.directionX(),
-                    arrow.directionY(),
-                    arrow.directionZ(),
-                    partialTicks);
-            if (outlineBuffer != null) {
-                outlineBuffer.endOutlineBatch();
+            renderArrow(poseStack, buffer, packedLight, livingEntity, arrow, partialTicks);
+            if (highlighted) {
+                renderHoverOutline(poseStack, packedLight, livingEntity, arrow, partialTicks);
             }
             poseStack.popPose();
         }
     }
 
-    private static OutlineBufferSource createOutlineBuffer(MultiBufferSource buffer, boolean highlighted) {
-        if (!highlighted || !(buffer instanceof MultiBufferSource.BufferSource bufferSource)) {
-            return null;
+    private void renderHoverOutline(
+            PoseStack poseStack,
+            int packedLight,
+            LivingEntity livingEntity,
+            LodgedArrowVisual arrow,
+            float partialTicks) {
+        if (!LodgedInventoryArrowUi.prepareArrowOutlineTarget()) {
+            return;
         }
 
-        OutlineBufferSource outlineBuffer = new OutlineBufferSource(bufferSource);
-        outlineBuffer.setColor(HOVER_OUTLINE_RED, HOVER_OUTLINE_GREEN, HOVER_OUTLINE_BLUE, HOVER_OUTLINE_ALPHA);
-        LodgedInventoryArrowUi.markOutlineRendered();
-        return outlineBuffer;
+        MultiBufferSource.BufferSource delegate = MultiBufferSource.immediate(new ByteBufferBuilder(HOVER_OUTLINE_BUFFER_SIZE));
+        OutlineBufferSource outlineBuffer = new OutlineBufferSource(delegate);
+        outlineBuffer.setColor(HOVER_HIGHLIGHT_RED, HOVER_HIGHLIGHT_GREEN, HOVER_HIGHLIGHT_BLUE, HOVER_HIGHLIGHT_ALPHA);
+        renderArrow(poseStack, outlineBuffer, packedLight, livingEntity, arrow, partialTicks);
+        outlineBuffer.endOutlineBatch();
+        Minecraft.getInstance().getMainRenderTarget().bindWrite(false);
+        LodgedInventoryArrowUi.processArrowOutlineTarget();
+    }
+
+    private void renderArrow(
+            PoseStack poseStack,
+            MultiBufferSource buffer,
+            int packedLight,
+            LivingEntity livingEntity,
+            LodgedArrowVisual arrow,
+            float partialTicks) {
+        this.renderStuckItem(
+                poseStack,
+                buffer,
+                packedLight,
+                livingEntity,
+                arrow.directionX(),
+                arrow.directionY(),
+                arrow.directionZ(),
+                partialTicks);
     }
 
     @SuppressWarnings("unchecked")
