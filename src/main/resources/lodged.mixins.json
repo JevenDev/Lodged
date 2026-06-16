@@ -8,6 +8,7 @@
   ],
   "client": [
     "client.InventoryScreenMixin",
+    "client.LevelRendererAccessor",
     "client.StuckInBodyLayerMixin"
   ],
   "injectors": {

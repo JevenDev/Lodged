@@ -2,6 +2,7 @@ package com.jvn.lodged.client;
 
 import com.jvn.lodged.Lodged;
 import com.jvn.lodged.config.LodgedConfig;
+import com.jvn.lodged.mixin.client.LevelRendererAccessor;
 import com.jvn.lodged.network.ClientArrowState;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.world.LodgedArrowVisual;
@@ -10,6 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.PostChain;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -26,7 +28,7 @@ public final class LodgedInventoryArrowUi {
     private static final int MODEL_TOP = 8;
     private static final int MODEL_RIGHT = 75;
     private static final int MODEL_BOTTOM = 78;
-    private static final int HIT_ZONE_SIZE = 8;
+    private static final int HIT_ZONE_RADIUS = 12;
     private static final float PREVIEW_SCALE = 30.0F;
     private static final float PREVIEW_Y_OFFSET = 0.0625F;
     private static final float PLAYER_RENDER_SCALE = 0.9375F;
@@ -35,6 +37,7 @@ public final class LodgedInventoryArrowUi {
     private static float yawDegrees;
     private static boolean draggingPreview;
     private static boolean customYawActive;
+    private static boolean outlineRendered;
     private static int hoveredArrowIndex = -1;
 
     private LodgedInventoryArrowUi() {
@@ -55,6 +58,29 @@ public final class LodgedInventoryArrowUi {
 
         ArrowHitZone hoveredZone = findHoveredZone(screen, player, event.getMouseX(), event.getMouseY());
         hoveredArrowIndex = hoveredZone == null ? -1 : hoveredZone.index();
+    }
+
+    @SubscribeEvent
+    public static void onScreenRenderPost(ScreenEvent.Render.Post event) {
+        if (!outlineRendered || !(event.getScreen() instanceof InventoryScreen)) {
+            outlineRendered = false;
+            return;
+        }
+
+        outlineRendered = false;
+        Minecraft minecraft = Minecraft.getInstance();
+        if (!minecraft.levelRenderer.shouldShowEntityOutlines()) {
+            return;
+        }
+
+        PostChain entityEffect = ((LevelRendererAccessor) minecraft.levelRenderer).lodged$getEntityEffect();
+        if (entityEffect == null) {
+            return;
+        }
+
+        entityEffect.process(0.0F);
+        minecraft.getMainRenderTarget().bindWrite(false);
+        minecraft.levelRenderer.doEntityOutline();
     }
 
     @SubscribeEvent
@@ -119,6 +145,10 @@ public final class LodgedInventoryArrowUi {
 
     public static int hoveredArrowIndex() {
         return hoveredArrowIndex;
+    }
+
+    public static void markOutlineRendered() {
+        outlineRendered = true;
     }
 
     public static void renderInventoryPlayer(
@@ -209,13 +239,19 @@ public final class LodgedInventoryArrowUi {
         List<LodgedArrowVisual> arrows = ClientArrowState.removableArrows();
         int arrowCount = Math.min(arrows.size(), player.getArrowCount());
         arrowCount = Math.min(arrowCount, LodgedConfig.maxRemovablePlayerArrows());
+        ArrowHitZone closestZone = null;
+        double closestDistance = Double.MAX_VALUE;
         for (int index = 0; index < arrowCount; index++) {
             ArrowHitZone zone = zoneFor(screen, player, arrows.get(index), index, mouseX, mouseY);
             if (zone.contains(mouseX, mouseY)) {
-                return zone;
+                double distance = zone.distanceToSqr(mouseX, mouseY);
+                if (distance < closestDistance) {
+                    closestZone = zone;
+                    closestDistance = distance;
+                }
             }
         }
-        return null;
+        return closestZone;
     }
 
     private static ArrowHitZone zoneFor(
@@ -226,9 +262,7 @@ public final class LodgedInventoryArrowUi {
             double mouseX,
             double mouseY) {
         Vector3f projected = projectArrowToScreen(screen, player, arrow, mouseX, mouseY);
-        int x = (int) Math.round(projected.x()) - (HIT_ZONE_SIZE / 2);
-        int y = (int) Math.round(projected.y()) - (HIT_ZONE_SIZE / 2);
-        return new ArrowHitZone(index, x, y, HIT_ZONE_SIZE);
+        return new ArrowHitZone(index, projected.x(), projected.y(), HIT_ZONE_RADIUS);
     }
 
     private static Vector3f projectArrowToScreen(
@@ -288,9 +322,15 @@ public final class LodgedInventoryArrowUi {
         hoveredArrowIndex = -1;
     }
 
-    private record ArrowHitZone(int index, int x, int y, int size) {
+    private record ArrowHitZone(int index, float centerX, float centerY, int radius) {
         boolean contains(double mouseX, double mouseY) {
-            return mouseX >= x && mouseX < x + size && mouseY >= y && mouseY < y + size;
+            return distanceToSqr(mouseX, mouseY) <= radius * radius;
+        }
+
+        double distanceToSqr(double mouseX, double mouseY) {
+            double deltaX = mouseX - centerX;
+            double deltaY = mouseY - centerY;
+            return (deltaX * deltaX) + (deltaY * deltaY);
         }
     }
 }

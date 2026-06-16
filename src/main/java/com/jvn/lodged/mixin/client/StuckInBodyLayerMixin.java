@@ -5,16 +5,15 @@ import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.network.ClientArrowState;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import java.util.List;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.model.PlayerModel;
+import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.OutlineBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.layers.ArrowLayer;
 import net.minecraft.client.renderer.entity.layers.StuckInBodyLayer;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -29,10 +28,9 @@ public abstract class StuckInBodyLayerMixin {
     private static final int HOVER_OUTLINE_GREEN = 241;
     private static final int HOVER_OUTLINE_BLUE = 168;
     private static final int HOVER_OUTLINE_ALPHA = 255;
-    private static final float HOVER_OUTLINE_RED_FLOAT = HOVER_OUTLINE_RED / 255.0F;
-    private static final float HOVER_OUTLINE_GREEN_FLOAT = HOVER_OUTLINE_GREEN / 255.0F;
-    private static final float HOVER_OUTLINE_BLUE_FLOAT = HOVER_OUTLINE_BLUE / 255.0F;
-    private static final float ARROW_RENDER_SCALE = 0.05625F;
+    private static final float MODEL_HEAD_BOTTOM = 0.0F;
+    private static final float MODEL_LEG_TOP = 12.0F / 16.0F;
+    private static final float MODEL_BODY_HALF_WIDTH = 4.0F / 16.0F;
 
     @Shadow
     protected abstract void renderStuckItem(
@@ -77,7 +75,9 @@ public abstract class StuckInBodyLayerMixin {
             LodgedArrowVisual arrow = arrows.get(index);
             boolean highlighted = index == hoveredArrowIndex;
             poseStack.pushPose();
-            poseStack.translate(arrow.modelX(), arrow.modelY(), arrow.modelZ());
+            ArrowAnchor anchor = anchorFor(lodged$getParentModel(), arrow);
+            anchor.part().translateAndRotate(poseStack);
+            poseStack.translate(anchor.localX(), anchor.localY(), anchor.localZ());
             OutlineBufferSource outlineBuffer = createOutlineBuffer(buffer, highlighted);
             this.renderStuckItem(
                     poseStack,
@@ -91,9 +91,6 @@ public abstract class StuckInBodyLayerMixin {
             if (outlineBuffer != null) {
                 outlineBuffer.endOutlineBatch();
             }
-            if (highlighted) {
-                renderArrowLineOutline(poseStack, buffer, arrow);
-            }
             poseStack.popPose();
         }
     }
@@ -105,33 +102,45 @@ public abstract class StuckInBodyLayerMixin {
 
         OutlineBufferSource outlineBuffer = new OutlineBufferSource(bufferSource);
         outlineBuffer.setColor(HOVER_OUTLINE_RED, HOVER_OUTLINE_GREEN, HOVER_OUTLINE_BLUE, HOVER_OUTLINE_ALPHA);
+        LodgedInventoryArrowUi.markOutlineRendered();
         return outlineBuffer;
     }
 
-    private static void renderArrowLineOutline(PoseStack poseStack, MultiBufferSource buffer, LodgedArrowVisual arrow) {
-        float horizontalLength = Mth.sqrt((arrow.directionX() * arrow.directionX()) + (arrow.directionZ() * arrow.directionZ()));
-        float yRot = (float) (Math.atan2(arrow.directionX(), arrow.directionZ()) * 180.0F / Math.PI);
-        float xRot = (float) (Math.atan2(arrow.directionY(), horizontalLength) * 180.0F / Math.PI);
+    @SuppressWarnings("unchecked")
+    private PlayerModel<LivingEntity> lodged$getParentModel() {
+        return ((StuckInBodyLayer<LivingEntity, PlayerModel<LivingEntity>>) (Object) this).getParentModel();
+    }
 
-        poseStack.pushPose();
-        poseStack.mulPose(Axis.YP.rotationDegrees(yRot - 90.0F));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(xRot));
-        poseStack.mulPose(Axis.XP.rotationDegrees(45.0F));
-        poseStack.scale(ARROW_RENDER_SCALE, ARROW_RENDER_SCALE, ARROW_RENDER_SCALE);
-        poseStack.translate(-4.0F, 0.0F, 0.0F);
-        LevelRenderer.renderLineBox(
-                poseStack,
-                buffer.getBuffer(RenderType.lines()),
-                -8.75D,
-                -2.75D,
-                -2.75D,
-                8.75D,
-                2.75D,
-                2.75D,
-                HOVER_OUTLINE_RED_FLOAT,
-                HOVER_OUTLINE_GREEN_FLOAT,
-                HOVER_OUTLINE_BLUE_FLOAT,
-                1.0F);
-        poseStack.popPose();
+    private static ArrowAnchor anchorFor(PlayerModel<LivingEntity> model, LodgedArrowVisual arrow) {
+        ModelPart part = partFor(model, arrow);
+        PartPose initialPose = part.getInitialPose();
+        return new ArrowAnchor(
+                part,
+                arrow.modelX() - (initialPose.x / 16.0F),
+                arrow.modelY() - (initialPose.y / 16.0F),
+                arrow.modelZ() - (initialPose.z / 16.0F));
+    }
+
+    private static ModelPart partFor(PlayerModel<LivingEntity> model, LodgedArrowVisual arrow) {
+        if (arrow.modelY() <= MODEL_HEAD_BOTTOM) {
+            return model.head;
+        }
+
+        if (arrow.modelY() >= MODEL_LEG_TOP) {
+            return arrow.modelX() < 0.0F ? model.rightLeg : model.leftLeg;
+        }
+
+        if (arrow.modelX() < -MODEL_BODY_HALF_WIDTH) {
+            return model.rightArm;
+        }
+
+        if (arrow.modelX() > MODEL_BODY_HALF_WIDTH) {
+            return model.leftArm;
+        }
+
+        return model.body;
+    }
+
+    private record ArrowAnchor(ModelPart part, float localX, float localY, float localZ) {
     }
 }

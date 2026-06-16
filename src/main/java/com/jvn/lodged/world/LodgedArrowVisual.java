@@ -8,6 +8,8 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 
 public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float directionX, float directionY, float directionZ) {
@@ -17,18 +19,30 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
     private static final String DIRECTION_X_KEY = "visual_direction_x";
     private static final String DIRECTION_Y_KEY = "visual_direction_y";
     private static final String DIRECTION_Z_KEY = "visual_direction_z";
-    private static final float MODEL_HEIGHT = 24.0F / 16.0F;
-    private static final float MODEL_HALF_WIDTH = 6.0F / 16.0F;
-    private static final float MODEL_HALF_DEPTH = 5.0F / 16.0F;
-    private static final float HEAD_MAX_MODEL_Y = 0.42F;
-    private static final float LEG_MIN_MODEL_Y = 0.95F;
-    private static final float ARM_MIN_ABS_MODEL_X = 0.27F;
+    private static final float MODEL_HEAD_TOP = -8.0F / 16.0F;
+    private static final float MODEL_HEAD_BOTTOM = 0.0F;
+    private static final float MODEL_LEG_TOP = 12.0F / 16.0F;
+    private static final float MODEL_FEET_Y = 24.0F / 16.0F;
+    private static final float MODEL_TOTAL_HEIGHT = MODEL_FEET_Y - MODEL_HEAD_TOP;
+    private static final float MODEL_HEAD_HALF_WIDTH = 4.0F / 16.0F;
+    private static final float MODEL_BODY_HALF_WIDTH = 4.0F / 16.0F;
+    private static final float MODEL_ARM_OUTER_X = 8.0F / 16.0F;
+    private static final float MODEL_LIMB_HALF_DEPTH = 2.0F / 16.0F;
+    private static final ModelBox[] HUMANOID_MODEL_BOXES = {
+            new ModelBox(-MODEL_HEAD_HALF_WIDTH, MODEL_HEAD_TOP, -MODEL_HEAD_HALF_WIDTH, MODEL_HEAD_HALF_WIDTH, MODEL_HEAD_BOTTOM, MODEL_HEAD_HALF_WIDTH),
+            new ModelBox(-MODEL_BODY_HALF_WIDTH, MODEL_HEAD_BOTTOM, -MODEL_LIMB_HALF_DEPTH, MODEL_BODY_HALF_WIDTH, MODEL_LEG_TOP, MODEL_LIMB_HALF_DEPTH),
+            new ModelBox(-MODEL_ARM_OUTER_X, MODEL_HEAD_BOTTOM, -MODEL_LIMB_HALF_DEPTH, -MODEL_BODY_HALF_WIDTH, MODEL_LEG_TOP, MODEL_LIMB_HALF_DEPTH),
+            new ModelBox(MODEL_BODY_HALF_WIDTH, MODEL_HEAD_BOTTOM, -MODEL_LIMB_HALF_DEPTH, MODEL_ARM_OUTER_X, MODEL_LEG_TOP, MODEL_LIMB_HALF_DEPTH),
+            new ModelBox((-1.9F - 2.0F) / 16.0F, MODEL_LEG_TOP, -MODEL_LIMB_HALF_DEPTH, (-1.9F + 2.0F) / 16.0F, MODEL_FEET_Y, MODEL_LIMB_HALF_DEPTH),
+            new ModelBox((1.9F - 2.0F) / 16.0F, MODEL_LEG_TOP, -MODEL_LIMB_HALF_DEPTH, (1.9F + 2.0F) / 16.0F, MODEL_FEET_Y, MODEL_LIMB_HALF_DEPTH)
+    };
     private static final float MIN_DIRECTION_LENGTH = 1.0E-4F;
+    private static final double VANILLA_ENTITY_PICK_MARGIN = 0.3D;
 
     public static final LodgedArrowVisual DEFAULT = new LodgedArrowVisual(
             0.0F,
-            MODEL_HEIGHT * 0.5F,
-            -MODEL_HALF_DEPTH,
+            (MODEL_HEAD_BOTTOM + MODEL_LEG_TOP) * 0.5F,
+            -MODEL_LIMB_HALF_DEPTH,
             0.0F,
             0.0F,
             1.0F);
@@ -48,32 +62,35 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
             LodgedArrowVisual::directionZ,
             LodgedArrowVisual::new);
 
-    public static LodgedArrowVisual fromImpact(LivingEntity target, AbstractArrow arrow, Vec3 hitLocation) {
+    public static LodgedArrowVisual fromImpact(LivingEntity target, AbstractArrow arrow, EntityHitResult hitResult) {
         BodyAxes axes = BodyAxes.of(target.yBodyRot);
-        Vec3 relativeHit = hitLocation.subtract(target.getX(), target.getY(), target.getZ());
-        float halfWidth = Math.max(target.getBbWidth() * 0.5F, 0.1F);
-        float modelX = (float) Mth.clamp(
-                -relativeHit.dot(axes.right()) / halfWidth * MODEL_HALF_WIDTH,
-                -MODEL_HALF_WIDTH,
-                MODEL_HALF_WIDTH);
-        float modelY = (float) Mth.clamp(
-                MODEL_HEIGHT - (relativeHit.y / Math.max(target.getBbHeight(), 0.1F)) * MODEL_HEIGHT,
-                0.05F,
-                MODEL_HEIGHT - 0.05F);
-        float modelZ = (float) Mth.clamp(
-                -relativeHit.dot(axes.forward()) / halfWidth * MODEL_HALF_DEPTH,
-                -MODEL_HALF_DEPTH,
-                MODEL_HALF_DEPTH);
+        Vec3 motion = impactMotion(arrow);
+        Vec3 hitLocation = resolveImpactLocation(target, arrow, hitResult, motion);
+        AABB boundingBox = target.getBoundingBox();
+        Vec3 relativeHit = hitLocation.subtract(target.getX(), boundingBox.minY, target.getZ());
+        float halfWidth = (float) Math.max(Math.max(boundingBox.getXsize(), boundingBox.getZsize()) * 0.5D, 0.1D);
+        Vec3 modelPosition = snapToHumanoidSurface(new Vec3(
+                Mth.clamp(
+                        -relativeHit.dot(axes.right()) / halfWidth * MODEL_ARM_OUTER_X,
+                        -MODEL_ARM_OUTER_X,
+                        MODEL_ARM_OUTER_X),
+                Mth.clamp(
+                        MODEL_FEET_Y - (relativeHit.y / Math.max(boundingBox.getYsize(), 0.1D)) * MODEL_TOTAL_HEIGHT,
+                        MODEL_HEAD_TOP,
+                        MODEL_FEET_Y),
+                Mth.clamp(
+                        -relativeHit.dot(axes.forward()) / halfWidth * MODEL_HEAD_HALF_WIDTH,
+                        -MODEL_HEAD_HALF_WIDTH,
+                        MODEL_HEAD_HALF_WIDTH)));
+        float modelX = (float) modelPosition.x;
+        float modelY = (float) modelPosition.y;
+        float modelZ = (float) modelPosition.z;
 
-        Vec3 outward = arrow.getDeltaMovement();
-        if (outward.lengthSqr() < MIN_DIRECTION_LENGTH) {
-            outward = Vec3.directionFromRotation(arrow.getXRot(), arrow.getYRot());
-        }
-        outward = outward.normalize().scale(-1.0D);
+        Vec3 outward = motion.normalize().scale(-1.0D);
 
         float directionX = (float) -outward.dot(axes.right());
         float directionY = (float) -outward.y;
-        float directionZ = (float) -outward.dot(axes.forward());
+        float directionZ = (float) outward.dot(axes.forward());
         float directionLength = Mth.sqrt(directionX * directionX + directionY * directionY + directionZ * directionZ);
         if (directionLength < MIN_DIRECTION_LENGTH) {
             return new LodgedArrowVisual(modelX, modelY, modelZ, DEFAULT.directionX, DEFAULT.directionY, DEFAULT.directionZ);
@@ -89,15 +106,15 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
     }
 
     public LodgedArrowBodyPart bodyPart() {
-        if (modelY <= HEAD_MAX_MODEL_Y) {
+        if (modelY <= MODEL_HEAD_BOTTOM) {
             return LodgedArrowBodyPart.HEAD;
         }
 
-        if (modelY >= LEG_MIN_MODEL_Y) {
+        if (modelY >= MODEL_LEG_TOP) {
             return LodgedArrowBodyPart.LEG;
         }
 
-        if (Math.abs(modelX) >= ARM_MIN_ABS_MODEL_X) {
+        if (Math.abs(modelX) > MODEL_BODY_HALF_WIDTH) {
             return LodgedArrowBodyPart.ARM;
         }
 
@@ -132,6 +149,79 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
                 tag.getFloat(DIRECTION_Z_KEY));
     }
 
+    private static Vec3 impactMotion(AbstractArrow arrow) {
+        Vec3 motion = arrow.getDeltaMovement();
+        if (motion.lengthSqr() >= MIN_DIRECTION_LENGTH) {
+            return motion;
+        }
+
+        Vec3 rotationMotion = Vec3.directionFromRotation(arrow.getXRot(), arrow.getYRot());
+        if (rotationMotion.lengthSqr() >= MIN_DIRECTION_LENGTH) {
+            return rotationMotion;
+        }
+
+        return new Vec3(DEFAULT.directionX, DEFAULT.directionY, DEFAULT.directionZ);
+    }
+
+    private static Vec3 resolveImpactLocation(
+            LivingEntity target,
+            AbstractArrow arrow,
+            EntityHitResult hitResult,
+            Vec3 motion) {
+        AABB boundingBox = target.getBoundingBox();
+        Vec3 traceStart = arrow.position();
+        Vec3 traceEnd = traceEnd(traceStart, motion, boundingBox);
+
+        return boundingBox.clip(traceStart, traceEnd)
+                .or(() -> boundingBox.inflate(VANILLA_ENTITY_PICK_MARGIN).clip(traceStart, traceEnd)
+                        .map(inflatedHit -> closestPoint(boundingBox, inflatedHit)))
+                .or(() -> usableReportedImpact(boundingBox, hitResult.getLocation(), traceStart)
+                        ? java.util.Optional.of(hitResult.getLocation())
+                        : java.util.Optional.empty())
+                .orElseGet(() -> closestPoint(boundingBox, traceEnd));
+    }
+
+    private static Vec3 traceEnd(Vec3 traceStart, Vec3 motion, AABB boundingBox) {
+        if (motion.lengthSqr() >= MIN_DIRECTION_LENGTH) {
+            return traceStart.add(motion);
+        }
+
+        return traceStart.add(motion.normalize().scale(Math.max(boundingBox.getSize(), 1.0D)));
+    }
+
+    private static boolean usableReportedImpact(AABB boundingBox, Vec3 reportedImpact, Vec3 arrowPosition) {
+        if (!boundingBox.inflate(VANILLA_ENTITY_PICK_MARGIN).contains(reportedImpact)) {
+            return false;
+        }
+
+        double reportedY = reportedImpact.y - boundingBox.minY;
+        double arrowY = arrowPosition.y - boundingBox.minY;
+        double footThreshold = Math.max(0.1D, boundingBox.getYsize() * 0.12D);
+        return reportedY > footThreshold || arrowY <= footThreshold;
+    }
+
+    private static Vec3 closestPoint(AABB boundingBox, Vec3 point) {
+        return new Vec3(
+                Mth.clamp(point.x, boundingBox.minX, boundingBox.maxX),
+                Mth.clamp(point.y, boundingBox.minY, boundingBox.maxY),
+                Mth.clamp(point.z, boundingBox.minZ, boundingBox.maxZ));
+    }
+
+    private static Vec3 snapToHumanoidSurface(Vec3 modelPosition) {
+        ModelBox closestBox = HUMANOID_MODEL_BOXES[0];
+        double closestDistance = closestBox.distanceToSqr(modelPosition);
+        for (int index = 1; index < HUMANOID_MODEL_BOXES.length; index++) {
+            ModelBox box = HUMANOID_MODEL_BOXES[index];
+            double distance = box.distanceToSqr(modelPosition);
+            if (distance < closestDistance) {
+                closestBox = box;
+                closestDistance = distance;
+            }
+        }
+
+        return closestBox.clampToSurface(modelPosition);
+    }
+
     private record BodyAxes(Vec3 right, Vec3 forward) {
         static BodyAxes of(float bodyYaw) {
             float yawRadians = bodyYaw * Mth.DEG_TO_RAD;
@@ -139,5 +229,74 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
             Vec3 forward = new Vec3(-Math.sin(yawRadians), 0.0D, Math.cos(yawRadians));
             return new BodyAxes(right, forward);
         }
+    }
+
+    private record ModelBox(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
+        double distanceToSqr(Vec3 point) {
+            double x = Mth.clamp(point.x, minX, maxX);
+            double y = Mth.clamp(point.y, minY, maxY);
+            double z = Mth.clamp(point.z, minZ, maxZ);
+            double dx = point.x - x;
+            double dy = point.y - y;
+            double dz = point.z - z;
+            return dx * dx + dy * dy + dz * dz;
+        }
+
+        Vec3 clampToSurface(Vec3 point) {
+            double x = Mth.clamp(point.x, minX, maxX);
+            double y = Mth.clamp(point.y, minY, maxY);
+            double z = Mth.clamp(point.z, minZ, maxZ);
+            Axis axis = surfaceAxis(point);
+            return switch (axis) {
+                case X -> new Vec3(point.x < centerX() ? minX : maxX, y, z);
+                case Y -> new Vec3(x, point.y < centerY() ? minY : maxY, z);
+                case Z -> new Vec3(x, y, point.z < centerZ() ? minZ : maxZ);
+            };
+        }
+
+        private Axis surfaceAxis(Vec3 point) {
+            double outsideX = outsideDistance(point.x, minX, maxX);
+            double outsideY = outsideDistance(point.y, minY, maxY);
+            double outsideZ = outsideDistance(point.z, minZ, maxZ);
+            if (outsideX > 0.0D || outsideY > 0.0D || outsideZ > 0.0D) {
+                if (outsideX >= outsideY && outsideX >= outsideZ) {
+                    return Axis.X;
+                }
+                return outsideY >= outsideZ ? Axis.Y : Axis.Z;
+            }
+
+            double nearestX = Math.min(point.x - minX, maxX - point.x);
+            double nearestY = Math.min(point.y - minY, maxY - point.y);
+            double nearestZ = Math.min(point.z - minZ, maxZ - point.z);
+            if (nearestX <= nearestY && nearestX <= nearestZ) {
+                return Axis.X;
+            }
+            return nearestY <= nearestZ ? Axis.Y : Axis.Z;
+        }
+
+        private double centerX() {
+            return (minX + maxX) * 0.5D;
+        }
+
+        private double centerY() {
+            return (minY + maxY) * 0.5D;
+        }
+
+        private double centerZ() {
+            return (minZ + maxZ) * 0.5D;
+        }
+
+        private static double outsideDistance(double value, double min, double max) {
+            if (value < min) {
+                return min - value;
+            }
+            return value > max ? value - max : 0.0D;
+        }
+    }
+
+    private enum Axis {
+        X,
+        Y,
+        Z
     }
 }
