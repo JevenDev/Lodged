@@ -1,0 +1,10 @@
+{
+  "lodged.configuration.enableArrowRecovery": "Enable arrow recovery",
+  "lodged.configuration.recoveryChance": "Recovery chance",
+  "lodged.configuration.maxTrackedArrowsPerEntity": "Max tracked arrows per entity",
+  "lodged.configuration.recoverPlayerArrowsOnly": "Recover player arrows only",
+  "lodged.configuration.recoverInfinityArrows": "Recover Infinity arrows",
+  "lodged.configuration.recoverCreativeArrows": "Recover creative arrows",
+  "lodged.configuration.preserveArrowItemStack": "Preserve arrow item stack",
+  "lodged.configuration.entityDenylist": "Entity denylist"
+}
