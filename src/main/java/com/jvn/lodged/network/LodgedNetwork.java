@@ -16,7 +16,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class LodgedNetwork {
-    private static final String NETWORK_VERSION = "2";
+    private static final String NETWORK_VERSION = "3";
 
     private LodgedNetwork() {
     }
@@ -35,14 +35,19 @@ public final class LodgedNetwork {
 
     public static void syncPlayerArrows(ServerPlayer player) {
         List<LodgedArrowData> storedArrows = LodgedArrowStorage.readAll(player);
-        LodgedArrowStorage.restoreArrowCount(player, storedArrows.size());
+        int storedArrowCount = storedArrows.size();
+        if (LodgedConfig.enablePlayerArrowRemoval()) {
+            player.setArrowCount(storedArrowCount);
+        } else {
+            LodgedArrowStorage.restoreArrowCount(player, storedArrowCount);
+        }
         int maxArrows = LodgedConfig.maxRemovablePlayerArrows();
         int arrowCount = Math.min(storedArrows.size(), maxArrows);
         List<LodgedArrowVisual> arrows = new ArrayList<>(arrowCount);
         for (int index = 0; index < arrowCount; index++) {
             arrows.add(storedArrows.get(index).visual());
         }
-        PacketDistributor.sendToPlayer(player, new SyncPlayerArrowsPayload(arrows));
+        PacketDistributor.sendToPlayer(player, new SyncPlayerArrowsPayload(arrows, storedArrowCount));
     }
 
     public static void clearPlayerArrowRemovalCooldown(ServerPlayer player) {

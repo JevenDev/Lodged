@@ -61,9 +61,12 @@ public abstract class StuckInBodyLayerMixin {
         }
 
         List<LodgedArrowVisual> arrows = ClientArrowState.removableArrows();
-        int arrowCount = Math.min(arrows.size(), livingEntity.getArrowCount());
+        int arrowCount = Math.min(arrows.size(), ClientArrowState.syncedArrowCount());
         arrowCount = Math.min(arrowCount, LodgedConfig.maxRemovablePlayerArrows());
         if (arrowCount <= 0) {
+            if (ClientArrowState.hasSynced()) {
+                callbackInfo.cancel();
+            }
             return;
         }
 

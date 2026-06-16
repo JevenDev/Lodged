@@ -45,8 +45,6 @@ final class PlayerArrowRemoval {
             return;
         }
 
-        player.setArrowCount(Math.max(0, player.getArrowCount() - 1));
-
         double successChance = LodgedConfig.playerArrowRemovalSuccessChance(removedArrow.visual().bodyPart());
         boolean recovered = successChance >= 1.0D || (successChance > 0.0D && player.getRandom().nextDouble() < successChance);
         if (recovered) {
@@ -73,7 +71,7 @@ final class PlayerArrowRemoval {
             return false;
         }
 
-        if (arrowIndex >= player.getArrowCount()) {
+        if (arrowIndex >= LodgedArrowStorage.readAll(player).size()) {
             return false;
         }
 

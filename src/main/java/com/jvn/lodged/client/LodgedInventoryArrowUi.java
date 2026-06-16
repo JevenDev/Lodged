@@ -239,7 +239,7 @@ public final class LodgedInventoryArrowUi {
 
     private static ArrowHitZone findHoveredZone(InventoryScreen screen, LocalPlayer player, double mouseX, double mouseY) {
         List<LodgedArrowVisual> arrows = ClientArrowState.removableArrows();
-        int arrowCount = Math.min(arrows.size(), player.getArrowCount());
+        int arrowCount = Math.min(arrows.size(), ClientArrowState.syncedArrowCount());
         arrowCount = Math.min(arrowCount, LodgedConfig.maxRemovablePlayerArrows());
         ArrowHitZone closestZone = null;
         double closestDistance = Double.MAX_VALUE;
