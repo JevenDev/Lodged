@@ -1,6 +1,8 @@
 package com.jvn.lodged.mixin;
 
 import com.jvn.lodged.config.LodgedConfig;
+import com.jvn.lodged.world.LodgedArrowStorage;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
@@ -22,6 +24,14 @@ public abstract class LivingEntityMixin {
         }
 
         this.removeArrowTime = Integer.MAX_VALUE;
+    }
+
+    @Inject(method = "readAdditionalSaveData", at = @At("RETURN"))
+    private void lodged$restorePersistedArrowCount(CompoundTag compound, CallbackInfo callbackInfo) {
+        LivingEntity entity = (LivingEntity) (Object) this;
+        if (!entity.level().isClientSide()) {
+            LodgedArrowStorage.restoreArrowCount(entity);
+        }
     }
 
     private static boolean shouldPreventArrowDespawn(LivingEntity entity) {

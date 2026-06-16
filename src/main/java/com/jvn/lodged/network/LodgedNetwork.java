@@ -32,6 +32,7 @@ public final class LodgedNetwork {
     }
 
     public static void syncPlayerArrows(ServerPlayer player) {
+        LodgedArrowStorage.restoreArrowCount(player);
         int maxArrows = LodgedConfig.maxRemovablePlayerArrows();
         List<LodgedArrowVisual> arrows = LodgedArrowStorage.readAll(player)
                 .stream()
