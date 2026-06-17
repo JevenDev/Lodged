@@ -45,7 +45,7 @@ final class PlayerArrowRemoval {
             return;
         }
 
-        double successChance = LodgedConfig.playerArrowRemovalSuccessChance(removedArrow.visual().bodyPart());
+        double successChance = removalSuccessChance(removedArrow);
         boolean recovered = successChance >= 1.0D || (successChance > 0.0D && player.getRandom().nextDouble() < successChance);
         if (recovered) {
             recoverArrow(player, removedArrow.stack());
@@ -96,6 +96,18 @@ final class PlayerArrowRemoval {
         if (!player.addItem(recoveredStack)) {
             player.drop(recoveredStack, false);
         }
+    }
+
+    private static double removalSuccessChance(LodgedArrowData arrow) {
+        if (arrow.infinityGenerated() && !LodgedConfig.recoverInfinityArrows()) {
+            return 0.0D;
+        }
+
+        double successChance = LodgedConfig.playerArrowRemovalSuccessChance(arrow.visual().bodyPart());
+        if (arrow.infinityGenerated()) {
+            successChance *= LodgedConfig.playerArrowRemovalInfinitySuccessMultiplier();
+        }
+        return successChance;
     }
 
     private static void damageForBrokenArrow(ServerPlayer player) {

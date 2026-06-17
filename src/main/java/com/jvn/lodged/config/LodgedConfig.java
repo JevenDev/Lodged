@@ -22,6 +22,7 @@ public final class LodgedConfig {
     private static final ModConfigSpec.DoubleValue PLAYER_ARROW_REMOVAL_CHEST_SUCCESS_CHANCE;
     private static final ModConfigSpec.DoubleValue PLAYER_ARROW_REMOVAL_ARM_SUCCESS_CHANCE;
     private static final ModConfigSpec.DoubleValue PLAYER_ARROW_REMOVAL_LEG_SUCCESS_CHANCE;
+    private static final ModConfigSpec.DoubleValue PLAYER_ARROW_REMOVAL_INFINITY_SUCCESS_MULTIPLIER;
     private static final ModConfigSpec.DoubleValue PLAYER_ARROW_REMOVAL_BREAK_DAMAGE;
     private static final ModConfigSpec.BooleanValue ALLOW_ARROW_REMOVAL_IN_CREATIVE;
     private static final ModConfigSpec.BooleanValue REQUIRE_INVENTORY_SCREEN_FOR_REMOVAL;
@@ -102,6 +103,11 @@ public final class LodgedConfig {
                 .comment("Chance that removing a player arrow from a leg succeeds and recovers the arrow item. Values are clamped from 0.0 to 1.0.")
                 .translation("lodged.configuration.playerArrowRemovalLegSuccessChance")
                 .defineInRange("playerArrowRemovalLegSuccessChance", 0.85D, 0.0D, 1.0D);
+
+        PLAYER_ARROW_REMOVAL_INFINITY_SUCCESS_MULTIPLIER = builder
+                .comment("Multiplier applied to player arrow removal success chance for Infinity-generated arrows. This only applies when recoverInfinityArrows is enabled.")
+                .translation("lodged.configuration.playerArrowRemovalInfinitySuccessMultiplier")
+                .defineInRange("playerArrowRemovalInfinitySuccessMultiplier", 0.5D, 0.0D, 1.0D);
 
         PLAYER_ARROW_REMOVAL_BREAK_DAMAGE = builder
                 .comment("Damage dealt when player arrow removal fails and breaks the arrow. Damage is in half-hearts, so 2.0 equals one heart.")
@@ -186,6 +192,10 @@ public final class LodgedConfig {
             case ARM -> PLAYER_ARROW_REMOVAL_ARM_SUCCESS_CHANCE.get();
             case LEG -> PLAYER_ARROW_REMOVAL_LEG_SUCCESS_CHANCE.get();
         };
+    }
+
+    public static double playerArrowRemovalInfinitySuccessMultiplier() {
+        return PLAYER_ARROW_REMOVAL_INFINITY_SUCCESS_MULTIPLIER.get();
     }
 
     public static float playerArrowRemovalBreakDamage() {
