@@ -9,6 +9,7 @@
   "client": [
     "client.InventoryScreenMixin",
     "client.LevelRendererAccessor",
+    "client.LivingEntityRendererMixin",
     "client.StuckInBodyLayerMixin"
   ],
   "injectors": {

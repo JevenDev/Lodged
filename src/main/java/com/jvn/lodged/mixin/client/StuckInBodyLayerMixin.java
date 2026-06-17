@@ -3,6 +3,7 @@ package com.jvn.lodged.mixin.client;
 import com.jvn.lodged.client.LodgedInventoryArrowUi;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.network.ClientArrowState;
+import com.jvn.lodged.network.ClientArrowState.EntityArrows;
 import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
@@ -44,7 +45,7 @@ public abstract class StuckInBodyLayerMixin {
             float partialTick);
 
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
-    private void lodged$renderTrackedPlayerArrows(
+    private void lodged$renderTrackedArrows(
             PoseStack poseStack,
             MultiBufferSource buffer,
             int packedLight,
@@ -56,17 +57,15 @@ public abstract class StuckInBodyLayerMixin {
             float netHeadYaw,
             float headPitch,
             CallbackInfo callbackInfo) {
-        if (!LodgedConfig.enablePlayerArrowRemoval()
-                || !((Object) this instanceof ArrowLayer)
-                || livingEntity != Minecraft.getInstance().player) {
+        if (!((Object) this instanceof ArrowLayer)) {
             return;
         }
 
-        List<LodgedArrowVisual> arrows = ClientArrowState.removableArrows();
-        int arrowCount = Math.min(arrows.size(), ClientArrowState.syncedArrowCount());
-        arrowCount = Math.min(arrowCount, LodgedConfig.maxRemovablePlayerArrows());
+        boolean isLocalPlayer = livingEntity == Minecraft.getInstance().player;
+        List<LodgedArrowVisual> arrows = arrowsFor(livingEntity, isLocalPlayer);
+        int arrowCount = arrowCountFor(livingEntity, arrows, isLocalPlayer);
         if (arrowCount <= 0) {
-            if (ClientArrowState.hasSynced()) {
+            if (isLocalPlayer && ClientArrowState.hasSynced()) {
                 callbackInfo.cancel();
             }
             return;
@@ -87,6 +86,28 @@ public abstract class StuckInBodyLayerMixin {
             }
             poseStack.popPose();
         }
+    }
+
+    private static List<LodgedArrowVisual> arrowsFor(LivingEntity livingEntity, boolean isLocalPlayer) {
+        if (isLocalPlayer && LodgedConfig.enablePlayerArrowRemoval()) {
+            return ClientArrowState.removableArrows();
+        }
+
+        return ClientArrowState.entityArrows(livingEntity).arrows();
+    }
+
+    private static int arrowCountFor(LivingEntity livingEntity, List<LodgedArrowVisual> arrows, boolean isLocalPlayer) {
+        if (arrows.isEmpty()) {
+            return 0;
+        }
+
+        if (isLocalPlayer && LodgedConfig.enablePlayerArrowRemoval()) {
+            int arrowCount = Math.min(arrows.size(), ClientArrowState.syncedArrowCount());
+            return Math.min(arrowCount, LodgedConfig.maxRemovablePlayerArrows());
+        }
+
+        EntityArrows entityArrows = ClientArrowState.entityArrows(livingEntity);
+        return Math.min(arrows.size(), entityArrows.arrowCount());
     }
 
     private void renderHoverOutline(

@@ -56,6 +56,7 @@ final class PlayerArrowRemoval {
         }
 
         LodgedNetwork.syncPlayerArrows(player);
+        LodgedNetwork.syncEntityArrows(player);
     }
 
     static void clearCooldown(ServerPlayer player) {

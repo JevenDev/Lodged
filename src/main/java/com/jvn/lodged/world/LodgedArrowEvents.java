@@ -53,9 +53,10 @@ public final class LodgedArrowEvents {
                 && !creativeGenerated
                 && arrow.pickup == AbstractArrow.Pickup.CREATIVE_ONLY;
 
+        boolean trackForVisuals = !(target instanceof Player);
         boolean trackForDeathRecovery = canRecoverOnDeath(fromPlayer, infinityGenerated, creativeGenerated);
         boolean trackForPlayerRemoval = target instanceof Player && LodgedConfig.enablePlayerArrowRemoval();
-        if (!trackForDeathRecovery && !trackForPlayerRemoval) {
+        if (!trackForVisuals && !trackForDeathRecovery && !trackForPlayerRemoval) {
             return;
         }
 
@@ -72,6 +73,7 @@ public final class LodgedArrowEvents {
                 target.level().getGameTime(),
                 LodgedArrowVisual.fromImpact(target, arrow, hitResult)));
 
+        LodgedNetwork.syncEntityArrows(target);
         if (target instanceof ServerPlayer player) {
             LodgedNetwork.syncPlayerArrows(player);
         }
@@ -85,6 +87,7 @@ public final class LodgedArrowEvents {
 
         LivingEntity entity = event.getEntity();
         List<LodgedArrowData> lodgedArrows = LodgedArrowStorage.removeAll(entity);
+        LodgedNetwork.syncEntityArrows(entity);
         if (entity instanceof ServerPlayer player) {
             LodgedNetwork.syncPlayerArrows(player);
         }
@@ -134,6 +137,13 @@ public final class LodgedArrowEvents {
     @SubscribeEvent
     public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         syncPlayer(event.getEntity());
+    }
+
+    @SubscribeEvent
+    public static void onPlayerStartTracking(PlayerEvent.StartTracking event) {
+        if (event.getEntity() instanceof ServerPlayer player && event.getTarget() instanceof LivingEntity target) {
+            LodgedNetwork.syncEntityArrowsToPlayer(player, target);
+        }
     }
 
     private static boolean canTrack(LivingEntity target) {

@@ -3,6 +3,7 @@ package com.jvn.lodged.network;
 import com.jvn.lodged.Lodged;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
+import com.jvn.lodged.network.payload.SyncEntityArrowsPayload;
 import com.jvn.lodged.network.payload.SyncPlayerArrowsPayload;
 import com.jvn.lodged.world.LodgedArrowData;
 import com.jvn.lodged.world.LodgedArrowStorage;
@@ -11,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
@@ -31,6 +33,10 @@ public final class LodgedNetwork {
                 SyncPlayerArrowsPayload.TYPE,
                 SyncPlayerArrowsPayload.STREAM_CODEC,
                 ClientArrowState::handleSync);
+        registrar.playToClient(
+                SyncEntityArrowsPayload.TYPE,
+                SyncEntityArrowsPayload.STREAM_CODEC,
+                ClientArrowState::handleSync);
     }
 
     public static void syncPlayerArrows(ServerPlayer player) {
@@ -50,11 +56,31 @@ public final class LodgedNetwork {
         PacketDistributor.sendToPlayer(player, new SyncPlayerArrowsPayload(arrows, storedArrowCount));
     }
 
+    public static void syncEntityArrows(LivingEntity entity) {
+        PacketDistributor.sendToPlayersTrackingEntityAndSelf(entity, entityArrowsPayload(entity));
+    }
+
+    public static void syncEntityArrowsToPlayer(ServerPlayer player, LivingEntity entity) {
+        PacketDistributor.sendToPlayer(player, entityArrowsPayload(entity));
+    }
+
     public static void clearPlayerArrowRemovalCooldown(ServerPlayer player) {
         PlayerArrowRemoval.clearCooldown(player);
     }
 
     public static ResourceLocation id(String path) {
         return ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, path);
+    }
+
+    private static SyncEntityArrowsPayload entityArrowsPayload(LivingEntity entity) {
+        List<LodgedArrowData> storedArrows = LodgedArrowStorage.readAll(entity);
+        int storedArrowCount = storedArrows.size();
+        LodgedArrowStorage.restoreArrowCount(entity, storedArrowCount);
+        int arrowCount = Math.min(storedArrows.size(), 64);
+        List<LodgedArrowVisual> arrows = new ArrayList<>(arrowCount);
+        for (int index = 0; index < arrowCount; index++) {
+            arrows.add(storedArrows.get(index).visual());
+        }
+        return new SyncEntityArrowsPayload(entity.getId(), arrows, storedArrowCount);
     }
 }
