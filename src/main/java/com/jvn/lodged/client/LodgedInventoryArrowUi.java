@@ -3,6 +3,7 @@ package com.jvn.lodged.client;
 import com.google.gson.JsonSyntaxException;
 import com.jvn.lodged.Lodged;
 import com.jvn.lodged.config.LodgedConfig;
+import com.jvn.lodged.effect.LodgedEffects;
 import com.jvn.lodged.mixin.client.LevelRendererAccessor;
 import com.jvn.lodged.network.ClientArrowState;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
@@ -20,6 +21,7 @@ import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -44,6 +46,23 @@ public final class LodgedInventoryArrowUi {
     private static final float DEGREES_TO_RADIANS = (float) (Math.PI / 180.0D);
     private static final ResourceLocation SHARP_OUTLINE_SHADER =
             ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "shaders/post/arrow_outline.json");
+    private static final ResourceLocation BLEED_HANG_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "textures/particle/bleed_hang.png");
+    private static final ResourceLocation BLEED_FALL_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "textures/particle/bleed_fall.png");
+    private static final ResourceLocation BLEED_LAND_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "textures/particle/bleed_land.png");
+    private static final int BLOOD_TEXTURE_SIZE = 8;
+    private static final int GUI_BLOOD_SIZE = 4;
+    private static final int GUI_BLOOD_Z = 300;
+    private static final int GUI_BLOOD_HANG_TICKS = 6;
+    private static final int GUI_BLOOD_FALL_TICKS = 18;
+    private static final int GUI_BLOOD_LAND_TICKS = 7;
+    private static final LodgedArrowVisual[] FALLBACK_BLEEDING_WOUNDS = {
+            new LodgedArrowVisual(0.0F, 0.32F, -0.13F, 0.0F, 0.0F, 1.0F),
+            new LodgedArrowVisual(-0.38F, 0.52F, -0.08F, 0.0F, 0.0F, 1.0F),
+            new LodgedArrowVisual(0.16F, 0.98F, -0.10F, 0.0F, 0.0F, 1.0F)
+    };
 
     private static float yawDegrees;
     private static boolean draggingPreview;
@@ -197,6 +216,7 @@ public final class LodgedInventoryArrowUi {
             LivingEntity entity) {
         if (!LodgedConfig.enablePlayerArrowRemoval()) {
             InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, x1, y1, x2, y2, scale, size, mouseX, mouseY, entity);
+            renderInventoryBlood(guiGraphics, x1, y1, x2, y2, mouseX, mouseY, entity);
             return;
         }
 
@@ -214,6 +234,8 @@ public final class LodgedInventoryArrowUi {
         } else {
             InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, x1, y1, x2, y2, scale, size, mouseX, mouseY, entity);
         }
+
+        renderInventoryBlood(guiGraphics, x1, y1, x2, y2, mouseX, mouseY, entity);
     }
 
     private static void renderInventoryPlayerWithLockedHead(
@@ -308,6 +330,17 @@ public final class LodgedInventoryArrowUi {
         int top = screen.getGuiTop();
         float centerX = left + ((MODEL_LEFT + MODEL_RIGHT) / 2.0F);
         float centerY = top + ((MODEL_TOP + MODEL_BOTTOM) / 2.0F);
+        Vector3f modelPosition = renderModelPosition(arrow, centerX, centerY, mouseX, mouseY);
+        return projectModelToScreen(player, modelPosition, centerX, centerY, mouseX, mouseY);
+    }
+
+    private static Vector3f projectModelToScreen(
+            LocalPlayer player,
+            Vector3f modelPosition,
+            float centerX,
+            float centerY,
+            double mouseX,
+            double mouseY) {
         float entityScale = player.getScale();
         float previewScale = PREVIEW_SCALE / entityScale;
         float pitchRadians = currentPreviewPitchRadians(centerY, mouseY);
@@ -324,8 +357,148 @@ public final class LodgedInventoryArrowUi {
                 .scale(-1.0F, -1.0F, 1.0F)
                 .scale(PLAYER_RENDER_SCALE, PLAYER_RENDER_SCALE, PLAYER_RENDER_SCALE)
                 .translate(0.0F, MODEL_RENDER_Y_OFFSET, 0.0F);
-        Vector3f modelPosition = renderModelPosition(arrow, centerX, centerY, mouseX, mouseY);
         return matrix.transformPosition(modelPosition.x(), modelPosition.y(), modelPosition.z(), new Vector3f());
+    }
+
+    private static void renderInventoryBlood(
+            GuiGraphics guiGraphics,
+            int x1,
+            int y1,
+            int x2,
+            int y2,
+            float mouseX,
+            float mouseY,
+            LivingEntity entity) {
+        if (!LodgedConfig.enableBleeding() || !LodgedConfig.bleedingDripParticles() || !(entity instanceof LocalPlayer player)) {
+            return;
+        }
+
+        MobEffectInstance bleeding = player.getEffect(LodgedEffects.BLEEDING);
+        if (bleeding == null) {
+            return;
+        }
+
+        float centerX = (x1 + x2) / 2.0F;
+        float centerY = (y1 + y2) / 2.0F;
+        int interval = Math.max(1, LodgedConfig.bleedingDripInterval(bleeding.getAmplifier()));
+        float time = player.level().getGameTime() + Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false);
+        int streams = bleeding.getAmplifier() > 0 ? 2 : 1;
+
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 0.96F);
+        int arrowBloodSources = renderInventoryBloodFromArrows(guiGraphics, player, centerX, centerY, mouseX, mouseY, time, interval, streams);
+        if (arrowBloodSources <= 0) {
+            renderInventoryBloodFallback(guiGraphics, player, centerX, centerY, mouseX, mouseY, time, interval, streams);
+        }
+        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderSystem.disableBlend();
+    }
+
+    private static int renderInventoryBloodFromArrows(
+            GuiGraphics guiGraphics,
+            LocalPlayer player,
+            float centerX,
+            float centerY,
+            float mouseX,
+            float mouseY,
+            float time,
+            int interval,
+            int streams) {
+        List<LodgedArrowVisual> arrows = ClientArrowState.removableArrows();
+        int arrowCount = Math.min(arrows.size(), ClientArrowState.syncedArrowCount());
+        arrowCount = Math.min(arrowCount, LodgedConfig.maxRemovablePlayerArrows());
+        for (int index = 0; index < arrowCount; index++) {
+            LodgedArrowVisual arrow = arrows.get(index);
+            Vector3f projected = projectModelToScreen(
+                    player,
+                    renderModelPosition(arrow, centerX, centerY, mouseX, mouseY),
+                    centerX,
+                    centerY,
+                    mouseX,
+                    mouseY);
+            renderInventoryBloodDrop(guiGraphics, projected.x(), projected.y(), time, interval, streams, index * 11);
+        }
+        return arrowCount;
+    }
+
+    private static void renderInventoryBloodFallback(
+            GuiGraphics guiGraphics,
+            LocalPlayer player,
+            float centerX,
+            float centerY,
+            float mouseX,
+            float mouseY,
+            float time,
+            int interval,
+            int streams) {
+        int count = streams > 1 ? FALLBACK_BLEEDING_WOUNDS.length : 2;
+        for (int index = 0; index < count; index++) {
+            LodgedArrowVisual wound = FALLBACK_BLEEDING_WOUNDS[index];
+            Vector3f projected = projectModelToScreen(
+                    player,
+                    renderModelPosition(wound, centerX, centerY, mouseX, mouseY),
+                    centerX,
+                    centerY,
+                    mouseX,
+                    mouseY);
+            renderInventoryBloodDrop(guiGraphics, projected.x(), projected.y(), time, interval, 1, 53 + index * 17);
+        }
+    }
+
+    private static void renderInventoryBloodDrop(
+            GuiGraphics guiGraphics,
+            float sourceX,
+            float sourceY,
+            float time,
+            int interval,
+            int streams,
+            int seed) {
+        int cycleTicks = Math.max(interval + GUI_BLOOD_HANG_TICKS + GUI_BLOOD_FALL_TICKS + GUI_BLOOD_LAND_TICKS, 24);
+        for (int stream = 0; stream < streams; stream++) {
+            float phase = positiveModulo(time + seed + stream * (cycleTicks / (float) streams), cycleTicks);
+            drawInventoryBloodDrop(guiGraphics, sourceX, sourceY, phase, seed + stream * 31);
+        }
+    }
+
+    private static void drawInventoryBloodDrop(GuiGraphics guiGraphics, float sourceX, float sourceY, float phase, int seed) {
+        ResourceLocation texture;
+        float x = sourceX + horizontalDrift(seed);
+        float y = sourceY;
+        if (phase < GUI_BLOOD_HANG_TICKS) {
+            texture = BLEED_HANG_TEXTURE;
+        } else if (phase < GUI_BLOOD_HANG_TICKS + GUI_BLOOD_FALL_TICKS) {
+            texture = BLEED_FALL_TEXTURE;
+            float fallProgress = (phase - GUI_BLOOD_HANG_TICKS) / GUI_BLOOD_FALL_TICKS;
+            y += 2.0F + fallProgress * fallProgress * 15.0F;
+            x += horizontalDrift(seed + 7) * fallProgress;
+        } else {
+            texture = BLEED_LAND_TEXTURE;
+            y += 17.0F;
+            x += horizontalDrift(seed + 7);
+        }
+
+        guiGraphics.blit(
+                texture,
+                Math.round(x) - (GUI_BLOOD_SIZE / 2),
+                Math.round(y) - (GUI_BLOOD_SIZE / 2),
+                GUI_BLOOD_Z,
+                0.0F,
+                0.0F,
+                GUI_BLOOD_SIZE,
+                GUI_BLOOD_SIZE,
+                BLOOD_TEXTURE_SIZE,
+                BLOOD_TEXTURE_SIZE);
+    }
+
+    private static float horizontalDrift(int seed) {
+        int value = Math.floorMod(seed * 31 + 17, 9) - 4;
+        return value * 0.35F;
+    }
+
+    private static float positiveModulo(float value, int modulus) {
+        float result = value % modulus;
+        return result < 0.0F ? result + modulus : result;
     }
 
     private static Vector3f renderModelPosition(
