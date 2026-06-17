@@ -13,6 +13,8 @@
 
 </div>
 
+![Warden being struck by multiple arrows](https://i.imgur.com/HaMHMQS.png)
+
 Lodged is a small Vanilla+ NeoForge mod that improves upon arrow rendering and impact.
 
 Arrows can stay lodged in living entities, carry their original item data, drop from slain targets, break on impact, and even be pulled out of your own player model from the inventory screen. The mod also adds an optional bleeding system, so sharp hits and risky arrow removal can become more than a one-time damage number.
@@ -35,6 +37,8 @@ It is meant to make ranged combat a little grittier without replacing Minecraft'
 ![features](https://cdn.modrinth.com/data/cached_images/ec0e4dc78ec1a652eb11b233dd2926f7461fe770.png)
 
 ## What Changes In Game
+
+![A player removing lodged arrows from their inventory preview](https://i.imgur.com/KIGrVCu.gif)
 
 ### Lodged Arrows
 
@@ -111,8 +115,8 @@ Default bleeding behaviour:
 - Pulling lodged arrows can cause bleeding
 - Enchantment-tagged weapons can cause bleeding
 - Weapon-item-tag bleeding is disabled by default
-- Full armor prevents normal bleeding by default
-- Partial armor reduces bleeding chance by default
+- Full armour prevents normal bleeding by default
+- Partial armour reduces bleeding chance by default
 - Undead can bleed only if included in Lodged's undead bleeding tag
 - Skeletons do not bleed by default
 - Bleeding shows drip particles
@@ -151,7 +155,7 @@ Major systems can be tuned or disabled:
 - Removal success chances by body part
 - Removal failure damage
 - Bleeding rules
-- Bleeding duration, damage, particles, and armor behavior
+- Bleeding duration, damage, particles, and armour behaviour
 
 ## Tags and Pack Support
 
@@ -173,6 +177,8 @@ Enchantment tags:
 - `lodged:bleeding_undead`
 
 These tags let packs decide which entities can bleed and which weapons or enchantments can trigger bleeding.
+
+![A player bleeding after removing a lodged arrow](https://i.imgur.com/oEPffkX.gif)
 
 ## Compatibility
 
