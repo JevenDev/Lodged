@@ -1,5 +1,6 @@
 package com.jvn.lodged.client;
 
+import com.google.gson.JsonSyntaxException;
 import com.jvn.lodged.Lodged;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.mixin.client.LevelRendererAccessor;
@@ -8,12 +9,17 @@ import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.platform.Window;
+import com.mojang.blaze3d.systems.RenderSystem;
+import java.io.IOException;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.PostChain;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -36,11 +42,19 @@ public final class LodgedInventoryArrowUi {
     private static final float PLAYER_RENDER_SCALE = 0.9375F;
     private static final float MODEL_RENDER_Y_OFFSET = -1.501F;
     private static final float DEGREES_TO_RADIANS = (float) (Math.PI / 180.0D);
+    private static final ResourceLocation SHARP_OUTLINE_SHADER =
+            ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "shaders/post/arrow_outline.json");
 
     private static float yawDegrees;
     private static boolean draggingPreview;
     private static boolean customYawActive;
     private static int hoveredArrowIndex = -1;
+    private static PostChain sharpOutlineEffect;
+    private static RenderTarget sharpOutlineTarget;
+    private static int sharpOutlineWidth = -1;
+    private static int sharpOutlineHeight = -1;
+    private static boolean sharpOutlineLoadFailed;
+    private static RenderTarget previousEntityTarget;
 
     private LodgedInventoryArrowUi() {
     }
@@ -127,31 +141,47 @@ public final class LodgedInventoryArrowUi {
     }
 
     public static boolean prepareArrowOutlineTarget() {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (!minecraft.levelRenderer.shouldShowEntityOutlines()) {
+        RenderTarget outlineTarget = sharpOutlineTarget();
+        if (outlineTarget == null) {
             return false;
         }
 
-        RenderTarget entityTarget = minecraft.levelRenderer.entityTarget();
-        if (entityTarget == null) {
-            return false;
-        }
-
-        entityTarget.clear(Minecraft.ON_OSX);
-        entityTarget.bindWrite(false);
+        LevelRendererAccessor levelRenderer = (LevelRendererAccessor) Minecraft.getInstance().levelRenderer;
+        previousEntityTarget = levelRenderer.lodged$getEntityTarget();
+        levelRenderer.lodged$setEntityTarget(outlineTarget);
+        outlineTarget.clear(Minecraft.ON_OSX);
+        outlineTarget.bindWrite(false);
         return true;
     }
 
     public static void processArrowOutlineTarget() {
-        Minecraft minecraft = Minecraft.getInstance();
-        PostChain entityEffect = ((LevelRendererAccessor) minecraft.levelRenderer).lodged$getEntityEffect();
-        if (entityEffect == null) {
+        restoreVanillaEntityTarget();
+        if (sharpOutlineEffect == null || sharpOutlineTarget == null) {
             return;
         }
 
-        entityEffect.process(0.0F);
+        Minecraft minecraft = Minecraft.getInstance();
+        sharpOutlineEffect.process(0.0F);
         minecraft.getMainRenderTarget().bindWrite(false);
-        minecraft.levelRenderer.doEntityOutline();
+        RenderSystem.enableBlend();
+        RenderSystem.blendFuncSeparate(
+                GlStateManager.SourceFactor.SRC_ALPHA,
+                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+                GlStateManager.SourceFactor.ZERO,
+                GlStateManager.DestFactor.ONE);
+        Window window = minecraft.getWindow();
+        sharpOutlineTarget.blitToScreen(window.getWidth(), window.getHeight(), false);
+        RenderSystem.disableBlend();
+        RenderSystem.defaultBlendFunc();
+    }
+
+    public static void restoreVanillaEntityTarget() {
+        if (previousEntityTarget == null) {
+            return;
+        }
+
+        ((LevelRendererAccessor) Minecraft.getInstance().levelRenderer).lodged$setEntityTarget(previousEntityTarget);
+        previousEntityTarget = null;
     }
 
     public static void renderInventoryPlayer(
@@ -353,6 +383,48 @@ public final class LodgedInventoryArrowUi {
         draggingPreview = false;
         customYawActive = false;
         hoveredArrowIndex = -1;
+    }
+
+    private static RenderTarget sharpOutlineTarget() {
+        if (sharpOutlineLoadFailed) {
+            return null;
+        }
+
+        Minecraft minecraft = Minecraft.getInstance();
+        Window window = minecraft.getWindow();
+        int width = window.getWidth();
+        int height = window.getHeight();
+        if (sharpOutlineEffect != null && width == sharpOutlineWidth && height == sharpOutlineHeight) {
+            return sharpOutlineTarget;
+        }
+
+        closeSharpOutlineEffect();
+        try {
+            sharpOutlineEffect = new PostChain(
+                    minecraft.getTextureManager(),
+                    minecraft.getResourceManager(),
+                    minecraft.getMainRenderTarget(),
+                    SHARP_OUTLINE_SHADER);
+            sharpOutlineEffect.resize(width, height);
+            sharpOutlineTarget = sharpOutlineEffect.getTempTarget("final");
+            sharpOutlineWidth = width;
+            sharpOutlineHeight = height;
+        } catch (IOException | JsonSyntaxException exception) {
+            Lodged.LOGGER.warn("Failed to load sharp arrow hover outline shader: {}", SHARP_OUTLINE_SHADER, exception);
+            closeSharpOutlineEffect();
+            sharpOutlineLoadFailed = true;
+        }
+        return sharpOutlineTarget;
+    }
+
+    private static void closeSharpOutlineEffect() {
+        if (sharpOutlineEffect != null) {
+            sharpOutlineEffect.close();
+        }
+        sharpOutlineEffect = null;
+        sharpOutlineTarget = null;
+        sharpOutlineWidth = -1;
+        sharpOutlineHeight = -1;
     }
 
     private record ArrowHitZone(int index, float centerX, float centerY, int radius) {

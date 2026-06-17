@@ -1,0 +1,18 @@
+{
+  "targets": [
+    "swap",
+    "final"
+  ],
+  "passes": [
+    {
+      "name": "lodged:arrow_outline",
+      "intarget": "final",
+      "outtarget": "swap"
+    },
+    {
+      "name": "lodged:arrow_outline_blit",
+      "intarget": "swap",
+      "outtarget": "final"
+    }
+  ]
+}

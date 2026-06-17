@@ -123,8 +123,12 @@ public abstract class StuckInBodyLayerMixin {
         MultiBufferSource.BufferSource delegate = MultiBufferSource.immediate(new ByteBufferBuilder(HOVER_OUTLINE_BUFFER_SIZE));
         OutlineBufferSource outlineBuffer = new OutlineBufferSource(delegate);
         outlineBuffer.setColor(HOVER_HIGHLIGHT_RED, HOVER_HIGHLIGHT_GREEN, HOVER_HIGHLIGHT_BLUE, HOVER_HIGHLIGHT_ALPHA);
-        renderArrow(poseStack, outlineBuffer, packedLight, livingEntity, arrow, partialTicks);
-        outlineBuffer.endOutlineBatch();
+        try {
+            renderArrow(poseStack, outlineBuffer, packedLight, livingEntity, arrow, partialTicks);
+            outlineBuffer.endOutlineBatch();
+        } finally {
+            LodgedInventoryArrowUi.restoreVanillaEntityTarget();
+        }
         Minecraft.getInstance().getMainRenderTarget().bindWrite(false);
         LodgedInventoryArrowUi.processArrowOutlineTarget();
     }
