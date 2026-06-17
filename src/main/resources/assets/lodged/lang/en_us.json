@@ -2,6 +2,8 @@
   "lodged.configuration.title": "%s Configuration",
   "lodged.configuration.section.lodged.common.toml": "Common config",
   "lodged.configuration.section.lodged.common.toml.title": "%s Common Config",
+  "lodged.configuration.lodged": "Lodged",
+  "lodged.configuration.lodged.tooltip": "Lodged options.",
   "lodged.configuration.enableArrowRecovery": "Enable arrow recovery",
   "lodged.configuration.enableArrowRecovery.tooltip": "Tracked lodged arrows can drop from living entities when they die.",
   "lodged.configuration.recoveryChance": "Recovery chance",
