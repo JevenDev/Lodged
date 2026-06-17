@@ -10,6 +10,9 @@ public final class LodgedDamageTypes {
     public static final ResourceKey<DamageType> BLEEDING = ResourceKey.create(
             Registries.DAMAGE_TYPE,
             ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "bleeding"));
+    public static final ResourceKey<DamageType> ARROW_REMOVAL = ResourceKey.create(
+            Registries.DAMAGE_TYPE,
+            ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "arrow_removal"));
 
     private LodgedDamageTypes() {
     }

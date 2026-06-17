@@ -2,15 +2,20 @@ package com.jvn.lodged.network;
 
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.effect.BleedingEvents;
+import com.jvn.lodged.effect.LodgedDamageTypes;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.world.LodgedArrowData;
 import com.jvn.lodged.world.LodgedArrowStorage;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
@@ -115,7 +120,10 @@ final class PlayerArrowRemoval {
     private static void damageForBrokenArrow(ServerPlayer player) {
         float damage = LodgedConfig.playerArrowRemovalBreakDamage();
         if (damage > 0.0F) {
-            player.hurt(player.damageSources().generic(), damage);
+            Holder<DamageType> arrowRemoval = player.level().registryAccess()
+                    .registryOrThrow(Registries.DAMAGE_TYPE)
+                    .getHolderOrThrow(LodgedDamageTypes.ARROW_REMOVAL);
+            player.hurt(new DamageSource(arrowRemoval), damage);
         }
     }
 

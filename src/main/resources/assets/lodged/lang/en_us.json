@@ -94,6 +94,8 @@
   "lodged.configuration.bleedingStrongDripInterval": "Strong bleeding drip interval",
   "lodged.configuration.bleedingStrongDripInterval.tooltip": "Ticks between blood drip particles for strong bleeding.",
   "effect.lodged.bleeding": "Bleeding",
+  "death.attack.lodged.arrow_removal": "%1$s pulled out one arrow too many",
+  "death.attack.lodged.arrow_removal.player": "%1$s pulled out one arrow too many while fighting %2$s",
   "death.attack.lodged.bleeding": "%1$s bled out",
   "death.attack.lodged.bleeding.player": "%1$s bled out while fighting %2$s"
 }
