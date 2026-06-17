@@ -112,6 +112,14 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
         return LodgedArrowBodyPart.CHEST;
     }
 
+    public Vec3 toEntityLocalPosition(LivingEntity target) {
+        double modelScale = Math.max(PLAYER_MODEL_RENDER_SCALE * target.getScale(), 0.1D);
+        return new Vec3(
+                modelX * modelScale,
+                MODEL_RENDER_ROOT_Y - (modelY * modelScale),
+                -modelZ * modelScale);
+    }
+
     void save(CompoundTag tag) {
         tag.putFloat(MODEL_X_KEY, modelX);
         tag.putFloat(MODEL_Y_KEY, modelY);

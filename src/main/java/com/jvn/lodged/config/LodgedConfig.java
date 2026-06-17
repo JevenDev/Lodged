@@ -28,6 +28,31 @@ public final class LodgedConfig {
     private static final ModConfigSpec.BooleanValue REQUIRE_INVENTORY_SCREEN_FOR_REMOVAL;
     private static final ModConfigSpec.IntValue MAX_REMOVABLE_PLAYER_ARROWS;
     private static final ModConfigSpec.ConfigValue<List<? extends String>> ENTITY_DENYLIST;
+    private static final ModConfigSpec.BooleanValue ENABLE_BLEEDING;
+    private static final ModConfigSpec.BooleanValue ARROW_REMOVAL_CAUSES_BLEEDING;
+    private static final ModConfigSpec.BooleanValue ENCHANTS_CAUSE_BLEEDING;
+    private static final ModConfigSpec.BooleanValue WEAPONS_CAUSE_BLEEDING;
+    private static final ModConfigSpec.BooleanValue SKELETONS_AFFECTED_BY_BLEEDING;
+    private static final ModConfigSpec.BooleanValue UNDEAD_AFFECTED_BY_BLEEDING;
+    private static final ModConfigSpec.BooleanValue FULL_ARMOR_PREVENTS_BLEEDING;
+    private static final ModConfigSpec.BooleanValue PARTIAL_ARMOR_PREVENTS_BLEEDING;
+    private static final ModConfigSpec.DoubleValue FULL_ARMOR_BLEEDING_CHANCE;
+    private static final ModConfigSpec.DoubleValue PARTIAL_ARMOR_BLEEDING_CHANCE;
+    private static final ModConfigSpec.DoubleValue NO_ARMOR_BLEEDING_CHANCE;
+    private static final ModConfigSpec.DoubleValue FAILED_ARROW_REMOVAL_FULL_ARMOR_BLEEDING_CHANCE;
+    private static final ModConfigSpec.DoubleValue FAILED_ARROW_REMOVAL_PARTIAL_ARMOR_BLEEDING_CHANCE;
+    private static final ModConfigSpec.DoubleValue FAILED_ARROW_REMOVAL_NO_ARMOR_BLEEDING_CHANCE;
+    private static final ModConfigSpec.IntValue BLEEDING_DAMAGE_DURATION;
+    private static final ModConfigSpec.IntValue BLEEDING_ARROW_REMOVAL_DURATION;
+    private static final ModConfigSpec.IntValue BLEEDING_MAX_DURATION;
+    private static final ModConfigSpec.IntValue BLEEDING_STRONG_DURATION_THRESHOLD;
+    private static final ModConfigSpec.IntValue BLEEDING_BASE_TICK_INTERVAL;
+    private static final ModConfigSpec.IntValue BLEEDING_STRONG_TICK_INTERVAL;
+    private static final ModConfigSpec.DoubleValue BLEEDING_BASE_DAMAGE;
+    private static final ModConfigSpec.DoubleValue BLEEDING_STRONG_DAMAGE;
+    private static final ModConfigSpec.BooleanValue BLEEDING_DRIP_PARTICLES;
+    private static final ModConfigSpec.IntValue BLEEDING_BASE_DRIP_INTERVAL;
+    private static final ModConfigSpec.IntValue BLEEDING_STRONG_DRIP_INTERVAL;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -137,6 +162,131 @@ public final class LodgedConfig {
                         () -> "minecraft:zombie",
                         LodgedConfig::isValidEntityId);
 
+        ENABLE_BLEEDING = builder
+                .comment("If true, Lodged can apply its bleeding mob effect.")
+                .translation("lodged.configuration.enableBleeding")
+                .define("enableBleeding", true);
+
+        ARROW_REMOVAL_CAUSES_BLEEDING = builder
+                .comment("If true, pulling lodged arrows out of your body can apply bleeding.")
+                .translation("lodged.configuration.arrowRemovalCausesBleeding")
+                .define("arrowRemovalCausesBleeding", true);
+
+        ENCHANTS_CAUSE_BLEEDING = builder
+                .comment("If true, weapons with enchantments in Lodged's bleeding enchantment tags can apply bleeding.")
+                .translation("lodged.configuration.enchantsCauseBleeding")
+                .define("enchantsCauseBleeding", true);
+
+        WEAPONS_CAUSE_BLEEDING = builder
+                .comment("If true, unenchanted weapons in the lodged:bleeding_weapons item tag can apply bleeding.")
+                .translation("lodged.configuration.weaponsCauseBleeding")
+                .define("weaponsCauseBleeding", false);
+
+        SKELETONS_AFFECTED_BY_BLEEDING = builder
+                .comment("If true, entity types in lodged:bleeding_skeletons can bleed.")
+                .translation("lodged.configuration.skeletonsAffectedByBleeding")
+                .define("skeletonsAffectedByBleeding", false);
+
+        UNDEAD_AFFECTED_BY_BLEEDING = builder
+                .comment("If true, undead entity types in lodged:bleeding_undead can bleed. Zombies are included by default.")
+                .translation("lodged.configuration.undeadAffectedByBleeding")
+                .define("undeadAffectedByBleeding", true);
+
+        FULL_ARMOR_PREVENTS_BLEEDING = builder
+                .comment("If true, wearing armor in all four normal armor slots prevents new bleeding.")
+                .translation("lodged.configuration.fullArmorPreventsBleeding")
+                .define("fullArmorPreventsBleeding", true);
+
+        PARTIAL_ARMOR_PREVENTS_BLEEDING = builder
+                .comment("If true, wearing any normal armor piece prevents new bleeding.")
+                .translation("lodged.configuration.partialArmorPreventsBleeding")
+                .define("partialArmorPreventsBleeding", false);
+
+        FULL_ARMOR_BLEEDING_CHANCE = builder
+                .comment("Chance for a bleeding trigger to apply when the target has full armor and fullArmorPreventsBleeding is false.")
+                .translation("lodged.configuration.fullArmorBleedingChance")
+                .defineInRange("fullArmorBleedingChance", 0.15D, 0.0D, 1.0D);
+
+        PARTIAL_ARMOR_BLEEDING_CHANCE = builder
+                .comment("Chance for a bleeding trigger to apply when the target has one to three normal armor pieces and partialArmorPreventsBleeding is false.")
+                .translation("lodged.configuration.partialArmorBleedingChance")
+                .defineInRange("partialArmorBleedingChance", 0.65D, 0.0D, 1.0D);
+
+        NO_ARMOR_BLEEDING_CHANCE = builder
+                .comment("Chance for a bleeding trigger to apply when the target has no normal armor pieces.")
+                .translation("lodged.configuration.noArmorBleedingChance")
+                .defineInRange("noArmorBleedingChance", 1.0D, 0.0D, 1.0D);
+
+        FAILED_ARROW_REMOVAL_FULL_ARMOR_BLEEDING_CHANCE = builder
+                .comment("Chance for a failed arrow removal to apply bleeding when the player has full armor. This uses its own armor weighting and is not blocked by fullArmorPreventsBleeding.")
+                .translation("lodged.configuration.failedArrowRemovalFullArmorBleedingChance")
+                .defineInRange("failedArrowRemovalFullArmorBleedingChance", 0.25D, 0.0D, 1.0D);
+
+        FAILED_ARROW_REMOVAL_PARTIAL_ARMOR_BLEEDING_CHANCE = builder
+                .comment("Chance for a failed arrow removal to apply bleeding when the player has one to three normal armor pieces. This uses its own armor weighting and is not blocked by partialArmorPreventsBleeding.")
+                .translation("lodged.configuration.failedArrowRemovalPartialArmorBleedingChance")
+                .defineInRange("failedArrowRemovalPartialArmorBleedingChance", 0.75D, 0.0D, 1.0D);
+
+        FAILED_ARROW_REMOVAL_NO_ARMOR_BLEEDING_CHANCE = builder
+                .comment("Chance for a failed arrow removal to apply bleeding when the player has no normal armor pieces.")
+                .translation("lodged.configuration.failedArrowRemovalNoArmorBleedingChance")
+                .defineInRange("failedArrowRemovalNoArmorBleedingChance", 1.0D, 0.0D, 1.0D);
+
+        BLEEDING_DAMAGE_DURATION = builder
+                .comment("Bleeding duration added by qualifying weapon damage, in ticks.")
+                .translation("lodged.configuration.bleedingDamageDuration")
+                .defineInRange("bleedingDamageDuration", 120, 0, 20 * 60 * 10);
+
+        BLEEDING_ARROW_REMOVAL_DURATION = builder
+                .comment("Bleeding duration added by pulling out a lodged arrow, in ticks.")
+                .translation("lodged.configuration.bleedingArrowRemovalDuration")
+                .defineInRange("bleedingArrowRemovalDuration", 200, 0, 20 * 60 * 10);
+
+        BLEEDING_MAX_DURATION = builder
+                .comment("Maximum total bleeding duration after stacking repeated triggers, in ticks.")
+                .translation("lodged.configuration.bleedingMaxDuration")
+                .defineInRange("bleedingMaxDuration", 1200, 20, 20 * 60 * 10);
+
+        BLEEDING_STRONG_DURATION_THRESHOLD = builder
+                .comment("Bleeding becomes stronger at or above this remaining duration, in ticks.")
+                .translation("lodged.configuration.bleedingStrongDurationThreshold")
+                .defineInRange("bleedingStrongDurationThreshold", 600, 20, 20 * 60 * 10);
+
+        BLEEDING_BASE_TICK_INTERVAL = builder
+                .comment("Ticks between damage pulses for normal bleeding.")
+                .translation("lodged.configuration.bleedingBaseTickInterval")
+                .defineInRange("bleedingBaseTickInterval", 100, 1, 20 * 60);
+
+        BLEEDING_STRONG_TICK_INTERVAL = builder
+                .comment("Ticks between damage pulses for strong bleeding.")
+                .translation("lodged.configuration.bleedingStrongTickInterval")
+                .defineInRange("bleedingStrongTickInterval", 80, 1, 20 * 60);
+
+        BLEEDING_BASE_DAMAGE = builder
+                .comment("Damage dealt by each normal bleeding pulse. Damage is in half-hearts, so 1.0 equals half a heart.")
+                .translation("lodged.configuration.bleedingBaseDamage")
+                .defineInRange("bleedingBaseDamage", 1.0D, 0.0D, 20.0D);
+
+        BLEEDING_STRONG_DAMAGE = builder
+                .comment("Damage dealt by each strong bleeding pulse. Damage is in half-hearts, so 2.0 equals one heart.")
+                .translation("lodged.configuration.bleedingStrongDamage")
+                .defineInRange("bleedingStrongDamage", 2.0D, 0.0D, 20.0D);
+
+        BLEEDING_DRIP_PARTICLES = builder
+                .comment("If true, bleeding entities drip blood particles from their wound between damage pulses.")
+                .translation("lodged.configuration.bleedingDripParticles")
+                .define("bleedingDripParticles", true);
+
+        BLEEDING_BASE_DRIP_INTERVAL = builder
+                .comment("Ticks between blood drip particles for normal bleeding.")
+                .translation("lodged.configuration.bleedingBaseDripInterval")
+                .defineInRange("bleedingBaseDripInterval", 8, 1, 20 * 60);
+
+        BLEEDING_STRONG_DRIP_INTERVAL = builder
+                .comment("Ticks between blood drip particles for strong bleeding.")
+                .translation("lodged.configuration.bleedingStrongDripInterval")
+                .defineInRange("bleedingStrongDripInterval", 5, 1, 20 * 60);
+
         builder.pop();
 
         SPEC = builder.build();
@@ -217,6 +367,94 @@ public final class LodgedConfig {
 
     public static List<? extends String> entityDenylist() {
         return ENTITY_DENYLIST.get();
+    }
+
+    public static boolean enableBleeding() {
+        return ENABLE_BLEEDING.get();
+    }
+
+    public static boolean arrowRemovalCausesBleeding() {
+        return enableBleeding() && ARROW_REMOVAL_CAUSES_BLEEDING.get();
+    }
+
+    public static boolean enchantsCauseBleeding() {
+        return enableBleeding() && ENCHANTS_CAUSE_BLEEDING.get();
+    }
+
+    public static boolean weaponsCauseBleeding() {
+        return enableBleeding() && WEAPONS_CAUSE_BLEEDING.get();
+    }
+
+    public static boolean skeletonsAffectedByBleeding() {
+        return SKELETONS_AFFECTED_BY_BLEEDING.get();
+    }
+
+    public static boolean undeadAffectedByBleeding() {
+        return UNDEAD_AFFECTED_BY_BLEEDING.get();
+    }
+
+    public static boolean fullArmorPreventsBleeding() {
+        return FULL_ARMOR_PREVENTS_BLEEDING.get();
+    }
+
+    public static boolean partialArmorPreventsBleeding() {
+        return PARTIAL_ARMOR_PREVENTS_BLEEDING.get();
+    }
+
+    public static double fullArmorBleedingChance() {
+        return FULL_ARMOR_BLEEDING_CHANCE.get();
+    }
+
+    public static double partialArmorBleedingChance() {
+        return PARTIAL_ARMOR_BLEEDING_CHANCE.get();
+    }
+
+    public static double noArmorBleedingChance() {
+        return NO_ARMOR_BLEEDING_CHANCE.get();
+    }
+
+    public static double failedArrowRemovalFullArmorBleedingChance() {
+        return FAILED_ARROW_REMOVAL_FULL_ARMOR_BLEEDING_CHANCE.get();
+    }
+
+    public static double failedArrowRemovalPartialArmorBleedingChance() {
+        return FAILED_ARROW_REMOVAL_PARTIAL_ARMOR_BLEEDING_CHANCE.get();
+    }
+
+    public static double failedArrowRemovalNoArmorBleedingChance() {
+        return FAILED_ARROW_REMOVAL_NO_ARMOR_BLEEDING_CHANCE.get();
+    }
+
+    public static int bleedingDamageDuration() {
+        return BLEEDING_DAMAGE_DURATION.get();
+    }
+
+    public static int bleedingArrowRemovalDuration() {
+        return BLEEDING_ARROW_REMOVAL_DURATION.get();
+    }
+
+    public static int bleedingMaxDuration() {
+        return BLEEDING_MAX_DURATION.get();
+    }
+
+    public static int bleedingStrongDurationThreshold() {
+        return Math.min(BLEEDING_STRONG_DURATION_THRESHOLD.get(), bleedingMaxDuration());
+    }
+
+    public static int bleedingTickInterval(int amplifier) {
+        return amplifier > 0 ? BLEEDING_STRONG_TICK_INTERVAL.get() : BLEEDING_BASE_TICK_INTERVAL.get();
+    }
+
+    public static float bleedingDamage(int amplifier) {
+        return (amplifier > 0 ? BLEEDING_STRONG_DAMAGE.get() : BLEEDING_BASE_DAMAGE.get()).floatValue();
+    }
+
+    public static boolean bleedingDripParticles() {
+        return BLEEDING_DRIP_PARTICLES.get();
+    }
+
+    public static int bleedingDripInterval(int amplifier) {
+        return amplifier > 0 ? BLEEDING_STRONG_DRIP_INTERVAL.get() : BLEEDING_BASE_DRIP_INTERVAL.get();
     }
 
     private static boolean isValidEntityId(Object value) {

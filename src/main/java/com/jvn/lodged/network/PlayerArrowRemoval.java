@@ -1,6 +1,7 @@
 package com.jvn.lodged.network;
 
 import com.jvn.lodged.config.LodgedConfig;
+import com.jvn.lodged.effect.BleedingEvents;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.world.LodgedArrowData;
 import com.jvn.lodged.world.LodgedArrowStorage;
@@ -54,6 +55,7 @@ final class PlayerArrowRemoval {
             damageForBrokenArrow(player);
             playSound(player, SoundEvents.ITEM_BREAK, 0.8F, 1.0F);
         }
+        BleedingEvents.tryApplyFromArrowRemoval(player, removedArrow.visual(), !recovered);
 
         LodgedNetwork.syncPlayerArrows(player);
         LodgedNetwork.syncEntityArrows(player);
