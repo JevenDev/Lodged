@@ -10,7 +10,6 @@ import com.jvn.lodged.world.LodgedArrowEvents;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.common.NeoForge;
 import org.slf4j.Logger;
 
@@ -20,7 +19,7 @@ public final class Lodged {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public Lodged(IEventBus modEventBus, ModContainer modContainer) {
-        modContainer.registerConfig(ModConfig.Type.COMMON, LodgedConfig.SPEC);
+        LodgedConfig.load();
         LodgedEffects.EFFECTS.register(modEventBus);
         LodgedParticles.PARTICLES.register(modEventBus);
         modEventBus.addListener(LodgedNetwork::registerPayloads);

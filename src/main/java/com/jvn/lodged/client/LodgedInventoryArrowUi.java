@@ -20,6 +20,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.PostChain;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
@@ -38,6 +39,10 @@ public final class LodgedInventoryArrowUi {
     private static final int MODEL_TOP = 8;
     private static final int MODEL_RIGHT = 75;
     private static final int MODEL_BOTTOM = 78;
+    private static final int INVENTORY_TURN_TEXTURE_WIDTH = 17;
+    private static final int INVENTORY_TURN_TEXTURE_HEIGHT = 4;
+    private static final int INVENTORY_TURN_BOTTOM_PADDING = 2;
+    private static final int INVENTORY_TURN_Z = 350;
     private static final int HIT_ZONE_RADIUS = 12;
     private static final float PREVIEW_SCALE = 30.0F;
     private static final float PREVIEW_Y_OFFSET = 0.0625F;
@@ -52,12 +57,18 @@ public final class LodgedInventoryArrowUi {
             ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "textures/particle/bleed_fall.png");
     private static final ResourceLocation BLEED_LAND_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "textures/particle/bleed_land.png");
+    private static final ResourceLocation INVENTORY_TURN_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "textures/gui/inventory_turn.png");
     private static final int BLOOD_TEXTURE_SIZE = 8;
     private static final int GUI_BLOOD_SIZE = 4;
     private static final int GUI_BLOOD_Z = 300;
     private static final int GUI_BLOOD_HANG_TICKS = 6;
     private static final int GUI_BLOOD_FALL_TICKS = 18;
     private static final int GUI_BLOOD_LAND_TICKS = 7;
+    private static final List<Component> INVENTORY_TURN_TOOLTIP = List.of(
+            Component.translatable("tooltip.lodged.inventory_turn.rotate"),
+            Component.translatable("tooltip.lodged.inventory_turn.reset"),
+            Component.translatable("tooltip.lodged.inventory_turn.remove_arrows"));
     private static final LodgedArrowVisual[] FALLBACK_BLEEDING_WOUNDS = {
             new LodgedArrowVisual(0.0F, 0.32F, -0.13F, 0.0F, 0.0F, 1.0F),
             new LodgedArrowVisual(-0.38F, 0.52F, -0.08F, 0.0F, 0.0F, 1.0F),
@@ -93,6 +104,23 @@ public final class LodgedInventoryArrowUi {
 
         ArrowHitZone hoveredZone = findHoveredZone(screen, player, event.getMouseX(), event.getMouseY());
         hoveredArrowIndex = hoveredZone == null ? -1 : hoveredZone.index();
+    }
+
+    @SubscribeEvent
+    public static void onScreenRenderPost(ScreenEvent.Render.Post event) {
+        if (!LodgedConfig.enablePlayerArrowRemoval()
+                || !LodgedConfig.showInventoryTurnHint()
+                || !LodgedConfig.showInventoryTurnHintTooltip()
+                || !(event.getScreen() instanceof InventoryScreen screen)
+                || !isInInventoryTurnHint(screen, event.getMouseX(), event.getMouseY())) {
+            return;
+        }
+
+        event.getGuiGraphics().renderComponentTooltip(
+                Minecraft.getInstance().font,
+                INVENTORY_TURN_TOOLTIP,
+                event.getMouseX(),
+                event.getMouseY());
     }
 
     @SubscribeEvent
@@ -236,6 +264,27 @@ public final class LodgedInventoryArrowUi {
         }
 
         renderInventoryBlood(guiGraphics, x1, y1, x2, y2, mouseX, mouseY, entity);
+        if (LodgedConfig.showInventoryTurnHint()) {
+            renderInventoryTurnHint(guiGraphics, x1, y1, x2, y2);
+        }
+    }
+
+    private static void renderInventoryTurnHint(GuiGraphics guiGraphics, int x1, int y1, int x2, int y2) {
+        InventoryTurnHintBounds bounds = inventoryTurnHintBounds(x1, y2);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        guiGraphics.blit(
+                INVENTORY_TURN_TEXTURE,
+                bounds.x(),
+                bounds.y(),
+                INVENTORY_TURN_Z,
+                0.0F,
+                0.0F,
+                INVENTORY_TURN_TEXTURE_WIDTH,
+                INVENTORY_TURN_TEXTURE_HEIGHT,
+                INVENTORY_TURN_TEXTURE_WIDTH,
+                INVENTORY_TURN_TEXTURE_HEIGHT);
+        RenderSystem.disableBlend();
     }
 
     private static void renderInventoryPlayerWithLockedHead(
@@ -551,6 +600,22 @@ public final class LodgedInventoryArrowUi {
                 && mouseY < top + MODEL_BOTTOM;
     }
 
+    private static boolean isInInventoryTurnHint(InventoryScreen screen, double mouseX, double mouseY) {
+        InventoryTurnHintBounds bounds = inventoryTurnHintBounds(
+                screen.getGuiLeft() + MODEL_LEFT,
+                screen.getGuiTop() + MODEL_BOTTOM);
+        return mouseX >= bounds.x()
+                && mouseX < bounds.x() + INVENTORY_TURN_TEXTURE_WIDTH
+                && mouseY >= bounds.y()
+                && mouseY < bounds.y() + INVENTORY_TURN_TEXTURE_HEIGHT;
+    }
+
+    private static InventoryTurnHintBounds inventoryTurnHintBounds(int previewLeft, int previewBottom) {
+        int x = previewLeft + ((MODEL_RIGHT - MODEL_LEFT - INVENTORY_TURN_TEXTURE_WIDTH) / 2);
+        int y = previewBottom - INVENTORY_TURN_TEXTURE_HEIGHT - INVENTORY_TURN_BOTTOM_PADDING;
+        return new InventoryTurnHintBounds(x, y);
+    }
+
     private static void resetPreviewRotation() {
         yawDegrees = 0.0F;
         draggingPreview = false;
@@ -610,5 +675,8 @@ public final class LodgedInventoryArrowUi {
             double deltaY = mouseY - centerY;
             return (deltaX * deltaX) + (deltaY * deltaY);
         }
+    }
+
+    private record InventoryTurnHintBounds(int x, int y) {
     }
 }

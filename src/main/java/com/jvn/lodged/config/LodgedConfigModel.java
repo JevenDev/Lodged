@@ -1,0 +1,172 @@
+package com.jvn.lodged.config;
+
+import io.wispforest.owo.config.annotation.Config;
+import io.wispforest.owo.config.annotation.Expanded;
+import io.wispforest.owo.config.annotation.Modmenu;
+import io.wispforest.owo.config.annotation.Nest;
+import io.wispforest.owo.config.annotation.PredicateConstraint;
+import io.wispforest.owo.config.annotation.RangeConstraint;
+import java.util.ArrayList;
+import java.util.List;
+import net.minecraft.resources.ResourceLocation;
+
+@Config(name = "lodged", wrapperName = "LodgedConfigWrapper")
+@Modmenu(modId = "lodged")
+public class LodgedConfigModel {
+    @Nest
+    @Expanded
+    public ArrowRecovery arrowRecovery = new ArrowRecovery();
+
+    @Nest
+    @Expanded
+    public ArrowBreakage arrowBreakage = new ArrowBreakage();
+
+    @Nest
+    @Expanded
+    public PlayerArrowRemoval playerArrowRemoval = new PlayerArrowRemoval();
+
+    @Nest
+    @Expanded
+    public BleedingRules bleedingRules = new BleedingRules();
+
+    @Nest
+    @Expanded
+    public BleedingEffect bleedingEffect = new BleedingEffect();
+
+    public static class ArrowRecovery {
+        public boolean enableArrowRecovery = true;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double recoveryChance = 0.35D;
+
+        @RangeConstraint(min = 0, max = 64)
+        public int maxTrackedArrowsPerEntity = 8;
+
+        public boolean recoverPlayerArrowsOnly = true;
+        public boolean recoverMobArrows = false;
+        public boolean recoverInfinityArrows = false;
+        public boolean recoverCreativeArrows = false;
+        public boolean preserveArrowItemStack = true;
+        public boolean preventPlayerArrowDespawn = true;
+        public boolean preventNonPlayerArrowDespawn = false;
+
+        @PredicateConstraint("validEntityDenylist")
+        public List<String> entityDenylist = new ArrayList<>(List.of(
+                "minecraft:slime",
+                "minecraft:magma_cube",
+                "minecraft:armor_stand"));
+
+        public static boolean validEntityDenylist(List<String> ids) {
+            return ids.stream().allMatch(id -> ResourceLocation.tryParse(id) != null);
+        }
+    }
+
+    public static class ArrowBreakage {
+        public boolean enableArrowBreakOnEntityHit = true;
+        public boolean enableArrowBreakOnBlockHit = true;
+        public boolean enableMobArrowBreak = true;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double regularArrowImpactBreakChance = 0.02D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double mobArrowImpactBreakChance = 0.0D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double infinityArrowImpactBreakChance = 0.0D;
+    }
+
+    public static class PlayerArrowRemoval {
+        public boolean enablePlayerArrowRemoval = true;
+        public boolean showInventoryTurnHint = true;
+        public boolean showInventoryTurnHintTooltip = true;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double playerArrowRemovalHeadSuccessChance = 0.35D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double playerArrowRemovalChestSuccessChance = 0.65D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double playerArrowRemovalArmSuccessChance = 0.85D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double playerArrowRemovalLegSuccessChance = 0.85D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double playerArrowRemovalInfinitySuccessMultiplier = 0.5D;
+
+        @RangeConstraint(min = 0.0D, max = 20.0D)
+        public double playerArrowRemovalBreakDamage = 2.0D;
+
+        public boolean allowArrowRemovalInCreative = true;
+        public boolean requireInventoryScreenForRemoval = true;
+
+        @RangeConstraint(min = 0, max = 64)
+        public int maxRemovablePlayerArrows = 0;
+    }
+
+    public static class BleedingRules {
+        public boolean enableBleeding = true;
+        public boolean arrowRemovalCausesBleeding = true;
+        public boolean enchantsCauseBleeding = true;
+        public boolean weaponsCauseBleeding = false;
+        public boolean skeletonsAffectedByBleeding = false;
+        public boolean undeadAffectedByBleeding = true;
+        public boolean fullArmorPreventsBleeding = true;
+        public boolean partialArmorPreventsBleeding = false;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double fullArmorBleedingChance = 0.15D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double partialArmorBleedingChance = 0.65D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double noArmorBleedingChance = 1.0D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double failedArrowRemovalFullArmorBleedingChance = 0.25D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double failedArrowRemovalPartialArmorBleedingChance = 0.75D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double failedArrowRemovalNoArmorBleedingChance = 1.0D;
+    }
+
+    public static class BleedingEffect {
+        @RangeConstraint(min = 0, max = 12000)
+        public int bleedingDamageDuration = 120;
+
+        @RangeConstraint(min = 0, max = 12000)
+        public int bleedingArrowRemovalDuration = 200;
+
+        @RangeConstraint(min = 20, max = 12000)
+        public int bleedingMaxDuration = 1200;
+
+        @RangeConstraint(min = 20, max = 12000)
+        public int bleedingStrongDurationThreshold = 600;
+
+        @RangeConstraint(min = 1, max = 1200)
+        public int bleedingBaseTickInterval = 100;
+
+        @RangeConstraint(min = 1, max = 1200)
+        public int bleedingStrongTickInterval = 80;
+
+        @RangeConstraint(min = 0.0D, max = 20.0D)
+        public double bleedingBaseDamage = 1.0D;
+
+        @RangeConstraint(min = 0.0D, max = 20.0D)
+        public double bleedingStrongDamage = 2.0D;
+
+        public boolean bleedingDripParticles = true;
+
+        @RangeConstraint(min = 1, max = 1200)
+        public int bleedingBaseDripInterval = 8;
+
+        @RangeConstraint(min = 1, max = 1200)
+        public int bleedingStrongDripInterval = 5;
+    }
+
+}
