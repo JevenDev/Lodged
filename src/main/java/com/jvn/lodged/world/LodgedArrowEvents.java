@@ -1,11 +1,17 @@
 package com.jvn.lodged.world;
 
 import com.jvn.lodged.config.LodgedConfig;
+import com.jvn.lodged.effect.BleedingEvents;
 import com.jvn.lodged.network.LodgedNetwork;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -14,14 +20,25 @@ import net.minecraft.world.entity.projectile.Arrow;
 import net.minecraft.world.entity.projectile.SpectralArrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.ProjectileImpactEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 public final class LodgedArrowEvents {
+    private static final long BROKEN_ARROW_IMPACT_EXPIRY_TICKS = 20L;
+    private static final long BLOCK_ARROW_BREAK_DELAY_TICKS = 4L;
+    private static final long BLOCK_ARROW_BREAK_EXPIRY_TICKS = 40L;
+    private static final Map<UUID, BrokenArrowImpact> BROKEN_ARROW_IMPACTS = new HashMap<>();
+    private static final Map<UUID, Integer> PENDING_ARROW_COUNT_REMOVALS = new HashMap<>();
+    private static final Map<UUID, Long> PENDING_BLOCK_ARROW_BREAKS = new HashMap<>();
+
     private LodgedArrowEvents() {
     }
 
@@ -35,23 +52,40 @@ public final class LodgedArrowEvents {
             return;
         }
 
-        if (!(event.getRayTraceResult() instanceof EntityHitResult hitResult)
-                || !(hitResult.getEntity() instanceof LivingEntity target)) {
-            return;
-        }
-
-        if (!canTrack(target)) {
-            return;
-        }
-
         Entity owner = arrow.getOwner();
         boolean fromPlayer = owner instanceof Player;
+        boolean fromMob = owner instanceof LivingEntity && !fromPlayer;
         boolean creativeGenerated = owner instanceof Player player
                 && player.getAbilities().instabuild
                 && arrow.pickup == AbstractArrow.Pickup.CREATIVE_ONLY;
         boolean infinityGenerated = fromPlayer
                 && !creativeGenerated
                 && arrow.pickup == AbstractArrow.Pickup.CREATIVE_ONLY;
+        removeExpiredBrokenArrowImpacts(arrow.level().getGameTime());
+
+        HitResult hitResult = event.getRayTraceResult();
+        if (hitResult instanceof BlockHitResult
+                && LodgedConfig.enableArrowBreakOnBlockHit()
+                && breaksOnImpact(arrow, fromPlayer, fromMob, infinityGenerated, creativeGenerated)) {
+            rememberPendingBlockArrowBreak(arrow);
+            return;
+        }
+
+        if (!(hitResult instanceof EntityHitResult entityHitResult)
+                || !(entityHitResult.getEntity() instanceof LivingEntity target)) {
+            return;
+        }
+
+        LodgedArrowVisual visual = LodgedArrowVisual.fromImpact(target, arrow, entityHitResult);
+        if (LodgedConfig.enableArrowBreakOnEntityHit()
+                && breaksOnImpact(arrow, fromPlayer, fromMob, infinityGenerated, creativeGenerated)) {
+            rememberBrokenArrowImpact(arrow, target, visual);
+            return;
+        }
+
+        if (!canTrack(target)) {
+            return;
+        }
 
         boolean trackForVisuals = !(target instanceof Player);
         boolean trackForDeathRecovery = canRecoverOnDeath(fromPlayer, infinityGenerated, creativeGenerated);
@@ -71,8 +105,59 @@ public final class LodgedArrowEvents {
                 infinityGenerated,
                 creativeGenerated,
                 target.level().getGameTime(),
-                LodgedArrowVisual.fromImpact(target, arrow, hitResult)));
+                visual));
 
+        LodgedNetwork.syncEntityArrows(target);
+        if (target instanceof ServerPlayer player) {
+            LodgedNetwork.syncPlayerArrows(player);
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onLivingDamage(LivingDamageEvent.Post event) {
+        LivingEntity target = event.getEntity();
+        if (target.level().isClientSide()
+                || event.getNewDamage() <= 0.0F
+                || !(event.getSource().getDirectEntity() instanceof AbstractArrow arrow)) {
+            return;
+        }
+
+        BrokenArrowImpact brokenImpact = BROKEN_ARROW_IMPACTS.remove(arrow.getUUID());
+        if (brokenImpact == null || !target.getUUID().equals(brokenImpact.targetUuid())) {
+            return;
+        }
+
+        BleedingEvents.tryApplyFromBrokenArrowImpact(target, brokenImpact.visual());
+        if (arrow.getPierceLevel() <= 0) {
+            PENDING_ARROW_COUNT_REMOVALS.merge(target.getUUID(), 1, Integer::sum);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onEntityTick(EntityTickEvent.Post event) {
+        Entity entity = event.getEntity();
+        if (entity.level().isClientSide()) {
+            return;
+        }
+
+        removeExpiredBlockArrowBreaks(entity.level().getGameTime());
+        if (entity instanceof AbstractArrow arrow) {
+            processPendingBlockArrowBreak(arrow);
+            return;
+        }
+
+        if (!(entity instanceof LivingEntity target)) {
+            return;
+        }
+
+        removeExpiredBrokenArrowImpacts(target.level().getGameTime());
+
+        Integer removals = PENDING_ARROW_COUNT_REMOVALS.remove(target.getUUID());
+        if (removals == null || removals <= 0) {
+            return;
+        }
+
+        target.setArrowCount(Math.max(0, target.getArrowCount() - removals));
         LodgedNetwork.syncEntityArrows(target);
         if (target instanceof ServerPlayer player) {
             LodgedNetwork.syncPlayerArrows(player);
@@ -86,6 +171,7 @@ public final class LodgedArrowEvents {
         }
 
         LivingEntity entity = event.getEntity();
+        PENDING_ARROW_COUNT_REMOVALS.remove(entity.getUUID());
         List<LodgedArrowData> lodgedArrows = LodgedArrowStorage.removeAll(entity);
         LodgedNetwork.syncEntityArrows(entity);
         if (entity instanceof ServerPlayer player) {
@@ -160,8 +246,8 @@ public final class LodgedArrowEvents {
             return false;
         }
 
-        if (LodgedConfig.recoverPlayerArrowsOnly() && !fromPlayer) {
-            return false;
+        if (!fromPlayer) {
+            return LodgedConfig.recoverMobArrows();
         }
 
         if (infinityGenerated && !LodgedConfig.recoverInfinityArrows()) {
@@ -169,6 +255,80 @@ public final class LodgedArrowEvents {
         }
 
         return !creativeGenerated || LodgedConfig.recoverCreativeArrows();
+    }
+
+    private static boolean breaksOnImpact(
+            AbstractArrow arrow,
+            boolean fromPlayer,
+            boolean fromMob,
+            boolean infinityGenerated,
+            boolean creativeGenerated) {
+        double breakChance = impactBreakChance(fromPlayer, fromMob, infinityGenerated, creativeGenerated);
+        return breakChance >= 1.0D || (breakChance > 0.0D && arrow.getRandom().nextDouble() < breakChance);
+    }
+
+    private static double impactBreakChance(
+            boolean fromPlayer,
+            boolean fromMob,
+            boolean infinityGenerated,
+            boolean creativeGenerated) {
+        if (infinityGenerated) {
+            return LodgedConfig.infinityArrowImpactBreakChance();
+        }
+
+        if (fromMob && !LodgedConfig.enableMobArrowBreak()) {
+            return 0.0D;
+        }
+
+        if (!fromPlayer) {
+            return LodgedConfig.mobArrowImpactBreakChance();
+        }
+
+        if (creativeGenerated) {
+            return 0.0D;
+        }
+
+        return LodgedConfig.regularArrowImpactBreakChance();
+    }
+
+    private static void rememberBrokenArrowImpact(AbstractArrow arrow, LivingEntity target, LodgedArrowVisual visual) {
+        BROKEN_ARROW_IMPACTS.put(
+                arrow.getUUID(),
+                new BrokenArrowImpact(target.getUUID(), visual, arrow.level().getGameTime()));
+    }
+
+    private static void rememberPendingBlockArrowBreak(AbstractArrow arrow) {
+        arrow.pickup = AbstractArrow.Pickup.DISALLOWED;
+        PENDING_BLOCK_ARROW_BREAKS.put(arrow.getUUID(), arrow.level().getGameTime() + BLOCK_ARROW_BREAK_DELAY_TICKS);
+    }
+
+    private static void processPendingBlockArrowBreak(AbstractArrow arrow) {
+        Long breakTime = PENDING_BLOCK_ARROW_BREAKS.get(arrow.getUUID());
+        if (breakTime == null || arrow.level().getGameTime() < breakTime) {
+            return;
+        }
+
+        PENDING_BLOCK_ARROW_BREAKS.remove(arrow.getUUID());
+        arrow.level().playSound(
+                null,
+                arrow.getX(),
+                arrow.getY(),
+                arrow.getZ(),
+                SoundEvents.ITEM_BREAK,
+                SoundSource.NEUTRAL,
+                0.8F,
+                1.0F);
+        arrow.discard();
+    }
+
+    private static void removeExpiredBrokenArrowImpacts(long gameTime) {
+        BROKEN_ARROW_IMPACTS.entrySet().removeIf(entry ->
+                gameTime - entry.getValue().gameTime() > BROKEN_ARROW_IMPACT_EXPIRY_TICKS);
+    }
+
+    private static void removeExpiredBlockArrowBreaks(long gameTime) {
+        PENDING_BLOCK_ARROW_BREAKS.entrySet().removeIf(entry ->
+                gameTime - entry.getValue() > BLOCK_ARROW_BREAK_EXPIRY_TICKS);
     }
 
     private static void syncPlayer(Player player) {
@@ -206,5 +366,8 @@ public final class LodgedArrowEvents {
         }
 
         return new ItemStack(Items.ARROW);
+    }
+
+    private record BrokenArrowImpact(UUID targetUuid, LodgedArrowVisual visual, long gameTime) {
     }
 }

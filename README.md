@@ -33,8 +33,15 @@ The common NeoForge config includes:
 - `recoveryChance`
 - `maxTrackedArrowsPerEntity`
 - `recoverPlayerArrowsOnly`
+- `recoverMobArrows`
 - `recoverInfinityArrows`
 - `recoverCreativeArrows`
+- `enableArrowBreakOnEntityHit`
+- `enableArrowBreakOnBlockHit`
+- `enableMobArrowBreak`
+- `regularArrowImpactBreakChance`
+- `mobArrowImpactBreakChance`
+- `infinityArrowImpactBreakChance`
 - `preserveArrowItemStack`
 - `preventPlayerArrowDespawn`
 - `preventNonPlayerArrowDespawn`

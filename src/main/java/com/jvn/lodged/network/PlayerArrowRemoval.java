@@ -106,7 +106,15 @@ final class PlayerArrowRemoval {
     }
 
     private static double removalSuccessChance(LodgedArrowData arrow) {
+        if (!arrow.fromPlayer() && !LodgedConfig.recoverMobArrows()) {
+            return 0.0D;
+        }
+
         if (arrow.infinityGenerated() && !LodgedConfig.recoverInfinityArrows()) {
+            return 0.0D;
+        }
+
+        if (arrow.creativeGenerated() && !LodgedConfig.recoverCreativeArrows()) {
             return 0.0D;
         }
 

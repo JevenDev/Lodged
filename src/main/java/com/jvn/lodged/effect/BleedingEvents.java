@@ -102,6 +102,14 @@ public final class BleedingEvents {
                 chance);
     }
 
+    public static boolean tryApplyFromBrokenArrowImpact(LivingEntity target, LodgedArrowVisual arrowVisual) {
+        return tryApplyBleeding(
+                target,
+                LodgedConfig.bleedingDamageDuration(),
+                woundFromArrow(target, arrowVisual),
+                normalArmorBleedingChance(target));
+    }
+
     public static boolean canBleed(LivingEntity target) {
         if (!LodgedConfig.enableBleeding() || target.getType().is(LodgedTags.BLEEDING_IMMUNE)) {
             return false;

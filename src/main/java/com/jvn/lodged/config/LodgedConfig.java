@@ -12,8 +12,15 @@ public final class LodgedConfig {
     private static final ModConfigSpec.DoubleValue RECOVERY_CHANCE;
     private static final ModConfigSpec.IntValue MAX_TRACKED_ARROWS_PER_ENTITY;
     private static final ModConfigSpec.BooleanValue RECOVER_PLAYER_ARROWS_ONLY;
+    private static final ModConfigSpec.BooleanValue RECOVER_MOB_ARROWS;
     private static final ModConfigSpec.BooleanValue RECOVER_INFINITY_ARROWS;
     private static final ModConfigSpec.BooleanValue RECOVER_CREATIVE_ARROWS;
+    private static final ModConfigSpec.BooleanValue ENABLE_ARROW_BREAK_ON_ENTITY_HIT;
+    private static final ModConfigSpec.BooleanValue ENABLE_ARROW_BREAK_ON_BLOCK_HIT;
+    private static final ModConfigSpec.BooleanValue ENABLE_MOB_ARROW_BREAK;
+    private static final ModConfigSpec.DoubleValue REGULAR_ARROW_IMPACT_BREAK_CHANCE;
+    private static final ModConfigSpec.DoubleValue MOB_ARROW_IMPACT_BREAK_CHANCE;
+    private static final ModConfigSpec.DoubleValue INFINITY_ARROW_IMPACT_BREAK_CHANCE;
     private static final ModConfigSpec.BooleanValue PRESERVE_ARROW_ITEM_STACK;
     private static final ModConfigSpec.BooleanValue PREVENT_PLAYER_ARROW_DESPAWN;
     private static final ModConfigSpec.BooleanValue PREVENT_NON_PLAYER_ARROW_DESPAWN;
@@ -79,6 +86,11 @@ public final class LodgedConfig {
                 .translation("lodged.configuration.recoverPlayerArrowsOnly")
                 .define("recoverPlayerArrowsOnly", true);
 
+        RECOVER_MOB_ARROWS = builder
+                .comment("If true, arrows fired by mobs can be recovered. This also allows recovery when recoverPlayerArrowsOnly is true.")
+                .translation("lodged.configuration.recoverMobArrows")
+                .define("recoverMobArrows", false);
+
         RECOVER_INFINITY_ARROWS = builder
                 .comment("If true, survival Infinity-generated arrows can be recovered.")
                 .translation("lodged.configuration.recoverInfinityArrows")
@@ -88,6 +100,36 @@ public final class LodgedConfig {
                 .comment("If true, arrows fired by creative-mode players can be recovered.")
                 .translation("lodged.configuration.recoverCreativeArrows")
                 .define("recoverCreativeArrows", false);
+
+        ENABLE_ARROW_BREAK_ON_ENTITY_HIT = builder
+                .comment("If true, arrows can break when they hit living entities. The source-specific break chance still controls whether each arrow breaks.")
+                .translation("lodged.configuration.enableArrowBreakOnEntityHit")
+                .define("enableArrowBreakOnEntityHit", true);
+
+        ENABLE_ARROW_BREAK_ON_BLOCK_HIT = builder
+                .comment("If true, arrows can break when they hit blocks. The source-specific break chance still controls whether each arrow breaks.")
+                .translation("lodged.configuration.enableArrowBreakOnBlockHit")
+                .define("enableArrowBreakOnBlockHit", true);
+
+        ENABLE_MOB_ARROW_BREAK = builder
+                .comment("If true, arrows fired by non-player entities can break on impact.")
+                .translation("lodged.configuration.enableMobArrowBreak")
+                .define("enableMobArrowBreak", true);
+
+        REGULAR_ARROW_IMPACT_BREAK_CHANCE = builder
+                .comment("Chance for each regular arrow to break immediately on impact. Values are clamped from 0.0 to 1.0.")
+                .translation("lodged.configuration.regularArrowImpactBreakChance")
+                .defineInRange("regularArrowImpactBreakChance", 0.02D, 0.0D, 1.0D);
+
+        MOB_ARROW_IMPACT_BREAK_CHANCE = builder
+                .comment("Chance for each mob-fired arrow to break immediately on impact. Values are clamped from 0.0 to 1.0.")
+                .translation("lodged.configuration.mobArrowImpactBreakChance")
+                .defineInRange("mobArrowImpactBreakChance", 0.0D, 0.0D, 1.0D);
+
+        INFINITY_ARROW_IMPACT_BREAK_CHANCE = builder
+                .comment("Chance for each survival Infinity-generated arrow to break immediately on impact. Values are clamped from 0.0 to 1.0.")
+                .translation("lodged.configuration.infinityArrowImpactBreakChance")
+                .defineInRange("infinityArrowImpactBreakChance", 0.0D, 0.0D, 1.0D);
 
         PRESERVE_ARROW_ITEM_STACK = builder
                 .comment("If true, store the original arrow ItemStack so spectral and tipped arrow data can be recovered.")
@@ -311,12 +353,40 @@ public final class LodgedConfig {
         return RECOVER_PLAYER_ARROWS_ONLY.get();
     }
 
+    public static boolean recoverMobArrows() {
+        return RECOVER_MOB_ARROWS.get() || !recoverPlayerArrowsOnly();
+    }
+
     public static boolean recoverInfinityArrows() {
         return RECOVER_INFINITY_ARROWS.get();
     }
 
     public static boolean recoverCreativeArrows() {
         return RECOVER_CREATIVE_ARROWS.get();
+    }
+
+    public static boolean enableArrowBreakOnEntityHit() {
+        return ENABLE_ARROW_BREAK_ON_ENTITY_HIT.get();
+    }
+
+    public static boolean enableArrowBreakOnBlockHit() {
+        return ENABLE_ARROW_BREAK_ON_BLOCK_HIT.get();
+    }
+
+    public static boolean enableMobArrowBreak() {
+        return ENABLE_MOB_ARROW_BREAK.get();
+    }
+
+    public static double regularArrowImpactBreakChance() {
+        return REGULAR_ARROW_IMPACT_BREAK_CHANCE.get();
+    }
+
+    public static double mobArrowImpactBreakChance() {
+        return MOB_ARROW_IMPACT_BREAK_CHANCE.get();
+    }
+
+    public static double infinityArrowImpactBreakChance() {
+        return INFINITY_ARROW_IMPACT_BREAK_CHANCE.get();
     }
 
     public static boolean preserveArrowItemStack() {
