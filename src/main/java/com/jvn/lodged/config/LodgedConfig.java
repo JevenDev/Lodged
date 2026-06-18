@@ -119,6 +119,26 @@ public final class LodgedConfig {
         return configuredMax > 0 ? configuredMax : maxTrackedArrowsPerEntity();
     }
 
+    public static boolean enableLodgedArrowDizziness() {
+        return playerArrowRemoval().enableLodgedArrowDizziness();
+    }
+
+    public static int lodgedArrowDizzinessMinArrows() {
+        return playerArrowRemoval().lodgedArrowDizzinessMinArrows();
+    }
+
+    public static double lodgedArrowDizzinessPercentOfMax() {
+        return playerArrowRemoval().lodgedArrowDizzinessPercentOfMax();
+    }
+
+    public static int lodgedArrowDizzinessDuration() {
+        return playerArrowRemoval().lodgedArrowDizzinessDuration();
+    }
+
+    public static int lodgedArrowDizzinessRefreshInterval() {
+        return playerArrowRemoval().lodgedArrowDizzinessRefreshInterval();
+    }
+
     public static List<? extends String> entityDenylist() {
         return arrowRecovery().entityDenylist();
     }

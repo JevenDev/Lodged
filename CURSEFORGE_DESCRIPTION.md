@@ -20,6 +20,7 @@ It is meant to make ranged combat a little grittier without replacing Minecraft'
 * Arrows can break on entity or block impact (configurable)
 * Players can remove lodged arrows from their own inventory preview
 * Removal success can vary by body part
+* Having too many lodged arrows can cause mild dizziness until some are removed
 * Failed removal can break the arrow, hurt the player, and apply bleeding
 * Bleeding can come from arrow removal, broken arrow impacts, or tagged/enchantment-based weapons
 * Bleeding supports visible drip particles, stacked duration, and stronger late-stage damage
@@ -69,6 +70,8 @@ Players can remove arrows stuck in their own body from the inventory player prev
 
 Open your inventory, rotate the player preview if needed, and click a lodged arrow. A successful removal gives the arrow back when that arrow type is recoverable. A failed removal breaks the arrow, can deal damage, and can apply bleeding.
 
+By default, carrying 4 or more lodged arrows, or reaching 50% of the configured tracked-arrow limit, applies Lodged's custom Dizziness effect. It uses a subtle border vignette, slight red tint, and gentle first-person screen wobble that grows stronger as more arrows lodge. Removing arrows drops you below that threshold and lets the effect fade.
+
 Default removal chances:
 
 | Body part | Default success chance |
@@ -79,6 +82,13 @@ Default removal chances:
 | Leg       |                    85% |
 
 Infinity-generated arrows have their removal success chance halved by default when Infinity recovery is enabled.
+
+Default dizziness behaviour:
+
+* Lodged arrow dizziness is enabled
+* Dizziness starts at 4 lodged arrows or 50% of max tracked arrows
+* Each additional lodged arrow increases the effect strength, up to a capped maximum
+* Dizziness refreshes once per second with a short 80-tick custom effect duration
 
 ### Arrow Breakage
 
@@ -146,6 +156,7 @@ Major systems can be tuned or disabled:
 * Player arrow removal
 * Removal success chances by body part
 * Removal failure damage
+* Lodged arrow dizziness thresholds and duration
 * Bleeding rules
 * Bleeding duration, damage, particles, and armour behaviour
 

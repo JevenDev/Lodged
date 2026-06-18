@@ -13,6 +13,9 @@ public final class LodgedEffects {
     public static final DeferredHolder<MobEffect, MobEffect> BLEEDING =
             EFFECTS.register("bleeding", BleedingMobEffect::new);
 
+    public static final DeferredHolder<MobEffect, MobEffect> DIZZINESS =
+            EFFECTS.register("dizziness", DizzinessMobEffect::new);
+
     private LodgedEffects() {
     }
 }

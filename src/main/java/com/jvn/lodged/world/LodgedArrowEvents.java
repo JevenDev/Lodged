@@ -2,6 +2,7 @@ package com.jvn.lodged.world;
 
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.effect.BleedingEvents;
+import com.jvn.lodged.effect.LodgedEffects;
 import com.jvn.lodged.network.LodgedNetwork;
 import java.util.HashMap;
 import java.util.List;
@@ -12,6 +13,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -35,6 +37,7 @@ public final class LodgedArrowEvents {
     private static final long BROKEN_ARROW_IMPACT_EXPIRY_TICKS = 20L;
     private static final long BLOCK_ARROW_BREAK_DELAY_TICKS = 4L;
     private static final long BLOCK_ARROW_BREAK_EXPIRY_TICKS = 40L;
+    private static final int MAX_DIZZINESS_AMPLIFIER = 4;
     private static final Map<UUID, BrokenArrowImpact> BROKEN_ARROW_IMPACTS = new HashMap<>();
     private static final Map<UUID, Integer> PENDING_ARROW_COUNT_REMOVALS = new HashMap<>();
     private static final Map<UUID, Long> PENDING_BLOCK_ARROW_BREAKS = new HashMap<>();
@@ -152,15 +155,11 @@ public final class LodgedArrowEvents {
 
         removeExpiredBrokenArrowImpacts(target.level().getGameTime());
 
-        Integer removals = PENDING_ARROW_COUNT_REMOVALS.remove(target.getUUID());
-        if (removals == null || removals <= 0) {
-            return;
-        }
-
-        target.setArrowCount(Math.max(0, target.getArrowCount() - removals));
-        LodgedNetwork.syncEntityArrows(target);
         if (target instanceof ServerPlayer player) {
-            LodgedNetwork.syncPlayerArrows(player);
+            processPendingArrowCountRemovals(player);
+            tickPlayerDizziness(player);
+        } else {
+            processPendingArrowCountRemovals(target);
         }
     }
 
@@ -329,6 +328,75 @@ public final class LodgedArrowEvents {
     private static void removeExpiredBlockArrowBreaks(long gameTime) {
         PENDING_BLOCK_ARROW_BREAKS.entrySet().removeIf(entry ->
                 gameTime - entry.getValue() > BLOCK_ARROW_BREAK_EXPIRY_TICKS);
+    }
+
+    private static void processPendingArrowCountRemovals(LivingEntity target) {
+        Integer removals = PENDING_ARROW_COUNT_REMOVALS.remove(target.getUUID());
+        if (removals == null || removals <= 0) {
+            return;
+        }
+
+        target.setArrowCount(Math.max(0, target.getArrowCount() - removals));
+        LodgedNetwork.syncEntityArrows(target);
+        if (target instanceof ServerPlayer player) {
+            LodgedNetwork.syncPlayerArrows(player);
+        }
+    }
+
+    private static void tickPlayerDizziness(ServerPlayer player) {
+        int interval = LodgedConfig.lodgedArrowDizzinessRefreshInterval();
+        if (!LodgedConfig.enableLodgedArrowDizziness()
+                || interval <= 0
+                || (player.level().getGameTime() + player.getId()) % interval != 0L) {
+            return;
+        }
+
+        int duration = LodgedConfig.lodgedArrowDizzinessDuration();
+        if (duration <= 0) {
+            return;
+        }
+
+        int amplifier = playerDizzinessAmplifier(player);
+        if (amplifier < 0) {
+            return;
+        }
+
+        MobEffectInstance existing = player.getEffect(LodgedEffects.DIZZINESS);
+        if (existing != null && existing.getDuration() > duration && existing.getAmplifier() == amplifier) {
+            return;
+        }
+
+        player.addEffect(new MobEffectInstance(LodgedEffects.DIZZINESS, duration, amplifier, false, false, true));
+    }
+
+    private static int playerDizzinessAmplifier(ServerPlayer player) {
+        int maxTrackedArrows = LodgedConfig.maxTrackedArrowsPerEntity();
+        if (maxTrackedArrows <= 0) {
+            return -1;
+        }
+
+        int arrowCount = LodgedArrowStorage.readAll(player).size();
+        int threshold = playerDizzinessThreshold(maxTrackedArrows);
+        if (threshold <= 0 || arrowCount < threshold) {
+            return -1;
+        }
+
+        return Math.min(MAX_DIZZINESS_AMPLIFIER, arrowCount - threshold);
+    }
+
+    private static int playerDizzinessThreshold(int maxTrackedArrows) {
+        int threshold = Integer.MAX_VALUE;
+        int minArrows = LodgedConfig.lodgedArrowDizzinessMinArrows();
+        if (minArrows > 0) {
+            threshold = Math.min(threshold, minArrows);
+        }
+
+        double percentOfMax = LodgedConfig.lodgedArrowDizzinessPercentOfMax();
+        if (percentOfMax > 0.0D) {
+            threshold = Math.min(threshold, Math.max(1, (int) Math.ceil(maxTrackedArrows * percentOfMax)));
+        }
+
+        return threshold == Integer.MAX_VALUE ? -1 : threshold;
     }
 
     private static void syncPlayer(Player player) {

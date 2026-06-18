@@ -104,6 +104,20 @@ public class LodgedConfigModel {
 
         @RangeConstraint(min = 0, max = 64)
         public int maxRemovablePlayerArrows = 0;
+
+        public boolean enableLodgedArrowDizziness = true;
+
+        @RangeConstraint(min = 0, max = 64)
+        public int lodgedArrowDizzinessMinArrows = 4;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double lodgedArrowDizzinessPercentOfMax = 0.5D;
+
+        @RangeConstraint(min = 0, max = 1200)
+        public int lodgedArrowDizzinessDuration = 80;
+
+        @RangeConstraint(min = 1, max = 1200)
+        public int lodgedArrowDizzinessRefreshInterval = 20;
     }
 
     public static class BleedingRules {
