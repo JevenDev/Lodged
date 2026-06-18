@@ -3,7 +3,11 @@ package com.jvn.lodged.effect;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.particle.LodgedParticles;
 import com.jvn.lodged.world.LodgedArrowVisual;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.util.Mth;
@@ -23,9 +27,11 @@ import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 public final class BleedingEvents {
     private static final String WOUND_KEY = "lodged:bleeding_wound";
+    private static final String WOUNDS_KEY = "lodged:bleeding_wounds";
     private static final String WOUND_RIGHT_KEY = "right";
     private static final String WOUND_HEIGHT_KEY = "height";
     private static final String WOUND_FORWARD_KEY = "forward";
+    private static final int MAX_STORED_WOUNDS = 8;
     private static final EquipmentSlot[] ARMOR_SLOTS = {
             EquipmentSlot.HEAD,
             EquipmentSlot.CHEST,
@@ -80,13 +86,14 @@ public final class BleedingEvents {
             return;
         }
 
-        Wound wound = readWound(target);
-        if (wound == null) {
-            wound = randomBodyWound(target);
+        List<Wound> wounds = readWounds(target);
+        if (wounds.isEmpty()) {
+            Wound wound = randomBodyWound(target);
             rememberWound(target, wound);
+            wounds = List.of(wound);
         }
 
-        spawnBleedingParticles(target, wound, bleeding.getAmplifier() > 0 ? 2 : 1);
+        spawnBleedingParticles(target, wounds, bleeding.getAmplifier() > 0 ? 2 : 1);
     }
 
     public static boolean tryApplyFromArrowRemoval(LivingEntity target, LodgedArrowVisual arrowVisual, boolean failedRemoval) {
@@ -129,30 +136,37 @@ public final class BleedingEvents {
     }
 
     public static void spawnBleedingParticles(LivingEntity target, int count) {
-        Wound wound = readWound(target);
-        if (wound == null) {
-            wound = randomBodyWound(target);
+        List<Wound> wounds = readWounds(target);
+        if (wounds.isEmpty()) {
+            Wound wound = randomBodyWound(target);
             rememberWound(target, wound);
+            wounds = List.of(wound);
         }
-        spawnBleedingParticles(target, wound, count);
+        spawnBleedingParticles(target, wounds, count);
     }
 
-    private static void spawnBleedingParticles(LivingEntity target, Wound wound, int count) {
+    private static void spawnBleedingParticles(LivingEntity target, List<Wound> wounds, int count) {
         if (!(target.level() instanceof ServerLevel level) || count <= 0) {
             return;
         }
 
-        Vec3 position = wound.toWorld(target);
-        level.sendParticles(
-                LodgedParticles.BLEEDING_DROP.get(),
-                position.x,
-                position.y,
-                position.z,
-                count,
-                0.018D,
-                0.026D,
-                0.018D,
-                0.012D);
+        for (Wound wound : wounds) {
+            Vec3 position = wound.toWorld(target);
+            level.sendParticles(
+                    LodgedParticles.BLEEDING_DROP.get(),
+                    position.x,
+                    position.y,
+                    position.z,
+                    count,
+                    0.018D,
+                    0.026D,
+                    0.018D,
+                    0.012D);
+        }
+    }
+
+    private static void spawnBleedingParticles(LivingEntity target, Wound wound, int count) {
+        spawnBleedingParticles(target, List.of(wound), count);
     }
 
     private static boolean tryApplyBleeding(LivingEntity target, int addedDuration, Wound wound, double chance) {
@@ -227,20 +241,49 @@ public final class BleedingEvents {
 
     private static void rememberWound(LivingEntity target, Wound wound) {
         Wound clampedWound = clampWound(target, wound);
-        CompoundTag tag = new CompoundTag();
-        tag.putDouble(WOUND_RIGHT_KEY, clampedWound.right());
-        tag.putDouble(WOUND_HEIGHT_KEY, clampedWound.height());
-        tag.putDouble(WOUND_FORWARD_KEY, clampedWound.forward());
-        target.getPersistentData().put(WOUND_KEY, tag);
-    }
-
-    private static Wound readWound(LivingEntity target) {
-        CompoundTag entityData = target.getPersistentData();
-        if (!entityData.contains(WOUND_KEY, net.minecraft.nbt.Tag.TAG_COMPOUND)) {
-            return null;
+        List<Wound> wounds = new ArrayList<>(readWounds(target));
+        wounds.add(clampedWound);
+        while (wounds.size() > MAX_STORED_WOUNDS) {
+            wounds.remove(0);
         }
 
-        CompoundTag tag = entityData.getCompound(WOUND_KEY);
+        ListTag woundList = new ListTag();
+        for (Wound storedWound : wounds) {
+            woundList.add(saveWound(storedWound));
+        }
+
+        target.getPersistentData().put(WOUNDS_KEY, woundList);
+        target.getPersistentData().remove(WOUND_KEY);
+    }
+
+    private static CompoundTag saveWound(Wound wound) {
+        CompoundTag tag = new CompoundTag();
+        tag.putDouble(WOUND_RIGHT_KEY, wound.right());
+        tag.putDouble(WOUND_HEIGHT_KEY, wound.height());
+        tag.putDouble(WOUND_FORWARD_KEY, wound.forward());
+        return tag;
+    }
+
+    private static List<Wound> readWounds(LivingEntity target) {
+        CompoundTag entityData = target.getPersistentData();
+        if (entityData.contains(WOUNDS_KEY, Tag.TAG_LIST)) {
+            ListTag woundList = entityData.getList(WOUNDS_KEY, Tag.TAG_COMPOUND);
+            List<Wound> wounds = new ArrayList<>(Math.min(woundList.size(), MAX_STORED_WOUNDS));
+            int firstIndex = Math.max(0, woundList.size() - MAX_STORED_WOUNDS);
+            for (int index = firstIndex; index < woundList.size(); index++) {
+                wounds.add(readWound(target, woundList.getCompound(index)));
+            }
+            return wounds;
+        }
+
+        if (!entityData.contains(WOUND_KEY, Tag.TAG_COMPOUND)) {
+            return List.of();
+        }
+
+        return List.of(readWound(target, entityData.getCompound(WOUND_KEY)));
+    }
+
+    private static Wound readWound(LivingEntity target, CompoundTag tag) {
         return clampWound(target, new Wound(
                 tag.getDouble(WOUND_RIGHT_KEY),
                 tag.getDouble(WOUND_HEIGHT_KEY),

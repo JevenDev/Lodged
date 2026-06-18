@@ -8,6 +8,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
@@ -30,6 +31,7 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
     private static final float MODEL_LIMB_HALF_DEPTH = 2.0F / 16.0F;
     private static final float PLAYER_MODEL_RENDER_SCALE = 0.9375F;
     private static final float MODEL_RENDER_ROOT_Y = 1.501F;
+    private static final double MAX_MODEL_TRACE_INFLATE = 1.0D / 16.0D;
     private static final ModelBox[] HUMANOID_MODEL_BOXES = {
             new ModelBox(-MODEL_HEAD_HALF_WIDTH, MODEL_HEAD_TOP, -MODEL_HEAD_HALF_WIDTH, MODEL_HEAD_HALF_WIDTH, MODEL_HEAD_BOTTOM, MODEL_HEAD_HALF_WIDTH),
             new ModelBox(-MODEL_BODY_HALF_WIDTH, MODEL_HEAD_BOTTOM, -MODEL_LIMB_HALF_DEPTH, MODEL_BODY_HALF_WIDTH, MODEL_LEG_TOP, MODEL_LIMB_HALF_DEPTH),
@@ -68,11 +70,14 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
         BodyAxes axes = BodyAxes.of(target.yBodyRot);
         Vec3 motion = impactMotion(arrow);
         AABB boundingBox = target.getBoundingBox();
+        double modelScale = modelRenderScale(target);
         TraceSegment trace = impactTrace(arrow, boundingBox, motion);
-        Vec3 modelStart = toModelSpace(target, boundingBox, axes, trace.start());
-        Vec3 modelEnd = toModelSpace(target, boundingBox, axes, trace.end());
+        Vec3 modelStart = toModelSpace(target, boundingBox, axes, trace.start(), modelScale);
+        Vec3 modelEnd = toModelSpace(target, boundingBox, axes, trace.end(), modelScale);
+        double modelPickMargin = Math.min(VANILLA_ENTITY_PICK_MARGIN / modelScale, MAX_MODEL_TRACE_INFLATE);
         ModelHit modelHit = traceModelHit(modelStart, modelEnd)
-                .orElseGet(() -> fallbackModelHit(target, arrow, hitResult, motion, boundingBox, axes, modelStart, modelEnd));
+                .or(() -> traceModelHit(modelStart, modelEnd, modelPickMargin))
+                .orElseGet(() -> fallbackModelHit(target, arrow, hitResult, motion, boundingBox, axes, modelScale, modelStart, modelEnd));
         Vec3 modelPosition = modelHit.position();
         float modelX = (float) modelPosition.x;
         float modelY = (float) modelPosition.y;
@@ -113,7 +118,7 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
     }
 
     public Vec3 toEntityLocalPosition(LivingEntity target) {
-        double modelScale = Math.max(PLAYER_MODEL_RENDER_SCALE * target.getScale(), 0.1D);
+        double modelScale = modelRenderScale(target);
         return new Vec3(
                 modelX * modelScale,
                 MODEL_RENDER_ROOT_Y - (modelY * modelScale),
@@ -164,16 +169,14 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
 
     private static TraceSegment impactTrace(AbstractArrow arrow, AABB boundingBox, Vec3 motion) {
         Vec3 direction = normalizedOrDefault(motion);
-        double padding = Math.max(boundingBox.getSize(), 1.0D);
-        double forwardLength = Math.sqrt(Math.max(motion.lengthSqr(), MIN_DIRECTION_LENGTH)) + padding;
+        double padding = Math.max(boundingBox.getSize() + VANILLA_ENTITY_PICK_MARGIN, 1.0D);
         Vec3 arrowPosition = arrow.position();
         return new TraceSegment(
                 arrowPosition.subtract(direction.scale(padding)),
-                arrowPosition.add(direction.scale(forwardLength)));
+                arrowPosition.add(motion).add(direction.scale(padding)));
     }
 
-    private static Vec3 toModelSpace(LivingEntity target, AABB boundingBox, BodyAxes axes, Vec3 worldPosition) {
-        double modelScale = Math.max(PLAYER_MODEL_RENDER_SCALE * target.getScale(), 0.1D);
+    private static Vec3 toModelSpace(LivingEntity target, AABB boundingBox, BodyAxes axes, Vec3 worldPosition, double modelScale) {
         Vec3 relative = worldPosition.subtract(target.getX(), boundingBox.minY, target.getZ());
         return new Vec3(
                 relative.dot(axes.right()) / modelScale,
@@ -181,16 +184,29 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
                 -relative.dot(axes.forward()) / modelScale);
     }
 
+    private static double modelRenderScale(LivingEntity target) {
+        double rendererScale = target instanceof Player ? PLAYER_MODEL_RENDER_SCALE : 1.0D;
+        return Math.max(rendererScale * target.getScale(), 0.1D);
+    }
+
     private static Optional<ModelHit> traceModelHit(Vec3 modelStart, Vec3 modelEnd) {
+        return traceModelHit(modelStart, modelEnd, 0.0D);
+    }
+
+    private static Optional<ModelHit> traceModelHit(Vec3 modelStart, Vec3 modelEnd, double inflate) {
         Vec3 modelDelta = modelEnd.subtract(modelStart);
         Vec3 modelDirection = normalizedOrDefault(modelDelta);
         ModelHit closestHit = null;
         double closestT = Double.MAX_VALUE;
         for (ModelBox box : HUMANOID_MODEL_BOXES) {
-            Optional<Double> hitT = box.intersect(modelStart, modelDelta);
+            Optional<Double> hitT = box.inflate(inflate).intersect(modelStart, modelDelta);
             if (hitT.isPresent() && hitT.get() < closestT) {
                 closestT = hitT.get();
-                closestHit = new ModelHit(modelStart.add(modelDelta.scale(hitT.get())), modelDirection);
+                Vec3 hitPosition = modelStart.add(modelDelta.scale(hitT.get()));
+                if (inflate > 0.0D) {
+                    hitPosition = box.clampToSurface(hitPosition, modelDirection);
+                }
+                closestHit = new ModelHit(hitPosition, modelDirection);
             }
         }
 
@@ -204,11 +220,13 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
             Vec3 motion,
             AABB boundingBox,
             BodyAxes axes,
+            double modelScale,
             Vec3 modelStart,
             Vec3 modelEnd) {
         Vec3 hitLocation = resolveImpactLocation(target, arrow, hitResult, motion);
-        Vec3 modelPosition = snapToHumanoidSurface(toModelSpace(target, boundingBox, axes, hitLocation));
-        return new ModelHit(modelPosition, normalizedOrDefault(modelEnd.subtract(modelStart)));
+        Vec3 modelDirection = normalizedOrDefault(modelEnd.subtract(modelStart));
+        Vec3 modelPosition = snapToHumanoidSurface(toModelSpace(target, boundingBox, axes, hitLocation, modelScale), modelDirection);
+        return new ModelHit(modelPosition, modelDirection);
     }
 
     private static Vec3 normalizedOrDefault(Vec3 vector) {
@@ -254,7 +272,7 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
                 Mth.clamp(point.z, boundingBox.minZ, boundingBox.maxZ));
     }
 
-    private static Vec3 snapToHumanoidSurface(Vec3 modelPosition) {
+    private static Vec3 snapToHumanoidSurface(Vec3 modelPosition, Vec3 modelDirection) {
         ModelBox closestBox = HUMANOID_MODEL_BOXES[0];
         double closestDistance = closestBox.distanceToSqr(modelPosition);
         for (int index = 1; index < HUMANOID_MODEL_BOXES.length; index++) {
@@ -266,7 +284,7 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
             }
         }
 
-        return closestBox.clampToSurface(modelPosition);
+        return closestBox.clampToSurface(modelPosition, modelDirection);
     }
 
     private record BodyAxes(Vec3 right, Vec3 forward) {
@@ -278,7 +296,15 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
         }
     }
 
-    private record ModelBox(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
+    private record ModelBox(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        ModelBox inflate(double amount) {
+            if (amount <= 0.0D) {
+                return this;
+            }
+
+            return new ModelBox(minX - amount, minY - amount, minZ - amount, maxX + amount, maxY + amount, maxZ + amount);
+        }
+
         Optional<Double> intersect(Vec3 start, Vec3 delta) {
             double tMin = 0.0D;
             double tMax = 1.0D;
@@ -317,15 +343,16 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
             return dx * dx + dy * dy + dz * dz;
         }
 
-        Vec3 clampToSurface(Vec3 point) {
+        Vec3 clampToSurface(Vec3 point, Vec3 direction) {
             double x = Mth.clamp(point.x, minX, maxX);
             double y = Mth.clamp(point.y, minY, maxY);
             double z = Mth.clamp(point.z, minZ, maxZ);
-            Axis axis = surfaceAxis(point);
+            Surface surface = surface(point, direction);
+            Axis axis = surface.axis();
             return switch (axis) {
-                case X -> new Vec3(point.x < centerX() ? minX : maxX, y, z);
-                case Y -> new Vec3(x, point.y < centerY() ? minY : maxY, z);
-                case Z -> new Vec3(x, y, point.z < centerZ() ? minZ : maxZ);
+                case X -> new Vec3(surface.coordinate(), y, z);
+                case Y -> new Vec3(x, surface.coordinate(), z);
+                case Z -> new Vec3(x, y, surface.coordinate());
             };
         }
 
@@ -338,24 +365,31 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
                     && point.z <= maxZ;
         }
 
-        private Axis surfaceAxis(Vec3 point) {
+        private Surface surface(Vec3 point, Vec3 direction) {
             double outsideX = outsideDistance(point.x, minX, maxX);
             double outsideY = outsideDistance(point.y, minY, maxY);
             double outsideZ = outsideDistance(point.z, minZ, maxZ);
             if (outsideX > 0.0D || outsideY > 0.0D || outsideZ > 0.0D) {
                 if (outsideX >= outsideY && outsideX >= outsideZ) {
-                    return Axis.X;
+                    return new Surface(Axis.X, point.x < centerX() ? minX : maxX);
                 }
-                return outsideY >= outsideZ ? Axis.Y : Axis.Z;
+                if (outsideY >= outsideZ) {
+                    return new Surface(Axis.Y, point.y < centerY() ? minY : maxY);
+                }
+                return new Surface(Axis.Z, point.z < centerZ() ? minZ : maxZ);
             }
 
-            double nearestX = Math.min(point.x - minX, maxX - point.x);
-            double nearestY = Math.min(point.y - minY, maxY - point.y);
-            double nearestZ = Math.min(point.z - minZ, maxZ - point.z);
-            if (nearestX <= nearestY && nearestX <= nearestZ) {
-                return Axis.X;
+            double xMovement = Math.abs(direction.x);
+            double yMovement = Math.abs(direction.y);
+            double zMovement = Math.abs(direction.z);
+            if (xMovement >= yMovement && xMovement >= zMovement) {
+                return new Surface(Axis.X, direction.x >= 0.0D ? minX : maxX);
             }
-            return nearestY <= nearestZ ? Axis.Y : Axis.Z;
+            if (yMovement >= zMovement) {
+                return new Surface(Axis.Y, direction.y >= 0.0D ? minY : maxY);
+            }
+
+            return new Surface(Axis.Z, direction.z >= 0.0D ? minZ : maxZ);
         }
 
         private double centerX() {
@@ -404,6 +438,9 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
     }
 
     private record AxisIntersection(boolean intersects, double tMin, double tMax) {
+    }
+
+    private record Surface(Axis axis, double coordinate) {
     }
 
     private enum Axis {
