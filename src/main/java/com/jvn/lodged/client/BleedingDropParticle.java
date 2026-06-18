@@ -1,5 +1,6 @@
 package com.jvn.lodged.client;
 
+import com.jvn.lodged.client.compat.SimpleBloodCompat;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleRenderType;
 import net.minecraft.client.particle.SpriteSet;
@@ -78,6 +79,7 @@ public final class BleedingDropParticle extends TextureSheetParticle {
         if (this.onGround) {
             if (!this.landed) {
                 this.landed = true;
+                SimpleBloodCompat.spawnGroundBlood(this.level, this.getPos(), this.getQuadSize(0.0F));
                 this.age = 0;
                 this.lifetime = 8 + this.random.nextInt(6);
                 this.xd = 0.0D;
