@@ -25,6 +25,7 @@ It is meant to make ranged combat a little grittier without replacing Minecraft'
 * Failed removal can break the arrow, hurt the player, and apply bleeding
 * Bleeding can come from arrow removal, broken arrow impacts, or tagged/enchantment-based weapons
 * Bleeding supports configurable blood particles, data-driven blood colors, stacked duration, and stronger late-stage damage
+* Optional Simple Blood compatibility can add matching ground decals when Lodged blood drops land
 * Armour, undead mobs, skeletons, and immune entities can all be configured
 * Slimes, magma cubes, and armour stands are denied by default
 * Skeletons, golems, slimes, magma cubes, blazes, breezes, guardians, and armour stands are bleeding-immune by default
@@ -132,6 +133,8 @@ Default bleeding behaviour:
 * Spiders have medium green blood by default, and wardens use teal blood by default
 * Simple Blood compat decal chance and scale can be tuned
 
+When Simple Blood is installed, Lodged can spawn Simple Blood ground decals from landed Lodged blood drops. The decals use the same data-driven blood color as Lodged's own particles, so custom mob blood colors carry across both systems. Lodged blood particles and Simple Blood compat decals can be disabled separately.
+
 Default bleeding damage:
 
 | Setting                                  |                  Default |
@@ -168,7 +171,7 @@ Major systems can be tuned or disabled:
 * Lodged arrow dizziness thresholds and duration
 * Leg shot Slowness duration, level, and enablement
 * Bleeding rules
-* Bleeding duration, damage, Lodged particles, Simple Blood compat particles and decal tuning, data-driven blood colors, and armour behaviour
+* Bleeding duration, damage, Lodged particles, Simple Blood compat particles, Simple Blood decal chance and scale, data-driven blood colors, and armour behaviour
 
 ## Tags and Pack Support
 
@@ -194,6 +197,8 @@ Blood color files live under `data/<namespace>/lodged/blood_colors/*.json`. Each
 }
 ```
 
+Blood colors apply to Lodged blood particles, inventory-preview blood, and Simple Blood ground decals spawned by Lodged.
+
 Item tags:
 
 * `lodged:bleeding_weapons`
@@ -213,9 +218,10 @@ Lodged is designed to work with vanilla-style combat and projectile behaviour in
 
 * Supports vanilla arrows and spectral arrows, have not tested modded arrows
 * Uses synced arrow data for client visuals and player removal
+* Integrates with Simple Blood when installed by spawning matching ground decals from Lodged blood drops
 * Does not replace Minecraft's living entity classes
 
-Compatibility may vary with mods that heavily replace projectile impact handling, living-entity rendering, inventory screens, or stuck-arrow behaviour.
+Compatibility may vary with mods that heavily replace projectile impact handling, living-entity rendering, inventory screens, particles, or stuck-arrow behaviour.
 
 ## Version and Loaders
 
