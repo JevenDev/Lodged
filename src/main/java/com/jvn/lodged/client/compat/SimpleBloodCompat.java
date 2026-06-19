@@ -21,7 +21,7 @@ public final class SimpleBloodCompat {
     private SimpleBloodCompat() {
     }
 
-    public static void spawnGroundBlood(ClientLevel level, Vec3 position, float dripScale) {
+    public static void spawnGroundBlood(ClientLevel level, Vec3 position, float dripScale, int color) {
         if (!LodgedConfig.simpleBloodCompatParticles()
                 || !isAvailable()
                 || level.random.nextFloat() > LodgedConfig.simpleBloodGroundDecalChance()) {
@@ -30,7 +30,7 @@ public final class SimpleBloodCompat {
 
         try {
             float scale = groundDecalScale(level, dripScale);
-            Object options = groundParticleOptionsConstructor.newInstance(LodgedConfig.simpleBloodGroundDecalColor(), scale);
+            Object options = groundParticleOptionsConstructor.newInstance(0xFF000000 | (color & 0xFFFFFF), scale);
             level.addParticle((ParticleOptions) options, true, position.x, position.y, position.z, 0.0D, 0.0D, 0.0D);
         } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
             available = false;

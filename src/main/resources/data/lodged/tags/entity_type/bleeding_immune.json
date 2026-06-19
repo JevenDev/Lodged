@@ -1,8 +1,14 @@
 {
   "replace": false,
   "values": [
+    "#minecraft:skeletons",
     "minecraft:armor_stand",
+    "minecraft:blaze",
+    "minecraft:breeze",
+    "minecraft:iron_golem",
+    "minecraft:skeleton_horse",
     "minecraft:slime",
-    "minecraft:magma_cube"
+    "minecraft:magma_cube",
+    "minecraft:snow_golem"
   ]
 }

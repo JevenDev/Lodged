@@ -1,7 +1,7 @@
 package com.jvn.lodged.effect;
 
 import com.jvn.lodged.config.LodgedConfig;
-import com.jvn.lodged.particle.LodgedParticles;
+import com.jvn.lodged.particle.BleedingDropParticleOptions;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import java.util.ArrayList;
 import java.util.List;
@@ -152,10 +152,11 @@ public final class BleedingEvents {
             return;
         }
 
+        BleedingDropParticleOptions particleOptions = new BleedingDropParticleOptions(BloodColors.colorFor(target));
         for (Wound wound : wounds) {
             Vec3 position = wound.toWorld(target);
             level.sendParticles(
-                    LodgedParticles.BLEEDING_DROP.get(),
+                    particleOptions,
                     position.x,
                     position.y,
                     position.z,

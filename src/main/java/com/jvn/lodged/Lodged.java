@@ -2,6 +2,7 @@ package com.jvn.lodged;
 
 import com.mojang.logging.LogUtils;
 import com.jvn.lodged.config.LodgedConfig;
+import com.jvn.lodged.effect.BloodColors;
 import com.jvn.lodged.effect.BleedingEvents;
 import com.jvn.lodged.effect.LodgedEffects;
 import com.jvn.lodged.network.LodgedNetwork;
@@ -23,6 +24,7 @@ public final class Lodged {
         LodgedEffects.EFFECTS.register(modEventBus);
         LodgedParticles.PARTICLES.register(modEventBus);
         modEventBus.addListener(LodgedNetwork::registerPayloads);
+        NeoForge.EVENT_BUS.addListener(BloodColors::onAddReloadListeners);
         NeoForge.EVENT_BUS.register(BleedingEvents.class);
         NeoForge.EVENT_BUS.register(LodgedArrowEvents.class);
     }

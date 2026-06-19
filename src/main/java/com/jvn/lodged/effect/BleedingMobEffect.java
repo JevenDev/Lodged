@@ -1,7 +1,6 @@
 package com.jvn.lodged.effect;
 
 import com.jvn.lodged.config.LodgedConfig;
-import com.jvn.lodged.particle.LodgedParticles;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;

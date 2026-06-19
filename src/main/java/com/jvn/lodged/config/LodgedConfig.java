@@ -251,10 +251,6 @@ public final class LodgedConfig {
         return (float) bleedingEffect().simpleBloodGroundDecalChance();
     }
 
-    public static int simpleBloodGroundDecalColor() {
-        return 0xFF000000 | bleedingEffect().simpleBloodGroundDecalColor();
-    }
-
     public static float simpleBloodGroundDecalScaleMultiplier() {
         return (float) bleedingEffect().simpleBloodGroundDecalScaleMultiplier();
     }

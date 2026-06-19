@@ -3,6 +3,7 @@ package com.jvn.lodged.client;
 import com.google.gson.JsonSyntaxException;
 import com.jvn.lodged.Lodged;
 import com.jvn.lodged.config.LodgedConfig;
+import com.jvn.lodged.effect.BloodColors;
 import com.jvn.lodged.effect.LodgedEffects;
 import com.jvn.lodged.mixin.client.LevelRendererAccessor;
 import com.jvn.lodged.network.ClientArrowState;
@@ -432,10 +433,15 @@ public final class LodgedInventoryArrowUi {
         int interval = Math.max(1, LodgedConfig.bleedingDripInterval(bleeding.getAmplifier()));
         float time = player.level().getGameTime() + Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false);
         int streams = bleeding.getAmplifier() > 0 ? 2 : 1;
+        int color = BloodColors.colorFor(player);
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 0.96F);
+        guiGraphics.setColor(
+                ((color >> 16) & 0xFF) / 255.0F,
+                ((color >> 8) & 0xFF) / 255.0F,
+                (color & 0xFF) / 255.0F,
+                0.96F);
         int arrowBloodSources = renderInventoryBloodFromArrows(guiGraphics, player, centerX, centerY, mouseX, mouseY, time, interval, streams);
         if (arrowBloodSources <= 0) {
             renderInventoryBloodFallback(guiGraphics, player, centerX, centerY, mouseX, mouseY, time, interval, streams);

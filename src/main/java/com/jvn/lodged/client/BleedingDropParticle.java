@@ -2,6 +2,7 @@ package com.jvn.lodged.client;
 
 import com.jvn.lodged.client.compat.SimpleBloodCompat;
 import com.jvn.lodged.config.LodgedConfig;
+import com.jvn.lodged.particle.BleedingDropParticleOptions;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleRenderType;
@@ -13,6 +14,7 @@ public final class BleedingDropParticle extends TextureSheetParticle {
 
     private final SpriteSet sprites;
     private final int hangTime;
+    private final int color;
     private final double fallXd;
     private final double fallYd;
     private final double fallZd;
@@ -27,9 +29,11 @@ public final class BleedingDropParticle extends TextureSheetParticle {
             double xSpeed,
             double ySpeed,
             double zSpeed,
-            SpriteSet sprites) {
+            SpriteSet sprites,
+            int color) {
         super(level, x, y, z, 0.0D, 0.0D, 0.0D);
         this.sprites = sprites;
+        this.color = color & 0xFFFFFF;
         this.hangTime = 4 + this.random.nextInt(7);
         this.fallXd = xSpeed * 0.12D + this.random.nextGaussian() * 0.003D;
         this.fallYd = Math.min(-0.018D, ySpeed * 0.06D - 0.018D - this.random.nextDouble() * 0.018D);
@@ -40,6 +44,10 @@ public final class BleedingDropParticle extends TextureSheetParticle {
         this.lifetime = 42 + this.random.nextInt(22);
         this.quadSize *= 0.58F + this.random.nextFloat() * 0.34F;
         this.setSize(0.02F, 0.02F);
+        this.setColor(
+                ((this.color >> 16) & 0xFF) / 255.0F,
+                ((this.color >> 8) & 0xFF) / 255.0F,
+                (this.color & 0xFF) / 255.0F);
         this.setSprite(sprites.get(0, SPRITE_STEPS));
     }
 
@@ -81,7 +89,7 @@ public final class BleedingDropParticle extends TextureSheetParticle {
         if (this.onGround) {
             if (!this.landed) {
                 this.landed = true;
-                SimpleBloodCompat.spawnGroundBlood(this.level, this.getPos(), this.getQuadSize(0.0F));
+                SimpleBloodCompat.spawnGroundBlood(this.level, this.getPos(), this.getQuadSize(0.0F), this.color);
                 this.age = 0;
                 this.lifetime = 8 + this.random.nextInt(6);
                 this.xd = 0.0D;
@@ -100,7 +108,7 @@ public final class BleedingDropParticle extends TextureSheetParticle {
 
     public static Particle create(
             SpriteSet sprites,
-            net.minecraft.core.particles.SimpleParticleType type,
+            BleedingDropParticleOptions type,
             ClientLevel level,
             double x,
             double y,
@@ -112,6 +120,6 @@ public final class BleedingDropParticle extends TextureSheetParticle {
             return null;
         }
 
-        return new BleedingDropParticle(level, x, y, z, xSpeed, ySpeed, zSpeed, sprites);
+        return new BleedingDropParticle(level, x, y, z, xSpeed, ySpeed, zSpeed, sprites, type.color());
     }
 }

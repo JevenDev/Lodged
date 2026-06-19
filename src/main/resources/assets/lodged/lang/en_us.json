@@ -137,8 +137,6 @@
   "text.config.lodged.option.bleedingEffect.simpleBloodCompatParticles.tooltip": "Allows Lodged blood drops to spawn Simple Blood ground decals when that mod is installed. Requires Lodged blood particles.",
   "text.config.lodged.option.bleedingEffect.simpleBloodGroundDecalChance": "Simple Blood decal chance",
   "text.config.lodged.option.bleedingEffect.simpleBloodGroundDecalChance.tooltip": "Chance for each landed Lodged blood drop to spawn a Simple Blood ground decal.",
-  "text.config.lodged.option.bleedingEffect.simpleBloodGroundDecalColor": "Simple Blood decal color",
-  "text.config.lodged.option.bleedingEffect.simpleBloodGroundDecalColor.tooltip": "RGB color used for Simple Blood ground decals. This is a 0xRRGGBB value; alpha is added automatically.",
   "text.config.lodged.option.bleedingEffect.simpleBloodGroundDecalScaleMultiplier": "Simple Blood decal scale multiplier",
   "text.config.lodged.option.bleedingEffect.simpleBloodGroundDecalScaleMultiplier.tooltip": "Multiplier applied to the Lodged blood drop size before clamping the Simple Blood decal scale.",
   "text.config.lodged.option.bleedingEffect.simpleBloodGroundDecalMinScale": "Simple Blood decal min scale",

@@ -195,9 +195,6 @@ public class LodgedConfigModel {
         @RangeConstraint(min = 0.0D, max = 1.0D)
         public double simpleBloodGroundDecalChance = 0.15D;
 
-        @RangeConstraint(min = 0, max = 0xFFFFFF)
-        public int simpleBloodGroundDecalColor = 0x80000D;
-
         @RangeConstraint(min = 0.0D, max = 8.0D)
         public double simpleBloodGroundDecalScaleMultiplier = 1.5D;
 

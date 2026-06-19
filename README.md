@@ -32,9 +32,10 @@ It is meant to make ranged combat a little grittier without replacing Minecraft'
 - Arrows that hit player legs can briefly apply Slowness
 - Failed removal can break the arrow, hurt the player, and apply bleeding
 - Bleeding can come from arrow removal, broken arrow impacts, or tagged/enchantment-based weapons
-- Bleeding supports visible drip particles, stacked duration, and stronger late-stage damage
+- Bleeding supports configurable blood particles, data-driven blood colors, stacked duration, and stronger late-stage damage
 - Armour, undead mobs, skeletons, and immune entities can all be configured
 - Slimes, magma cubes, and armour stands are denied by default
+- Skeletons, golems, slimes, magma cubes, blazes, breezes, guardians, and armour stands are bleeding-immune by default
 
 ![features](https://cdn.modrinth.com/data/cached_images/ec0e4dc78ec1a652eb11b233dd2926f7461fe770.png)
 
@@ -132,9 +133,12 @@ Default bleeding behaviour:
 - Partial armour reduces bleeding chance by default
 - Undead can bleed only if included in Lodged's undead bleeding tag
 - Skeletons do not bleed by default
+- Skeletons, golems, slimes, magma cubes, blazes, breezes, guardians, and armour stands are in the bleeding immune tag by default
 - Lodged blood particles are enabled by default in world and on the inventory player preview
 - Simple Blood compat ground decals are enabled by default when Simple Blood is installed
-- Simple Blood compat decal chance, color, and scale can be tuned
+- Endermen, endermites, shulkers, and the Ender Dragon have purple blood by default
+- Spiders have medium green blood by default, and wardens use teal blood by default
+- Simple Blood compat decal chance and scale can be tuned
 
 Default bleeding damage:
 
@@ -172,7 +176,7 @@ Major systems can be tuned or disabled:
 - Lodged arrow dizziness thresholds and duration
 - Leg shot Slowness duration, level, and enablement
 - Bleeding rules
-- Bleeding duration, damage, Lodged particles, Simple Blood compat particles and decal tuning, and armour behaviour
+- Bleeding duration, damage, Lodged particles, Simple Blood compat particles and decal tuning, data-driven blood colors, and armour behaviour
 
 ## Tags and Pack Support
 
@@ -183,6 +187,20 @@ Entity tags:
 - `lodged:bleeding_immune`
 - `lodged:bleeding_skeletons`
 - `lodged:bleeding_undead`
+
+The default `lodged:bleeding_immune` tag includes entities like skeletons, golems, slimes, magma cubes, blazes, breezes, guardians, and armour stands. Datapacks can add to it or replace it like any normal Minecraft entity type tag.
+
+Blood color files live under `data/<namespace>/lodged/blood_colors/*.json`. Each file can target entity type IDs or entity type tags:
+
+```json
+{
+  "color": "#B36BFF",
+  "entity_types": [
+    "minecraft:enderman",
+    "#minecraft:raiders"
+  ]
+}
+```
 
 Item tags:
 

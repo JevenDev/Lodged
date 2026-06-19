@@ -1,0 +1,9 @@
+{
+  "color": "#B36BFF",
+  "entity_types": [
+    "minecraft:ender_dragon",
+    "minecraft:enderman",
+    "minecraft:endermite",
+    "minecraft:shulker"
+  ]
+}
