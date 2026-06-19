@@ -1,6 +1,7 @@
 package com.jvn.lodged.client.compat;
 
 import com.jvn.lodged.Lodged;
+import com.jvn.lodged.config.LodgedConfig;
 import java.lang.reflect.Constructor;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.particles.ParticleOptions;
@@ -26,7 +27,9 @@ public final class SimpleBloodCompat {
     }
 
     public static void spawnGroundBlood(ClientLevel level, Vec3 position, float dripScale) {
-        if (!isAvailable() || level.random.nextFloat() > GROUND_DECAL_CHANCE) {
+        if (!LodgedConfig.simpleBloodCompatParticles()
+                || !isAvailable()
+                || level.random.nextFloat() > GROUND_DECAL_CHANCE) {
             return;
         }
 

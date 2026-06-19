@@ -139,6 +139,18 @@ public final class LodgedConfig {
         return playerArrowRemoval().lodgedArrowDizzinessRefreshInterval();
     }
 
+    public static boolean enableLegShotSlowness() {
+        return legShotSlowness().enableLegShotSlowness();
+    }
+
+    public static int legShotSlownessDuration() {
+        return legShotSlowness().legShotSlownessDuration();
+    }
+
+    public static int legShotSlownessAmplifier() {
+        return Math.max(0, legShotSlowness().legShotSlownessLevel() - 1);
+    }
+
     public static List<? extends String> entityDenylist() {
         return arrowRecovery().entityDenylist();
     }
@@ -231,6 +243,10 @@ public final class LodgedConfig {
         return bleedingEffect().bleedingDripParticles();
     }
 
+    public static boolean simpleBloodCompatParticles() {
+        return bleedingDripParticles() && bleedingEffect().simpleBloodCompatParticles();
+    }
+
     public static int bleedingDripInterval(int amplifier) {
         return amplifier > 0
                 ? bleedingEffect().bleedingStrongDripInterval()
@@ -247,6 +263,10 @@ public final class LodgedConfig {
 
     private static LodgedConfigWrapper.PlayerArrowRemoval playerArrowRemoval() {
         return CONFIG.playerArrowRemoval;
+    }
+
+    private static LodgedConfigWrapper.LegShotSlowness legShotSlowness() {
+        return CONFIG.legShotSlowness;
     }
 
     private static LodgedConfigWrapper.BleedingRules bleedingRules() {

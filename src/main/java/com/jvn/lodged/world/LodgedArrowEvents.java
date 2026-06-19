@@ -14,6 +14,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -80,6 +81,7 @@ public final class LodgedArrowEvents {
         }
 
         LodgedArrowVisual visual = LodgedArrowVisual.fromImpact(target, arrow, entityHitResult);
+        applyLegShotSlowness(target, visual);
         if (LodgedConfig.enableArrowBreakOnEntityHit()
                 && breaksOnImpact(arrow, fromPlayer, fromMob, infinityGenerated, creativeGenerated)) {
             rememberBrokenArrowImpact(arrow, target, visual);
@@ -229,6 +231,24 @@ public final class LodgedArrowEvents {
         if (event.getEntity() instanceof ServerPlayer player && event.getTarget() instanceof LivingEntity target) {
             LodgedNetwork.syncEntityArrowsToPlayer(player, target);
         }
+    }
+
+    private static void applyLegShotSlowness(LivingEntity target, LodgedArrowVisual visual) {
+        int duration = LodgedConfig.legShotSlownessDuration();
+        if (!LodgedConfig.enableLegShotSlowness()
+                || duration <= 0
+                || visual.bodyPart() != LodgedArrowBodyPart.LEG
+                || !(target instanceof ServerPlayer player)) {
+            return;
+        }
+
+        player.addEffect(new MobEffectInstance(
+                MobEffects.MOVEMENT_SLOWDOWN,
+                duration,
+                LodgedConfig.legShotSlownessAmplifier(),
+                false,
+                false,
+                true));
     }
 
     private static boolean canTrack(LivingEntity target) {

@@ -27,6 +27,10 @@ public class LodgedConfigModel {
 
     @Nest
     @Expanded
+    public LegShotSlowness legShotSlowness = new LegShotSlowness();
+
+    @Nest
+    @Expanded
     public BleedingRules bleedingRules = new BleedingRules();
 
     @Nest
@@ -120,6 +124,16 @@ public class LodgedConfigModel {
         public int lodgedArrowDizzinessRefreshInterval = 20;
     }
 
+    public static class LegShotSlowness {
+        public boolean enableLegShotSlowness = true;
+
+        @RangeConstraint(min = 0, max = 1200)
+        public int legShotSlownessDuration = 40;
+
+        @RangeConstraint(min = 1, max = 10)
+        public int legShotSlownessLevel = 1;
+    }
+
     public static class BleedingRules {
         public boolean enableBleeding = true;
         public boolean arrowRemovalCausesBleeding = true;
@@ -175,6 +189,8 @@ public class LodgedConfigModel {
         public double bleedingStrongDamage = 2.0D;
 
         public boolean bleedingDripParticles = true;
+
+        public boolean simpleBloodCompatParticles = true;
 
         @RangeConstraint(min = 1, max = 1200)
         public int bleedingBaseDripInterval = 8;

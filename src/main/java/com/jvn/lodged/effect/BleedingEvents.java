@@ -146,7 +146,9 @@ public final class BleedingEvents {
     }
 
     private static void spawnBleedingParticles(LivingEntity target, List<Wound> wounds, int count) {
-        if (!(target.level() instanceof ServerLevel level) || count <= 0) {
+        if (!LodgedConfig.bleedingDripParticles()
+                || !(target.level() instanceof ServerLevel level)
+                || count <= 0) {
             return;
         }
 

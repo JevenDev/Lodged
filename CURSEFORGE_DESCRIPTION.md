@@ -21,9 +21,10 @@ It is meant to make ranged combat a little grittier without replacing Minecraft'
 * Players can remove lodged arrows from their own inventory preview
 * Removal success can vary by body part
 * Having too many lodged arrows can cause mild dizziness until some are removed
+* Arrows that hit player legs can briefly apply Slowness
 * Failed removal can break the arrow, hurt the player, and apply bleeding
 * Bleeding can come from arrow removal, broken arrow impacts, or tagged/enchantment-based weapons
-* Bleeding supports visible drip particles, stacked duration, and stronger late-stage damage
+* Bleeding supports configurable blood particles, stacked duration, and stronger late-stage damage
 * Armour, undead mobs, skeletons, and immune entities can all be configured
 * Slimes, magma cubes, and armour stands are denied by default
 
@@ -71,6 +72,8 @@ Players can remove arrows stuck in their own body from the inventory player prev
 Open your inventory, rotate the player preview if needed, and click a lodged arrow. A successful removal gives the arrow back when that arrow type is recoverable. A failed removal breaks the arrow, can deal damage, and can apply bleeding.
 
 By default, carrying 4 or more lodged arrows, or reaching 50% of the configured tracked-arrow limit, applies Lodged's custom Dizziness effect. It uses a subtle border vignette, slight red tint, and gentle first-person screen wobble that grows stronger as more arrows lodge. Removing arrows drops you below that threshold and lets the effect fade.
+
+By default, arrows that hit a player's legs apply vanilla Slowness I for 40 ticks. Leg shot Slowness can be disabled, and both its duration and level are configurable.
 
 Default removal chances:
 
@@ -121,7 +124,8 @@ Default bleeding behaviour:
 * Partial armour reduces bleeding chance by default
 * Undead can bleed only if included in Lodged's undead bleeding tag
 * Skeletons do not bleed by default
-* Bleeding shows drip particles
+* Lodged blood particles are enabled by default in world and on the inventory player preview
+* Simple Blood compat ground decals are enabled by default when Simple Blood is installed
 
 Default bleeding damage:
 
@@ -157,8 +161,9 @@ Major systems can be tuned or disabled:
 * Removal success chances by body part
 * Removal failure damage
 * Lodged arrow dizziness thresholds and duration
+* Leg shot Slowness duration, level, and enablement
 * Bleeding rules
-* Bleeding duration, damage, particles, and armour behaviour
+* Bleeding duration, damage, Lodged particles, Simple Blood compat particles, and armour behaviour
 
 ## Tags and Pack Support
 

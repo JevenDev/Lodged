@@ -1,7 +1,9 @@
 package com.jvn.lodged.client;
 
 import com.jvn.lodged.client.compat.SimpleBloodCompat;
+import com.jvn.lodged.config.LodgedConfig;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleRenderType;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.particle.TextureSheetParticle;
@@ -96,7 +98,7 @@ public final class BleedingDropParticle extends TextureSheetParticle {
         }
     }
 
-    public static TextureSheetParticle create(
+    public static Particle create(
             SpriteSet sprites,
             net.minecraft.core.particles.SimpleParticleType type,
             ClientLevel level,
@@ -106,6 +108,10 @@ public final class BleedingDropParticle extends TextureSheetParticle {
             double xSpeed,
             double ySpeed,
             double zSpeed) {
+        if (!LodgedConfig.bleedingDripParticles()) {
+            return null;
+        }
+
         return new BleedingDropParticle(level, x, y, z, xSpeed, ySpeed, zSpeed, sprites);
     }
 }
