@@ -13,11 +13,6 @@ public final class SimpleBloodCompat {
     private static final String MOD_ID = "simpleblood";
     private static final String GROUND_PARTICLE_OPTIONS_CLASS =
             "io.redspace.simpleblood.client.particles.BloodGroundParticleOptions";
-    private static final int DEFAULT_BLOOD_COLOR = 0xFF80000D;
-    private static final float GROUND_DECAL_CHANCE = 0.15F;
-    private static final float GROUND_DECAL_SCALE_MULTIPLIER = 1.5F;
-    private static final float GROUND_DECAL_MIN_SCALE = 0.4F;
-    private static final float GROUND_DECAL_MAX_SCALE = 0.8F;
 
     private static Constructor<?> groundParticleOptionsConstructor;
     private static boolean initialized;
@@ -29,13 +24,13 @@ public final class SimpleBloodCompat {
     public static void spawnGroundBlood(ClientLevel level, Vec3 position, float dripScale) {
         if (!LodgedConfig.simpleBloodCompatParticles()
                 || !isAvailable()
-                || level.random.nextFloat() > GROUND_DECAL_CHANCE) {
+                || level.random.nextFloat() > LodgedConfig.simpleBloodGroundDecalChance()) {
             return;
         }
 
         try {
             float scale = groundDecalScale(level, dripScale);
-            Object options = groundParticleOptionsConstructor.newInstance(DEFAULT_BLOOD_COLOR, scale);
+            Object options = groundParticleOptionsConstructor.newInstance(LodgedConfig.simpleBloodGroundDecalColor(), scale);
             level.addParticle((ParticleOptions) options, true, position.x, position.y, position.z, 0.0D, 0.0D, 0.0D);
         } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
             available = false;
@@ -74,9 +69,12 @@ public final class SimpleBloodCompat {
 
     private static float groundDecalScale(ClientLevel level, float dripScale) {
         float scale = Mth.clamp(
-                dripScale * GROUND_DECAL_SCALE_MULTIPLIER,
-                GROUND_DECAL_MIN_SCALE,
-                GROUND_DECAL_MAX_SCALE);
-        return scale * (0.82F + level.random.nextFloat() * 0.36F);
+                dripScale * LodgedConfig.simpleBloodGroundDecalScaleMultiplier(),
+                LodgedConfig.simpleBloodGroundDecalMinScale(),
+                LodgedConfig.simpleBloodGroundDecalMaxScale());
+        return scale * Mth.lerp(
+                level.random.nextFloat(),
+                LodgedConfig.simpleBloodGroundDecalRandomMinScale(),
+                LodgedConfig.simpleBloodGroundDecalRandomMaxScale());
     }
 }

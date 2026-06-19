@@ -247,6 +247,42 @@ public final class LodgedConfig {
         return bleedingDripParticles() && bleedingEffect().simpleBloodCompatParticles();
     }
 
+    public static float simpleBloodGroundDecalChance() {
+        return (float) bleedingEffect().simpleBloodGroundDecalChance();
+    }
+
+    public static int simpleBloodGroundDecalColor() {
+        return 0xFF000000 | bleedingEffect().simpleBloodGroundDecalColor();
+    }
+
+    public static float simpleBloodGroundDecalScaleMultiplier() {
+        return (float) bleedingEffect().simpleBloodGroundDecalScaleMultiplier();
+    }
+
+    public static float simpleBloodGroundDecalMinScale() {
+        return (float) Math.min(
+                bleedingEffect().simpleBloodGroundDecalMinScale(),
+                bleedingEffect().simpleBloodGroundDecalMaxScale());
+    }
+
+    public static float simpleBloodGroundDecalMaxScale() {
+        return (float) Math.max(
+                bleedingEffect().simpleBloodGroundDecalMinScale(),
+                bleedingEffect().simpleBloodGroundDecalMaxScale());
+    }
+
+    public static float simpleBloodGroundDecalRandomMinScale() {
+        return (float) Math.min(
+                bleedingEffect().simpleBloodGroundDecalRandomMinScale(),
+                bleedingEffect().simpleBloodGroundDecalRandomMaxScale());
+    }
+
+    public static float simpleBloodGroundDecalRandomMaxScale() {
+        return (float) Math.max(
+                bleedingEffect().simpleBloodGroundDecalRandomMinScale(),
+                bleedingEffect().simpleBloodGroundDecalRandomMaxScale());
+    }
+
     public static int bleedingDripInterval(int amplifier) {
         return amplifier > 0
                 ? bleedingEffect().bleedingStrongDripInterval()

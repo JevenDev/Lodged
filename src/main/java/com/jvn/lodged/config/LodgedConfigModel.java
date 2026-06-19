@@ -192,6 +192,27 @@ public class LodgedConfigModel {
 
         public boolean simpleBloodCompatParticles = true;
 
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double simpleBloodGroundDecalChance = 0.15D;
+
+        @RangeConstraint(min = 0, max = 0xFFFFFF)
+        public int simpleBloodGroundDecalColor = 0x80000D;
+
+        @RangeConstraint(min = 0.0D, max = 8.0D)
+        public double simpleBloodGroundDecalScaleMultiplier = 1.5D;
+
+        @RangeConstraint(min = 0.0D, max = 8.0D)
+        public double simpleBloodGroundDecalMinScale = 0.4D;
+
+        @RangeConstraint(min = 0.0D, max = 8.0D)
+        public double simpleBloodGroundDecalMaxScale = 0.8D;
+
+        @RangeConstraint(min = 0.0D, max = 4.0D)
+        public double simpleBloodGroundDecalRandomMinScale = 0.82D;
+
+        @RangeConstraint(min = 0.0D, max = 4.0D)
+        public double simpleBloodGroundDecalRandomMaxScale = 1.18D;
+
         @RangeConstraint(min = 1, max = 1200)
         public int bleedingBaseDripInterval = 8;
 

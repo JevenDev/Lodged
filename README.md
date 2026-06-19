@@ -132,7 +132,9 @@ Default bleeding behaviour:
 - Partial armour reduces bleeding chance by default
 - Undead can bleed only if included in Lodged's undead bleeding tag
 - Skeletons do not bleed by default
-- Bleeding shows drip particles
+- Lodged blood particles are enabled by default in world and on the inventory player preview
+- Simple Blood compat ground decals are enabled by default when Simple Blood is installed
+- Simple Blood compat decal chance, color, and scale can be tuned
 
 Default bleeding damage:
 
@@ -170,7 +172,7 @@ Major systems can be tuned or disabled:
 - Lodged arrow dizziness thresholds and duration
 - Leg shot Slowness duration, level, and enablement
 - Bleeding rules
-- Bleeding duration, damage, particles, and armour behaviour
+- Bleeding duration, damage, Lodged particles, Simple Blood compat particles and decal tuning, and armour behaviour
 
 ## Tags and Pack Support
 
