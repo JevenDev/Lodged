@@ -15,9 +15,12 @@ import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.PostChain;
@@ -45,11 +48,20 @@ public final class LodgedInventoryArrowUi {
     private static final int INVENTORY_TURN_BOTTOM_PADDING = 2;
     private static final int INVENTORY_TURN_Z = 350;
     private static final int HIT_ZONE_RADIUS = 12;
+    private static final int PLAYER_MODEL_HIT_MARGIN = 3;
     private static final float PREVIEW_SCALE = 30.0F;
     private static final float PREVIEW_Y_OFFSET = 0.0625F;
     private static final float PLAYER_RENDER_SCALE = 0.9375F;
     private static final float MODEL_RENDER_Y_OFFSET = -1.501F;
     private static final float DEGREES_TO_RADIANS = (float) (Math.PI / 180.0D);
+    private static final float MODEL_HEAD_TOP = -8.0F / 16.0F;
+    private static final float MODEL_HEAD_BOTTOM = 0.0F;
+    private static final float MODEL_LEG_TOP = 12.0F / 16.0F;
+    private static final float MODEL_FEET_Y = 24.0F / 16.0F;
+    private static final float MODEL_HEAD_HALF_WIDTH = 4.0F / 16.0F;
+    private static final float MODEL_BODY_HALF_WIDTH = 4.0F / 16.0F;
+    private static final float MODEL_ARM_OUTER_X = 8.0F / 16.0F;
+    private static final float MODEL_LIMB_HALF_DEPTH = 2.0F / 16.0F;
     private static final ResourceLocation SHARP_OUTLINE_SHADER =
             ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "shaders/post/arrow_outline.json");
     private static final ResourceLocation BLEED_HANG_TEXTURE =
@@ -75,6 +87,56 @@ public final class LodgedInventoryArrowUi {
             new LodgedArrowVisual(-0.38F, 0.52F, -0.08F, 0.0F, 0.0F, 1.0F),
             new LodgedArrowVisual(0.16F, 0.98F, -0.10F, 0.0F, 0.0F, 1.0F)
     };
+    private static final ModelHitBox[] PLAYER_MODEL_HIT_BOXES = {
+            new ModelHitBox(
+                    -MODEL_HEAD_HALF_WIDTH,
+                    MODEL_HEAD_TOP,
+                    -MODEL_HEAD_HALF_WIDTH,
+                    MODEL_HEAD_HALF_WIDTH,
+                    MODEL_HEAD_BOTTOM,
+                    MODEL_HEAD_HALF_WIDTH,
+                    true),
+            new ModelHitBox(
+                    -MODEL_BODY_HALF_WIDTH,
+                    MODEL_HEAD_BOTTOM,
+                    -MODEL_LIMB_HALF_DEPTH,
+                    MODEL_BODY_HALF_WIDTH,
+                    MODEL_LEG_TOP,
+                    MODEL_LIMB_HALF_DEPTH,
+                    false),
+            new ModelHitBox(
+                    -MODEL_ARM_OUTER_X,
+                    MODEL_HEAD_BOTTOM,
+                    -MODEL_LIMB_HALF_DEPTH,
+                    -MODEL_BODY_HALF_WIDTH,
+                    MODEL_LEG_TOP,
+                    MODEL_LIMB_HALF_DEPTH,
+                    false),
+            new ModelHitBox(
+                    MODEL_BODY_HALF_WIDTH,
+                    MODEL_HEAD_BOTTOM,
+                    -MODEL_LIMB_HALF_DEPTH,
+                    MODEL_ARM_OUTER_X,
+                    MODEL_LEG_TOP,
+                    MODEL_LIMB_HALF_DEPTH,
+                    false),
+            new ModelHitBox(
+                    (-1.9F - 2.0F) / 16.0F,
+                    MODEL_LEG_TOP,
+                    -MODEL_LIMB_HALF_DEPTH,
+                    (-1.9F + 2.0F) / 16.0F,
+                    MODEL_FEET_Y,
+                    MODEL_LIMB_HALF_DEPTH,
+                    false),
+            new ModelHitBox(
+                    (1.9F - 2.0F) / 16.0F,
+                    MODEL_LEG_TOP,
+                    -MODEL_LIMB_HALF_DEPTH,
+                    (1.9F + 2.0F) / 16.0F,
+                    MODEL_FEET_Y,
+                    MODEL_LIMB_HALF_DEPTH,
+                    false)
+    };
 
     private static float yawDegrees;
     private static boolean draggingPreview;
@@ -99,6 +161,11 @@ public final class LodgedInventoryArrowUi {
 
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
+            hoveredArrowIndex = -1;
+            return;
+        }
+
+        if (isMouseOverScreenWidget(screen, event.getMouseX(), event.getMouseY())) {
             hoveredArrowIndex = -1;
             return;
         }
@@ -135,7 +202,11 @@ public final class LodgedInventoryArrowUi {
             return;
         }
 
-        if (event.getButton() == 2 && isInPlayerPreview(screen, event.getMouseX(), event.getMouseY())) {
+        if (isMouseOverScreenWidget(screen, event.getMouseX(), event.getMouseY())) {
+            return;
+        }
+
+        if (event.getButton() == 2 && isOnRenderedPlayerModel(screen, player, event.getMouseX(), event.getMouseY())) {
             resetPreviewRotation();
             event.setCanceled(true);
             return;
@@ -152,7 +223,7 @@ public final class LodgedInventoryArrowUi {
             return;
         }
 
-        if (isInPlayerPreview(screen, event.getMouseX(), event.getMouseY())) {
+        if (isOnRenderedPlayerModel(screen, player, event.getMouseX(), event.getMouseY())) {
             draggingPreview = true;
             customYawActive = true;
             event.setCanceled(true);
@@ -597,13 +668,26 @@ public final class LodgedInventoryArrowUi {
         return -currentPreviewPitchRadians(centerY, mouseY);
     }
 
-    private static boolean isInPlayerPreview(InventoryScreen screen, double mouseX, double mouseY) {
+    private static boolean isOnRenderedPlayerModel(InventoryScreen screen, LocalPlayer player, double mouseX, double mouseY) {
         int left = screen.getGuiLeft();
         int top = screen.getGuiTop();
-        return mouseX >= left + MODEL_LEFT
-                && mouseX < left + MODEL_RIGHT
-                && mouseY >= top + MODEL_TOP
-                && mouseY < top + MODEL_BOTTOM;
+        float centerX = left + ((MODEL_LEFT + MODEL_RIGHT) / 2.0F);
+        float centerY = top + ((MODEL_TOP + MODEL_BOTTOM) / 2.0F);
+        for (ModelHitBox box : PLAYER_MODEL_HIT_BOXES) {
+            if (box.containsScreenPoint(player, centerX, centerY, mouseX, mouseY)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isMouseOverScreenWidget(InventoryScreen screen, double mouseX, double mouseY) {
+        for (GuiEventListener child : screen.children()) {
+            if (child.isMouseOver(mouseX, mouseY)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isInInventoryTurnHint(InventoryScreen screen, double mouseX, double mouseY) {
@@ -684,5 +768,153 @@ public final class LodgedInventoryArrowUi {
     }
 
     private record InventoryTurnHintBounds(int x, int y) {
+    }
+
+    private record ModelHitBox(
+            float minX,
+            float minY,
+            float minZ,
+            float maxX,
+            float maxY,
+            float maxZ,
+            boolean followsHead) {
+        boolean containsScreenPoint(
+                LocalPlayer player,
+                float centerX,
+                float centerY,
+                double mouseX,
+                double mouseY) {
+            ScreenPoint[] corners = new ScreenPoint[8];
+            int index = 0;
+            for (float x : new float[]{minX, maxX}) {
+                for (float y : new float[]{minY, maxY}) {
+                    for (float z : new float[]{minZ, maxZ}) {
+                        corners[index++] = projectCorner(player, centerX, centerY, mouseX, mouseY, x, y, z);
+                    }
+                }
+            }
+
+            ScreenPoint[] hull = convexHull(corners);
+            return isInsideOrNearPolygon(hull, mouseX, mouseY, PLAYER_MODEL_HIT_MARGIN);
+        }
+
+        private ScreenPoint projectCorner(
+                LocalPlayer player,
+                float centerX,
+                float centerY,
+                double mouseX,
+                double mouseY,
+                float x,
+                float y,
+                float z) {
+            Vector3f point = new Vector3f(x, y, z);
+            if (followsHead) {
+                point = new Matrix4f()
+                        .rotate(new Quaternionf().rotationZYX(
+                                0.0F,
+                                currentHeadYawRadians(centerX, mouseX),
+                                currentHeadPitchRadians(centerY, mouseY)))
+                        .transformPosition(point);
+            }
+
+            Vector3f projected = projectModelToScreen(player, point, centerX, centerY, mouseX, mouseY);
+            return new ScreenPoint(projected.x(), projected.y());
+        }
+    }
+
+    private record ScreenPoint(double x, double y) {
+    }
+
+    private static ScreenPoint[] convexHull(ScreenPoint[] points) {
+        ScreenPoint[] sorted = Arrays.copyOf(points, points.length);
+        Arrays.sort(sorted, Comparator.comparingDouble(ScreenPoint::x).thenComparingDouble(ScreenPoint::y));
+
+        ScreenPoint[] hull = new ScreenPoint[sorted.length * 2];
+        int size = 0;
+        for (ScreenPoint point : sorted) {
+            while (size >= 2 && cross(hull[size - 2], hull[size - 1], point) <= 0.0D) {
+                size--;
+            }
+            hull[size++] = point;
+        }
+
+        int lowerSize = size;
+        for (int index = sorted.length - 2; index >= 0; index--) {
+            ScreenPoint point = sorted[index];
+            while (size > lowerSize && cross(hull[size - 2], hull[size - 1], point) <= 0.0D) {
+                size--;
+            }
+            hull[size++] = point;
+        }
+
+        if (size <= 1) {
+            return Arrays.copyOf(hull, size);
+        }
+        return Arrays.copyOf(hull, size - 1);
+    }
+
+    private static boolean isInsideOrNearPolygon(ScreenPoint[] polygon, double mouseX, double mouseY, double margin) {
+        if (polygon.length < 3) {
+            double marginSqr = margin * margin;
+            for (ScreenPoint point : polygon) {
+                double deltaX = mouseX - point.x();
+                double deltaY = mouseY - point.y();
+                if ((deltaX * deltaX) + (deltaY * deltaY) <= marginSqr) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        boolean hasPositive = false;
+        boolean hasNegative = false;
+        ScreenPoint mousePoint = new ScreenPoint(mouseX, mouseY);
+        for (int index = 0; index < polygon.length; index++) {
+            ScreenPoint start = polygon[index];
+            ScreenPoint end = polygon[(index + 1) % polygon.length];
+            double side = cross(start, end, mousePoint);
+            hasPositive |= side > 0.0D;
+            hasNegative |= side < 0.0D;
+            if (hasPositive && hasNegative) {
+                return isNearPolygonEdge(polygon, mouseX, mouseY, margin);
+            }
+        }
+        return true;
+    }
+
+    private static boolean isNearPolygonEdge(ScreenPoint[] polygon, double mouseX, double mouseY, double margin) {
+        double marginSqr = margin * margin;
+        for (int index = 0; index < polygon.length; index++) {
+            ScreenPoint start = polygon[index];
+            ScreenPoint end = polygon[(index + 1) % polygon.length];
+            if (distanceToSegmentSqr(mouseX, mouseY, start, end) <= marginSqr) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static double distanceToSegmentSqr(double mouseX, double mouseY, ScreenPoint start, ScreenPoint end) {
+        double deltaX = end.x() - start.x();
+        double deltaY = end.y() - start.y();
+        double lengthSqr = (deltaX * deltaX) + (deltaY * deltaY);
+        if (lengthSqr <= 1.0E-7D) {
+            double pointDeltaX = mouseX - start.x();
+            double pointDeltaY = mouseY - start.y();
+            return (pointDeltaX * pointDeltaX) + (pointDeltaY * pointDeltaY);
+        }
+
+        double progress = ((mouseX - start.x()) * deltaX + (mouseY - start.y()) * deltaY) / lengthSqr;
+        progress = Math.max(0.0D, Math.min(1.0D, progress));
+        double closestX = start.x() + (deltaX * progress);
+        double closestY = start.y() + (deltaY * progress);
+        double closestDeltaX = mouseX - closestX;
+        double closestDeltaY = mouseY - closestY;
+        return (closestDeltaX * closestDeltaX) + (closestDeltaY * closestDeltaY);
+    }
+
+    private static double cross(ScreenPoint start, ScreenPoint end, ScreenPoint point) {
+        return ((end.x() - start.x()) * (point.y() - start.y()))
+                - ((end.y() - start.y()) * (point.x() - start.x()));
     }
 }
