@@ -23,8 +23,11 @@ public final class LodgedShieldArrowStorage {
     }
 
     public static boolean add(ItemStack shield, LodgedShieldArrowData arrowData, HolderLookup.Provider registries) {
-        int maxTrackedArrows = LodgedConfig.maxTrackedArrowsPerEntity();
-        if (shield.isEmpty() || arrowData.stack().isEmpty() || maxTrackedArrows <= 0) {
+        int maxTrackedArrows = LodgedConfig.maxTrackedArrowsPerShield();
+        if (!LodgedConfig.enableShieldArrowLodging()
+                || shield.isEmpty()
+                || arrowData.stack().isEmpty()
+                || maxTrackedArrows <= 0) {
             return false;
         }
 

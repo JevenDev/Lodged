@@ -1,5 +1,6 @@
 package com.jvn.lodged.client;
 
+import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import com.jvn.lodged.world.LodgedShieldArrowStorage;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
@@ -7,6 +8,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.OutlineBufferSource;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
@@ -33,7 +35,7 @@ public final class LodgedShieldArrowRenderer {
             float partialTicks) {
         Minecraft minecraft = Minecraft.getInstance();
         ClientLevel level = minecraft.level;
-        if (level == null) {
+        if (level == null || !shouldRenderOwnFirstPersonShieldArrows(minecraft, shield, displayContext)) {
             return;
         }
 
@@ -46,7 +48,8 @@ public final class LodgedShieldArrowRenderer {
 
         EntityRenderDispatcher dispatcher = minecraft.getEntityRenderDispatcher();
         int hoveredArrowIndex = isHandRender(displayContext) ? LodgedInventoryArrowUi.hoveredShieldArrowIndex(shield) : -1;
-        for (int index = 0; index < arrows.size(); index++) {
+        int arrowCount = Math.min(arrows.size(), LodgedConfig.maxTrackedArrowsPerShield());
+        for (int index = 0; index < arrowCount; index++) {
             LodgedArrowVisual arrow = arrows.get(index).visual();
             poseStack.pushPose();
             poseStack.scale(1.0F, -1.0F, -1.0F);
@@ -64,6 +67,20 @@ public final class LodgedShieldArrowRenderer {
                 || displayContext == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND
                 || displayContext == ItemDisplayContext.FIRST_PERSON_LEFT_HAND
                 || displayContext == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND;
+    }
+
+    private static boolean shouldRenderOwnFirstPersonShieldArrows(
+            Minecraft minecraft,
+            ItemStack shield,
+            ItemDisplayContext displayContext) {
+        if (LodgedConfig.renderOwnShieldArrowsInFirstPerson()
+                || displayContext != ItemDisplayContext.FIRST_PERSON_LEFT_HAND
+                        && displayContext != ItemDisplayContext.FIRST_PERSON_RIGHT_HAND) {
+            return true;
+        }
+
+        LocalPlayer player = minecraft.player;
+        return player == null || shield != player.getMainHandItem() && shield != player.getOffhandItem();
     }
 
     private static void renderHoverOutline(

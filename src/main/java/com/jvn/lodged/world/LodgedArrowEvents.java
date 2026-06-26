@@ -91,7 +91,9 @@ public final class LodgedArrowEvents {
         }
 
         if (wouldShieldBlock(target, arrow)) {
-            rememberShieldArrowImpact(arrow, target, LodgedArrowVisual.fromShieldImpact(target, arrow, entityHitResult));
+            if (LodgedConfig.enableShieldArrowLodging()) {
+                rememberShieldArrowImpact(arrow, target, LodgedArrowVisual.fromShieldImpact(target, arrow, entityHitResult));
+            }
             return;
         }
 
@@ -160,17 +162,22 @@ public final class LodgedArrowEvents {
                 && !creativeGenerated
                 && arrow.pickup == AbstractArrow.Pickup.CREATIVE_ONLY;
 
-        ShieldArrowImpact rememberedImpact = SHIELD_ARROW_IMPACTS.remove(arrow.getUUID());
-        LodgedArrowVisual visual = rememberedImpact != null && blocker.getUUID().equals(rememberedImpact.targetUuid())
-                ? rememberedImpact.visual()
-                : LodgedArrowVisual.fromShieldImpact(blocker, arrow, new EntityHitResult(blocker, arrow.position()));
-
         if (LodgedConfig.enableArrowBreakOnEntityHit()
                 && breaksOnImpact(arrow, fromPlayer, fromMob, infinityGenerated, creativeGenerated)) {
+            SHIELD_ARROW_IMPACTS.remove(arrow.getUUID());
             playArrowBreakSound(arrow);
             arrow.discard();
             return;
         }
+
+        ShieldArrowImpact rememberedImpact = SHIELD_ARROW_IMPACTS.remove(arrow.getUUID());
+        if (!LodgedConfig.enableShieldArrowLodging()) {
+            return;
+        }
+
+        LodgedArrowVisual visual = rememberedImpact != null && blocker.getUUID().equals(rememberedImpact.targetUuid())
+                ? rememberedImpact.visual()
+                : LodgedArrowVisual.fromShieldImpact(blocker, arrow, new EntityHitResult(blocker, arrow.position()));
 
         boolean willEvictArrow = willEvictShieldArrow(shield);
         ItemStack recoveredStack = getRecoverableStack(arrow);
@@ -565,7 +572,7 @@ public final class LodgedArrowEvents {
     }
 
     private static boolean willEvictShieldArrow(ItemStack shield) {
-        int maxTrackedArrows = LodgedConfig.maxTrackedArrowsPerEntity();
+        int maxTrackedArrows = LodgedConfig.maxTrackedArrowsPerShield();
         return maxTrackedArrows > 0 && LodgedShieldArrowStorage.readAll(shield).size() >= maxTrackedArrows;
     }
 

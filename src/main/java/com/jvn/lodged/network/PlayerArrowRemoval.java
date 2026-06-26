@@ -114,17 +114,21 @@ final class PlayerArrowRemoval {
             return false;
         }
 
-        if (payload.arrowIndex() < 0 || payload.arrowIndex() >= LodgedConfig.maxRemovablePlayerArrows()) {
+        if (payload.arrowIndex() < 0) {
             return false;
         }
 
         if (payload.target() == Target.BODY) {
-            if (payload.arrowIndex() >= LodgedArrowStorage.readAll(player).size()) {
+            if (payload.arrowIndex() >= LodgedConfig.maxRemovablePlayerArrows()
+                    || payload.arrowIndex() >= LodgedArrowStorage.readAll(player).size()) {
                 return false;
             }
         } else {
+            int maxShieldArrows = LodgedConfig.maxTrackedArrowsPerShield();
             ItemStack shield = player.getItemInHand(payload.hand());
-            if (shield.isEmpty()
+            if (maxShieldArrows <= 0
+                    || payload.arrowIndex() >= maxShieldArrows
+                    || shield.isEmpty()
                     || !shield.canPerformAction(ItemAbilities.SHIELD_BLOCK)
                     || payload.arrowIndex() >= LodgedShieldArrowStorage.readData(shield, player.registryAccess()).size()) {
                 return false;

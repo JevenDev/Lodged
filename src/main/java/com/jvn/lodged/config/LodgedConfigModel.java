@@ -27,6 +27,10 @@ public class LodgedConfigModel {
 
     @Nest
     @Expanded
+    public ShieldArrows shieldArrows = new ShieldArrows();
+
+    @Nest
+    @Expanded
     public LegShotSlowness legShotSlowness = new LegShotSlowness();
 
     @Nest
@@ -122,6 +126,15 @@ public class LodgedConfigModel {
 
         @RangeConstraint(min = 1, max = 1200)
         public int lodgedArrowDizzinessRefreshInterval = 20;
+    }
+
+    public static class ShieldArrows {
+        public boolean enableShieldArrowLodging = true;
+
+        @RangeConstraint(min = 0, max = 64)
+        public int maxTrackedArrowsPerShield = 0;
+
+        public boolean renderOwnShieldArrowsInFirstPerson = true;
     }
 
     public static class LegShotSlowness {

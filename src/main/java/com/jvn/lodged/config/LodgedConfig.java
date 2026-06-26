@@ -119,6 +119,19 @@ public final class LodgedConfig {
         return configuredMax > 0 ? configuredMax : maxTrackedArrowsPerEntity();
     }
 
+    public static boolean enableShieldArrowLodging() {
+        return shieldArrows().enableShieldArrowLodging();
+    }
+
+    public static int maxTrackedArrowsPerShield() {
+        int configuredMax = shieldArrows().maxTrackedArrowsPerShield();
+        return configuredMax > 0 ? configuredMax : maxTrackedArrowsPerEntity();
+    }
+
+    public static boolean renderOwnShieldArrowsInFirstPerson() {
+        return shieldArrows().renderOwnShieldArrowsInFirstPerson();
+    }
+
     public static boolean enableLodgedArrowDizziness() {
         return playerArrowRemoval().enableLodgedArrowDizziness();
     }
@@ -295,6 +308,10 @@ public final class LodgedConfig {
 
     private static LodgedConfigWrapper.PlayerArrowRemoval playerArrowRemoval() {
         return CONFIG.playerArrowRemoval;
+    }
+
+    private static LodgedConfigWrapper.ShieldArrows shieldArrows() {
+        return CONFIG.shieldArrows;
     }
 
     private static LodgedConfigWrapper.LegShotSlowness legShotSlowness() {

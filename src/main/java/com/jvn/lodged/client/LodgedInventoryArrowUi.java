@@ -68,6 +68,22 @@ public final class LodgedInventoryArrowUi {
     private static final float MODEL_BODY_HALF_WIDTH = 4.0F / 16.0F;
     private static final float MODEL_ARM_OUTER_X = 8.0F / 16.0F;
     private static final float MODEL_LIMB_HALF_DEPTH = 2.0F / 16.0F;
+    private static final float ARM_ORIGIN_X = 5.0F / 16.0F;
+    private static final float ARM_ORIGIN_Y = 2.0F / 16.0F;
+    private static final float HELD_ITEM_LAYER_X_ROT = -90.0F * DEGREES_TO_RADIANS;
+    private static final float HELD_ITEM_LAYER_Y_ROT = 180.0F * DEGREES_TO_RADIANS;
+    private static final float HELD_ITEM_ARM_X_OFFSET = 1.0F / 16.0F;
+    private static final float HELD_ITEM_ARM_Y_OFFSET = 0.125F;
+    private static final float HELD_ITEM_ARM_Z_OFFSET = -0.625F;
+    private static final float SHIELD_ITEM_X_ROT = 0.0F;
+    private static final float SHIELD_ITEM_Y_ROT = 90.0F * DEGREES_TO_RADIANS;
+    private static final float SHIELD_ITEM_Z_ROT = 0.0F;
+    private static final float SHIELD_THIRD_PERSON_X = 10.0F / 16.0F;
+    private static final float SHIELD_THIRD_PERSON_Y = 6.0F / 16.0F;
+    private static final float SHIELD_THIRD_PERSON_RIGHT_Z = -4.0F / 16.0F;
+    private static final float SHIELD_THIRD_PERSON_LEFT_Z = 12.0F / 16.0F;
+    private static final float ITEM_RENDERER_MODEL_OFFSET = -0.5F;
+    private static final float ITEM_ARM_X_ROT = -(float) (Math.PI / 10.0D);
     private static final ResourceLocation SHARP_OUTLINE_SHADER =
             ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "shaders/post/arrow_outline.json");
     private static final ResourceLocation BLEED_HANG_TEXTURE =
@@ -501,7 +517,7 @@ public final class LodgedInventoryArrowUi {
         }
 
         List<LodgedArrowVisual> arrows = LodgedShieldArrowStorage.readAll(shield);
-        int arrowCount = Math.min(arrows.size(), LodgedConfig.maxRemovablePlayerArrows());
+        int arrowCount = Math.min(arrows.size(), LodgedConfig.maxTrackedArrowsPerShield());
         ArrowHitZone closestZone = null;
         for (int index = 0; index < arrowCount; index++) {
             Vector3f projected = projectShieldArrowToScreen(screen, player, arrows.get(index), hand, mouseX, mouseY);
@@ -553,11 +569,25 @@ public final class LodgedInventoryArrowUi {
         HumanoidArm arm = hand == InteractionHand.MAIN_HAND
                 ? player.getMainArm()
                 : player.getMainArm().getOpposite();
-        float side = arm == HumanoidArm.RIGHT ? -1.0F : 1.0F;
-        return new Vector3f(
-                side * (0.68F + (arrow.modelX() * 0.35F)),
-                0.45F + arrow.modelY(),
-                -0.42F + arrow.modelZ());
+        boolean leftHand = arm == HumanoidArm.LEFT;
+        float armSide = leftHand ? 1.0F : -1.0F;
+        float itemTransformSide = leftHand ? -1.0F : 1.0F;
+        float shieldZ = leftHand ? SHIELD_THIRD_PERSON_LEFT_Z : SHIELD_THIRD_PERSON_RIGHT_Z;
+
+        return new Matrix4f()
+                .translate(armSide * ARM_ORIGIN_X, ARM_ORIGIN_Y, 0.0F)
+                .rotate(new Quaternionf().rotationZYX(0.0F, 0.0F, ITEM_ARM_X_ROT))
+                .rotateX(HELD_ITEM_LAYER_X_ROT)
+                .rotateY(HELD_ITEM_LAYER_Y_ROT)
+                .translate(-armSide * HELD_ITEM_ARM_X_OFFSET, HELD_ITEM_ARM_Y_OFFSET, HELD_ITEM_ARM_Z_OFFSET)
+                .translate(itemTransformSide * SHIELD_THIRD_PERSON_X, SHIELD_THIRD_PERSON_Y, shieldZ)
+                .rotate(new Quaternionf().rotationXYZ(
+                        SHIELD_ITEM_X_ROT,
+                        itemTransformSide * SHIELD_ITEM_Y_ROT,
+                        itemTransformSide * SHIELD_ITEM_Z_ROT))
+                .translate(ITEM_RENDERER_MODEL_OFFSET, ITEM_RENDERER_MODEL_OFFSET, ITEM_RENDERER_MODEL_OFFSET)
+                .scale(1.0F, -1.0F, -1.0F)
+                .transformPosition(arrow.modelX(), arrow.modelY(), arrow.modelZ(), new Vector3f());
     }
 
     private static Vector3f projectModelToScreen(
