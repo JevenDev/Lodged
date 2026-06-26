@@ -4,8 +4,12 @@ import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.effect.BleedingEvents;
 import com.jvn.lodged.effect.LodgedDamageTypes;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
+import com.jvn.lodged.network.payload.RemovePlayerArrowPayload.Target;
+import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowData;
 import com.jvn.lodged.world.LodgedArrowStorage;
+import com.jvn.lodged.world.LodgedShieldArrowStorage;
+import com.jvn.lodged.world.LodgedShieldArrowStorage.LodgedShieldArrowData;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -16,13 +20,17 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 final class PlayerArrowRemoval {
     private static final int REQUEST_COOLDOWN_TICKS = 2;
+    private static final double SHIELD_ARROW_REMOVAL_DURABILITY_CHANCE = 0.35D;
     private static final Map<UUID, Long> LAST_REQUEST_TICK = new HashMap<>();
 
     private PlayerArrowRemoval() {
@@ -33,7 +41,7 @@ final class PlayerArrowRemoval {
             return;
         }
 
-        if (!canAttemptRemoval(player, payload.arrowIndex())) {
+        if (!canAttemptRemoval(player, payload)) {
             LodgedNetwork.syncPlayerArrows(player);
             return;
         }
@@ -45,7 +53,20 @@ final class PlayerArrowRemoval {
         }
         LAST_REQUEST_TICK.put(player.getUUID(), gameTime);
 
-        LodgedArrowData removedArrow = LodgedArrowStorage.removeAt(player, payload.arrowIndex());
+        if (payload.target() == Target.SHIELD) {
+            removeShieldArrow(player, payload);
+            return;
+        }
+
+        removeBodyArrow(player, payload.arrowIndex());
+    }
+
+    static void clearCooldown(ServerPlayer player) {
+        LAST_REQUEST_TICK.remove(player.getUUID());
+    }
+
+    private static void removeBodyArrow(ServerPlayer player, int arrowIndex) {
+        LodgedArrowData removedArrow = LodgedArrowStorage.removeAt(player, arrowIndex);
         if (removedArrow == null) {
             LodgedNetwork.syncPlayerArrows(player);
             return;
@@ -66,21 +87,48 @@ final class PlayerArrowRemoval {
         LodgedNetwork.syncEntityArrows(player);
     }
 
-    static void clearCooldown(ServerPlayer player) {
-        LAST_REQUEST_TICK.remove(player.getUUID());
+    private static void removeShieldArrow(ServerPlayer player, RemovePlayerArrowPayload payload) {
+        ItemStack shield = player.getItemInHand(payload.hand());
+        LodgedShieldArrowData removedArrow = LodgedShieldArrowStorage.removeAt(shield, payload.arrowIndex(), player.registryAccess());
+        if (removedArrow == null) {
+            LodgedNetwork.syncPlayerArrows(player);
+            return;
+        }
+
+        double successChance = removalSuccessChance(removedArrow);
+        boolean recovered = successChance >= 1.0D || (successChance > 0.0D && player.getRandom().nextDouble() < successChance);
+        if (recovered) {
+            recoverArrow(player, removedArrow.stack());
+            playSound(player, SoundEvents.ITEM_PICKUP, 0.2F, 2.0F);
+        } else {
+            playSound(player, SoundEvents.ITEM_BREAK, 0.8F, 1.0F);
+        }
+
+        maybeDamageShieldFromArrowRemoval(player, shield, LivingEntity.getSlotForHand(payload.hand()));
+        player.setItemInHand(payload.hand(), shield);
+        player.containerMenu.broadcastChanges();
     }
 
-    private static boolean canAttemptRemoval(ServerPlayer player, int arrowIndex) {
+    private static boolean canAttemptRemoval(ServerPlayer player, RemovePlayerArrowPayload payload) {
         if (!LodgedConfig.enablePlayerArrowRemoval() || !player.isAlive()) {
             return false;
         }
 
-        if (arrowIndex < 0 || arrowIndex >= LodgedConfig.maxRemovablePlayerArrows()) {
+        if (payload.arrowIndex() < 0 || payload.arrowIndex() >= LodgedConfig.maxRemovablePlayerArrows()) {
             return false;
         }
 
-        if (arrowIndex >= LodgedArrowStorage.readAll(player).size()) {
-            return false;
+        if (payload.target() == Target.BODY) {
+            if (payload.arrowIndex() >= LodgedArrowStorage.readAll(player).size()) {
+                return false;
+            }
+        } else {
+            ItemStack shield = player.getItemInHand(payload.hand());
+            if (shield.isEmpty()
+                    || !shield.canPerformAction(ItemAbilities.SHIELD_BLOCK)
+                    || payload.arrowIndex() >= LodgedShieldArrowStorage.readData(shield, player.registryAccess()).size()) {
+                return false;
+            }
         }
 
         if (player.isCreative() && !LodgedConfig.allowArrowRemovalInCreative()) {
@@ -106,20 +154,40 @@ final class PlayerArrowRemoval {
     }
 
     private static double removalSuccessChance(LodgedArrowData arrow) {
-        if (!arrow.fromPlayer() && !LodgedConfig.recoverMobArrows()) {
+        return removalSuccessChance(
+                arrow.fromPlayer(),
+                arrow.infinityGenerated(),
+                arrow.creativeGenerated(),
+                LodgedConfig.playerArrowRemovalSuccessChance(arrow.visual().bodyPart()));
+    }
+
+    private static double removalSuccessChance(LodgedShieldArrowData arrow) {
+        return removalSuccessChance(
+                arrow.fromPlayer(),
+                arrow.infinityGenerated(),
+                arrow.creativeGenerated(),
+                LodgedConfig.playerArrowRemovalSuccessChance(LodgedArrowBodyPart.ARM));
+    }
+
+    private static double removalSuccessChance(
+            boolean fromPlayer,
+            boolean infinityGenerated,
+            boolean creativeGenerated,
+            double baseSuccessChance) {
+        if (!fromPlayer && !LodgedConfig.recoverMobArrows()) {
             return 0.0D;
         }
 
-        if (arrow.infinityGenerated() && !LodgedConfig.recoverInfinityArrows()) {
+        if (infinityGenerated && !LodgedConfig.recoverInfinityArrows()) {
             return 0.0D;
         }
 
-        if (arrow.creativeGenerated() && !LodgedConfig.recoverCreativeArrows()) {
+        if (creativeGenerated && !LodgedConfig.recoverCreativeArrows()) {
             return 0.0D;
         }
 
-        double successChance = LodgedConfig.playerArrowRemovalSuccessChance(arrow.visual().bodyPart());
-        if (arrow.infinityGenerated()) {
+        double successChance = baseSuccessChance;
+        if (infinityGenerated) {
             successChance *= LodgedConfig.playerArrowRemovalInfinitySuccessMultiplier();
         }
         return successChance;
@@ -133,6 +201,16 @@ final class PlayerArrowRemoval {
                     .getHolderOrThrow(LodgedDamageTypes.ARROW_REMOVAL);
             player.hurt(new DamageSource(arrowRemoval), damage);
         }
+    }
+
+    private static void maybeDamageShieldFromArrowRemoval(ServerPlayer player, ItemStack shield, EquipmentSlot slot) {
+        if (shield.isEmpty()
+                || player.getAbilities().instabuild
+                || player.getRandom().nextDouble() >= SHIELD_ARROW_REMOVAL_DURABILITY_CHANCE) {
+            return;
+        }
+
+        shield.hurtAndBreak(1, player, slot);
     }
 
     private static void playSound(ServerPlayer player, net.minecraft.sounds.SoundEvent sound, float volume, float pitch) {

@@ -32,6 +32,11 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
     private static final float PLAYER_MODEL_RENDER_SCALE = 0.9375F;
     private static final float MODEL_RENDER_ROOT_Y = 1.501F;
     private static final double MAX_MODEL_TRACE_INFLATE = 1.0D / 16.0D;
+    private static final double SHIELD_CENTER_HEIGHT_RATIO = 0.55D;
+    private static final double SHIELD_CENTER_FORWARD_OFFSET = 0.35D;
+    private static final double SHIELD_HALF_WIDTH = 6.0D / 16.0D;
+    private static final double SHIELD_HALF_HEIGHT = 11.0D / 16.0D;
+    private static final double SHIELD_FRONT_Z = -2.0D / 16.0D;
     private static final ModelBox[] HUMANOID_MODEL_BOXES = {
             new ModelBox(-MODEL_HEAD_HALF_WIDTH, MODEL_HEAD_TOP, -MODEL_HEAD_HALF_WIDTH, MODEL_HEAD_HALF_WIDTH, MODEL_HEAD_BOTTOM, MODEL_HEAD_HALF_WIDTH),
             new ModelBox(-MODEL_BODY_HALF_WIDTH, MODEL_HEAD_BOTTOM, -MODEL_LIMB_HALF_DEPTH, MODEL_BODY_HALF_WIDTH, MODEL_LEG_TOP, MODEL_LIMB_HALF_DEPTH),
@@ -99,6 +104,28 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
                 directionX / directionLength,
                 directionY / directionLength,
                 directionZ / directionLength);
+    }
+
+    public static LodgedArrowVisual fromShieldImpact(LivingEntity target, AbstractArrow arrow, EntityHitResult hitResult) {
+        BodyAxes axes = BodyAxes.of(target.getYHeadRot());
+        Vec3 motion = impactMotion(arrow);
+        Vec3 modelDirection = normalizedOrDefault(new Vec3(
+                motion.dot(axes.right()),
+                -motion.y,
+                -motion.dot(axes.forward())));
+        Vec3 center = shieldCenter(target, axes);
+        TraceSegment trace = impactTrace(arrow, target.getBoundingBox(), motion);
+        Vec3 hitLocation = traceShieldPlane(trace, center, axes.forward())
+                .orElseGet(() -> resolveImpactLocation(target, arrow, hitResult, motion));
+        Vec3 relative = hitLocation.subtract(center);
+
+        return new LodgedArrowVisual(
+                (float) Mth.clamp(relative.dot(axes.right()), -SHIELD_HALF_WIDTH, SHIELD_HALF_WIDTH),
+                (float) Mth.clamp(-relative.y, -SHIELD_HALF_HEIGHT, SHIELD_HALF_HEIGHT),
+                (float) SHIELD_FRONT_Z,
+                (float) modelDirection.x,
+                (float) modelDirection.y,
+                (float) modelDirection.z);
     }
 
     public LodgedArrowBodyPart bodyPart() {
@@ -187,6 +214,28 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
     private static double modelRenderScale(LivingEntity target) {
         double rendererScale = target instanceof Player ? PLAYER_MODEL_RENDER_SCALE : 1.0D;
         return Math.max(rendererScale * target.getScale(), 0.1D);
+    }
+
+    private static Vec3 shieldCenter(LivingEntity target, BodyAxes axes) {
+        return new Vec3(
+                target.getX(),
+                target.getY() + target.getBbHeight() * SHIELD_CENTER_HEIGHT_RATIO,
+                target.getZ()).add(axes.forward().scale(SHIELD_CENTER_FORWARD_OFFSET));
+    }
+
+    private static Optional<Vec3> traceShieldPlane(TraceSegment trace, Vec3 center, Vec3 forward) {
+        Vec3 delta = trace.end().subtract(trace.start());
+        double denominator = delta.dot(forward);
+        if (Math.abs(denominator) < 1.0E-7D) {
+            return Optional.empty();
+        }
+
+        double t = center.subtract(trace.start()).dot(forward) / denominator;
+        if (t < 0.0D || t > 1.0D) {
+            return Optional.empty();
+        }
+
+        return Optional.of(trace.start().add(delta.scale(t)));
     }
 
     private static Optional<ModelHit> traceModelHit(Vec3 modelStart, Vec3 modelEnd) {

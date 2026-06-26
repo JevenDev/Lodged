@@ -7,6 +7,7 @@
     "LivingEntityMixin"
   ],
   "client": [
+    "client.BlockEntityWithoutLevelRendererMixin",
     "client.InventoryScreenMixin",
     "client.LevelRendererAccessor",
     "client.LivingEntityRendererMixin",

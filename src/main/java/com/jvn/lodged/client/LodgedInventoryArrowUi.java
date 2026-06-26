@@ -8,8 +8,10 @@ import com.jvn.lodged.effect.LodgedEffects;
 import com.jvn.lodged.mixin.client.LevelRendererAccessor;
 import com.jvn.lodged.network.ClientArrowState;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
+import com.jvn.lodged.network.payload.RemovePlayerArrowPayload.Target;
 import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowVisual;
+import com.jvn.lodged.world.LodgedShieldArrowStorage;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.platform.Window;
@@ -28,6 +30,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -142,6 +148,8 @@ public final class LodgedInventoryArrowUi {
     private static boolean draggingPreview;
     private static boolean customYawActive;
     private static int hoveredArrowIndex = -1;
+    private static int hoveredShieldArrowIndex = -1;
+    private static InteractionHand hoveredShieldHand = InteractionHand.MAIN_HAND;
     private static PostChain sharpOutlineEffect;
     private static RenderTarget sharpOutlineTarget;
     private static int sharpOutlineWidth = -1;
@@ -155,23 +163,23 @@ public final class LodgedInventoryArrowUi {
     @SubscribeEvent
     public static void onScreenRenderPre(ScreenEvent.Render.Pre event) {
         if (!LodgedConfig.enablePlayerArrowRemoval() || !(event.getScreen() instanceof InventoryScreen screen)) {
-            hoveredArrowIndex = -1;
+            clearHoveredArrows();
             return;
         }
 
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
-            hoveredArrowIndex = -1;
+            clearHoveredArrows();
             return;
         }
 
         if (isMouseOverScreenWidget(screen, event.getMouseX(), event.getMouseY())) {
-            hoveredArrowIndex = -1;
+            clearHoveredArrows();
             return;
         }
 
         ArrowHitZone hoveredZone = findHoveredZone(screen, player, event.getMouseX(), event.getMouseY());
-        hoveredArrowIndex = hoveredZone == null ? -1 : hoveredZone.index();
+        setHoveredArrow(hoveredZone);
     }
 
     @SubscribeEvent
@@ -218,7 +226,10 @@ public final class LodgedInventoryArrowUi {
 
         ArrowHitZone hoveredZone = findHoveredZone(screen, player, event.getMouseX(), event.getMouseY());
         if (hoveredZone != null) {
-            PacketDistributor.sendToServer(new RemovePlayerArrowPayload(hoveredZone.index()));
+            PacketDistributor.sendToServer(new RemovePlayerArrowPayload(
+                    hoveredZone.index(),
+                    hoveredZone.target(),
+                    hoveredZone.hand()));
             event.setCanceled(true);
             return;
         }
@@ -257,6 +268,19 @@ public final class LodgedInventoryArrowUi {
 
     public static int hoveredArrowIndex() {
         return hoveredArrowIndex;
+    }
+
+    public static int hoveredShieldArrowIndex(ItemStack shield) {
+        if (hoveredShieldArrowIndex < 0) {
+            return -1;
+        }
+
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || shield != player.getItemInHand(hoveredShieldHand)) {
+            return -1;
+        }
+
+        return hoveredShieldArrowIndex;
     }
 
     public static boolean prepareArrowOutlineTarget() {
@@ -419,13 +443,36 @@ public final class LodgedInventoryArrowUi {
         double closestDistance = Double.MAX_VALUE;
         for (int index = 0; index < arrowCount; index++) {
             ArrowHitZone zone = zoneFor(screen, player, arrows.get(index), index, mouseX, mouseY);
-            if (zone.contains(mouseX, mouseY)) {
-                double distance = zone.distanceToSqr(mouseX, mouseY);
-                if (distance < closestDistance) {
-                    closestZone = zone;
-                    closestDistance = distance;
-                }
+            double distance = zone.distanceToSqr(mouseX, mouseY);
+            if (zone.contains(mouseX, mouseY) && distance < closestDistance) {
+                closestZone = zone;
+                closestDistance = distance;
             }
+        }
+
+        ShieldZoneResult mainHandZone = findShieldHoveredZone(
+                screen,
+                player,
+                player.getMainHandItem(),
+                InteractionHand.MAIN_HAND,
+                mouseX,
+                mouseY,
+                closestDistance);
+        if (mainHandZone.zone() != null) {
+            closestZone = mainHandZone.zone();
+            closestDistance = mainHandZone.distanceToSqr();
+        }
+
+        ShieldZoneResult offhandZone = findShieldHoveredZone(
+                screen,
+                player,
+                player.getOffhandItem(),
+                InteractionHand.OFF_HAND,
+                mouseX,
+                mouseY,
+                closestDistance);
+        if (offhandZone.zone() != null) {
+            closestZone = offhandZone.zone();
         }
         return closestZone;
     }
@@ -438,7 +485,34 @@ public final class LodgedInventoryArrowUi {
             double mouseX,
             double mouseY) {
         Vector3f projected = projectArrowToScreen(screen, player, arrow, mouseX, mouseY);
-        return new ArrowHitZone(index, projected.x(), projected.y(), HIT_ZONE_RADIUS);
+        return new ArrowHitZone(index, Target.BODY, InteractionHand.MAIN_HAND, projected.x(), projected.y(), HIT_ZONE_RADIUS);
+    }
+
+    private static ShieldZoneResult findShieldHoveredZone(
+            InventoryScreen screen,
+            LocalPlayer player,
+            ItemStack shield,
+            InteractionHand hand,
+            double mouseX,
+            double mouseY,
+            double closestDistance) {
+        if (shield.isEmpty() || !shield.canPerformAction(ItemAbilities.SHIELD_BLOCK)) {
+            return ShieldZoneResult.EMPTY;
+        }
+
+        List<LodgedArrowVisual> arrows = LodgedShieldArrowStorage.readAll(shield);
+        int arrowCount = Math.min(arrows.size(), LodgedConfig.maxRemovablePlayerArrows());
+        ArrowHitZone closestZone = null;
+        for (int index = 0; index < arrowCount; index++) {
+            Vector3f projected = projectShieldArrowToScreen(screen, player, arrows.get(index), hand, mouseX, mouseY);
+            ArrowHitZone zone = new ArrowHitZone(index, Target.SHIELD, hand, projected.x(), projected.y(), HIT_ZONE_RADIUS);
+            double distance = zone.distanceToSqr(mouseX, mouseY);
+            if (zone.contains(mouseX, mouseY) && distance < closestDistance) {
+                closestZone = zone;
+                closestDistance = distance;
+            }
+        }
+        return new ShieldZoneResult(closestZone, closestDistance);
     }
 
     private static Vector3f projectArrowToScreen(
@@ -453,6 +527,37 @@ public final class LodgedInventoryArrowUi {
         float centerY = top + ((MODEL_TOP + MODEL_BOTTOM) / 2.0F);
         Vector3f modelPosition = renderModelPosition(arrow, centerX, centerY, mouseX, mouseY);
         return projectModelToScreen(player, modelPosition, centerX, centerY, mouseX, mouseY);
+    }
+
+    private static Vector3f projectShieldArrowToScreen(
+            InventoryScreen screen,
+            LocalPlayer player,
+            LodgedArrowVisual arrow,
+            InteractionHand hand,
+            double mouseX,
+            double mouseY) {
+        int left = screen.getGuiLeft();
+        int top = screen.getGuiTop();
+        float centerX = left + ((MODEL_LEFT + MODEL_RIGHT) / 2.0F);
+        float centerY = top + ((MODEL_TOP + MODEL_BOTTOM) / 2.0F);
+        return projectModelToScreen(
+                player,
+                shieldModelPosition(player, arrow, hand),
+                centerX,
+                centerY,
+                mouseX,
+                mouseY);
+    }
+
+    private static Vector3f shieldModelPosition(LocalPlayer player, LodgedArrowVisual arrow, InteractionHand hand) {
+        HumanoidArm arm = hand == InteractionHand.MAIN_HAND
+                ? player.getMainArm()
+                : player.getMainArm().getOpposite();
+        float side = arm == HumanoidArm.RIGHT ? -1.0F : 1.0F;
+        return new Vector3f(
+                side * (0.68F + (arrow.modelX() * 0.35F)),
+                0.45F + arrow.modelY(),
+                -0.42F + arrow.modelZ());
     }
 
     private static Vector3f projectModelToScreen(
@@ -710,7 +815,27 @@ public final class LodgedInventoryArrowUi {
         yawDegrees = 0.0F;
         draggingPreview = false;
         customYawActive = false;
+        clearHoveredArrows();
+    }
+
+    private static void setHoveredArrow(ArrowHitZone hoveredZone) {
+        clearHoveredArrows();
+        if (hoveredZone == null) {
+            return;
+        }
+
+        if (hoveredZone.target() == Target.BODY) {
+            hoveredArrowIndex = hoveredZone.index();
+        } else {
+            hoveredShieldArrowIndex = hoveredZone.index();
+            hoveredShieldHand = hoveredZone.hand();
+        }
+    }
+
+    private static void clearHoveredArrows() {
         hoveredArrowIndex = -1;
+        hoveredShieldArrowIndex = -1;
+        hoveredShieldHand = InteractionHand.MAIN_HAND;
     }
 
     private static RenderTarget sharpOutlineTarget() {
@@ -755,7 +880,7 @@ public final class LodgedInventoryArrowUi {
         sharpOutlineHeight = -1;
     }
 
-    private record ArrowHitZone(int index, float centerX, float centerY, int radius) {
+    private record ArrowHitZone(int index, Target target, InteractionHand hand, float centerX, float centerY, int radius) {
         boolean contains(double mouseX, double mouseY) {
             return distanceToSqr(mouseX, mouseY) <= radius * radius;
         }
@@ -768,6 +893,10 @@ public final class LodgedInventoryArrowUi {
     }
 
     private record InventoryTurnHintBounds(int x, int y) {
+    }
+
+    private record ShieldZoneResult(ArrowHitZone zone, double distanceToSqr) {
+        private static final ShieldZoneResult EMPTY = new ShieldZoneResult(null, Double.MAX_VALUE);
     }
 
     private record ModelHitBox(
