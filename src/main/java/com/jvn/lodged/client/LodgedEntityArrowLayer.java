@@ -13,11 +13,9 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.Arrow;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.entity.projectile.AbstractArrow;
 
 public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends EntityModel<T>> extends RenderLayer<T, M> {
     private final EntityRenderDispatcher dispatcher;
@@ -94,16 +92,13 @@ public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends Enti
             int packedLight,
             LivingEntity livingEntity,
             LodgedArrowVisual arrow,
-            float partialTicks) {
-        float x = arrow.directionX();
-        float y = arrow.directionY();
-        float z = arrow.directionZ();
-        float horizontalLength = Mth.sqrt(x * x + z * z);
-        Arrow renderedArrow = new Arrow(livingEntity.level(), livingEntity.getX(), livingEntity.getY(), livingEntity.getZ(), ItemStack.EMPTY, null);
-        renderedArrow.setYRot((float) (Math.atan2(x, z) * 180.0F / Math.PI));
-        renderedArrow.setXRot((float) (Math.atan2(y, horizontalLength) * 180.0F / Math.PI));
-        renderedArrow.yRotO = renderedArrow.getYRot();
-        renderedArrow.xRotO = renderedArrow.getXRot();
+        float partialTicks) {
+        AbstractArrow renderedArrow = LodgedArrowRenderHelper.createRenderedArrow(
+                livingEntity.level(),
+                livingEntity.getX(),
+                livingEntity.getY(),
+                livingEntity.getZ(),
+                arrow);
         this.dispatcher.render(renderedArrow, 0.0D, 0.0D, 0.0D, 0.0F, partialTicks, poseStack, buffer, packedLight);
     }
 

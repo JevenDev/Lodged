@@ -17,6 +17,11 @@ public record LodgedArrowData(
     private static final String CREATIVE_GENERATED_KEY = "creative_generated";
     private static final String GAME_TIME_KEY = "game_time";
 
+    public LodgedArrowData {
+        stack = stack.copyWithCount(1);
+        visual = visual.withStack(stack);
+    }
+
     CompoundTag save(Entity entity) {
         CompoundTag tag = new CompoundTag();
         tag.put(STACK_KEY, stack.copyWithCount(1).save(entity.registryAccess()));

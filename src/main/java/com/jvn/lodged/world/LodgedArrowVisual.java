@@ -4,17 +4,25 @@ import java.util.Optional;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 
-public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float directionX, float directionY, float directionZ) {
+public record LodgedArrowVisual(
+        float modelX,
+        float modelY,
+        float modelZ,
+        float directionX,
+        float directionY,
+        float directionZ,
+        ItemStack stack) {
     private static final String MODEL_X_KEY = "visual_model_x";
     private static final String MODEL_Y_KEY = "visual_model_y";
     private static final String MODEL_Z_KEY = "visual_model_z";
@@ -56,20 +64,27 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
             0.0F,
             1.0F);
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, LodgedArrowVisual> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.FLOAT,
-            LodgedArrowVisual::modelX,
-            ByteBufCodecs.FLOAT,
-            LodgedArrowVisual::modelY,
-            ByteBufCodecs.FLOAT,
-            LodgedArrowVisual::modelZ,
-            ByteBufCodecs.FLOAT,
-            LodgedArrowVisual::directionX,
-            ByteBufCodecs.FLOAT,
-            LodgedArrowVisual::directionY,
-            ByteBufCodecs.FLOAT,
-            LodgedArrowVisual::directionZ,
-            LodgedArrowVisual::new);
+    public static final StreamCodec<RegistryFriendlyByteBuf, LodgedArrowVisual> STREAM_CODEC = StreamCodec.ofMember(
+            LodgedArrowVisual::encode,
+            LodgedArrowVisual::decode);
+
+    public LodgedArrowVisual {
+        stack = renderStack(stack);
+    }
+
+    public LodgedArrowVisual(
+            float modelX,
+            float modelY,
+            float modelZ,
+            float directionX,
+            float directionY,
+            float directionZ) {
+        this(modelX, modelY, modelZ, directionX, directionY, directionZ, new ItemStack(Items.ARROW));
+    }
+
+    public LodgedArrowVisual withStack(ItemStack stack) {
+        return new LodgedArrowVisual(modelX, modelY, modelZ, directionX, directionY, directionZ, stack);
+    }
 
     public static LodgedArrowVisual fromImpact(LivingEntity target, AbstractArrow arrow, EntityHitResult hitResult) {
         BodyAxes axes = BodyAxes.of(target.yBodyRot);
@@ -178,6 +193,35 @@ public record LodgedArrowVisual(float modelX, float modelY, float modelZ, float 
                 tag.getFloat(DIRECTION_X_KEY),
                 tag.getFloat(DIRECTION_Y_KEY),
                 tag.getFloat(DIRECTION_Z_KEY));
+    }
+
+    private void encode(RegistryFriendlyByteBuf buffer) {
+        buffer.writeFloat(modelX);
+        buffer.writeFloat(modelY);
+        buffer.writeFloat(modelZ);
+        buffer.writeFloat(directionX);
+        buffer.writeFloat(directionY);
+        buffer.writeFloat(directionZ);
+        ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, stack);
+    }
+
+    private static LodgedArrowVisual decode(RegistryFriendlyByteBuf buffer) {
+        return new LodgedArrowVisual(
+                buffer.readFloat(),
+                buffer.readFloat(),
+                buffer.readFloat(),
+                buffer.readFloat(),
+                buffer.readFloat(),
+                buffer.readFloat(),
+                ItemStack.OPTIONAL_STREAM_CODEC.decode(buffer));
+    }
+
+    private static ItemStack renderStack(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return new ItemStack(Items.ARROW);
+        }
+
+        return stack.copyWithCount(1);
     }
 
     private static Vec3 impactMotion(AbstractArrow arrow) {

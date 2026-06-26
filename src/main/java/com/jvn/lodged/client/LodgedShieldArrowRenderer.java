@@ -10,8 +10,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.OutlineBufferSource;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.projectile.Arrow;
+import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 
@@ -32,21 +31,23 @@ public final class LodgedShieldArrowRenderer {
             MultiBufferSource buffer,
             int packedLight,
             float partialTicks) {
-        List<LodgedArrowVisual> arrows = LodgedShieldArrowStorage.readAll(shield);
-        if (arrows.isEmpty()) {
-            return;
-        }
-
         Minecraft minecraft = Minecraft.getInstance();
         ClientLevel level = minecraft.level;
         if (level == null) {
             return;
         }
 
+        List<LodgedShieldArrowStorage.LodgedShieldArrowData> arrows = LodgedShieldArrowStorage.readData(
+                shield,
+                level.registryAccess());
+        if (arrows.isEmpty()) {
+            return;
+        }
+
         EntityRenderDispatcher dispatcher = minecraft.getEntityRenderDispatcher();
         int hoveredArrowIndex = isHandRender(displayContext) ? LodgedInventoryArrowUi.hoveredShieldArrowIndex(shield) : -1;
         for (int index = 0; index < arrows.size(); index++) {
-            LodgedArrowVisual arrow = arrows.get(index);
+            LodgedArrowVisual arrow = arrows.get(index).visual();
             poseStack.pushPose();
             poseStack.scale(1.0F, -1.0F, -1.0F);
             poseStack.translate(arrow.modelX(), arrow.modelY(), arrow.modelZ());
@@ -101,15 +102,7 @@ public final class LodgedShieldArrowRenderer {
             int packedLight,
             LodgedArrowVisual arrow,
             float partialTicks) {
-        float x = arrow.directionX();
-        float y = arrow.directionY();
-        float z = arrow.directionZ();
-        float horizontalLength = Mth.sqrt(x * x + z * z);
-        Arrow renderedArrow = new Arrow(level, 0.0D, 0.0D, 0.0D, ItemStack.EMPTY, null);
-        renderedArrow.setYRot((float) (Math.atan2(x, z) * 180.0F / Math.PI));
-        renderedArrow.setXRot((float) (Math.atan2(y, horizontalLength) * 180.0F / Math.PI));
-        renderedArrow.yRotO = renderedArrow.getYRot();
-        renderedArrow.xRotO = renderedArrow.getXRot();
+        AbstractArrow renderedArrow = LodgedArrowRenderHelper.createRenderedArrow(level, 0.0D, 0.0D, 0.0D, arrow);
         dispatcher.render(renderedArrow, 0.0D, 0.0D, 0.0D, 0.0F, partialTicks, poseStack, buffer, packedLight);
     }
 }

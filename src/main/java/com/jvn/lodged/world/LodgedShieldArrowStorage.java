@@ -123,6 +123,11 @@ public final class LodgedShieldArrowStorage {
             boolean infinityGenerated,
             boolean creativeGenerated,
             LodgedArrowVisual visual) {
+        public LodgedShieldArrowData {
+            stack = stack.copyWithCount(1);
+            visual = visual.withStack(stack);
+        }
+
         LodgedShieldArrowData withSingleStack() {
             return new LodgedShieldArrowData(
                     stack.copyWithCount(1),
