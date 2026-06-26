@@ -31,6 +31,7 @@ import org.lwjgl.glfw.GLFW;
 public final class LodgedShieldArrowRemovalClient {
     private static final int LOCAL_REMOVAL_MAX_TICKS = 65;
     private static final float PULL_EASE_TICKS = 16.0F;
+    private static final float FIRST_PERSON_ITEM_DROP_TICKS = 8.0F;
     private static final float ARM_X_ROT = -1.35F;
     private static final float ARM_PULL_X_ROT = -0.25F;
     private static final float ARM_Y_ROT = -0.58F;
@@ -94,22 +95,29 @@ public final class LodgedShieldArrowRemovalClient {
             PoseStack poseStack,
             MultiBufferSource buffer,
             int packedLight) {
-        ShieldArrowRemovalState state = ClientArrowState.shieldArrowRemoval(player);
-        if (!state.active() || hand != pullingHand(state.shieldHand()) || player.isInvisible()) {
+        if (!shouldRenderFirstPersonPullingHand(player, hand)) {
             return false;
+        }
+
+        ShieldArrowRemovalState state = ClientArrowState.shieldArrowRemoval(player);
+        boolean heldItemDropping = !player.getItemInHand(hand).isEmpty();
+        float age = state.ticks() + partialTick;
+        float handAge = heldItemDropping ? age - FIRST_PERSON_ITEM_DROP_TICKS : age;
+        if (handAge <= 0.0F) {
+            return true;
         }
 
         HumanoidArm pullingArm = handArm(player, hand);
         float side = pullingArm == HumanoidArm.RIGHT ? 1.0F : -1.0F;
-        float age = state.ticks() + partialTick;
-        float pull = firstPersonPullProgress(age);
+        float pull = firstPersonPullProgress(handAge);
+        float rise = heldItemDropping ? firstPersonHandRiseProgress(handAge) : 1.0F;
         float pulse = Mth.sin(age * ARM_PULSE_SPEED) * pull;
         float grip = Mth.sin((age * ARM_PULSE_SPEED) + Mth.PI) * pull;
 
         poseStack.pushPose();
         poseStack.translate(
                 side * 0.64000005F,
-                -0.6F + (equippedProgress * -0.6F),
+                -0.6F + (equippedProgress * -0.6F) - ((1.0F - rise) * 0.82F),
                 -0.71999997F + (grip * 0.012F));
         poseStack.mulPose(Axis.YP.rotationDegrees(side * Mth.lerp(pull, 45.0F, 128.0F)));
         poseStack.mulPose(Axis.ZP.rotationDegrees(side * ((-28.0F * pull) + (pulse * 4.0F))));
@@ -118,6 +126,20 @@ public final class LodgedShieldArrowRemovalClient {
         renderPlayerHand(poseStack, buffer, packedLight, player, pullingArm);
         poseStack.popPose();
         return true;
+    }
+
+    public static boolean shouldRenderFirstPersonPullingHand(LocalPlayer player, InteractionHand hand) {
+        ShieldArrowRemovalState state = ClientArrowState.shieldArrowRemoval(player);
+        return state.active() && hand == pullingHand(state.shieldHand()) && !player.isInvisible();
+    }
+
+    public static float firstPersonHeldItemDropProgress(LocalPlayer player, InteractionHand hand, float partialTick) {
+        ShieldArrowRemovalState state = ClientArrowState.shieldArrowRemoval(player);
+        if (!state.active() || hand != pullingHand(state.shieldHand())) {
+            return 1.0F;
+        }
+
+        return smoothStep(Math.min((state.ticks() + partialTick) / FIRST_PERSON_ITEM_DROP_TICKS, 1.0F));
     }
 
     public static boolean isPullingShieldArrow(LivingEntity entity) {
@@ -207,8 +229,12 @@ public final class LodgedShieldArrowRemovalClient {
     }
 
     private static float firstPersonPullProgress(float ticks) {
-        float value = Math.min(ticks / PULL_EASE_TICKS, 1.0F);
+        float value = Math.min(ticks / FIRST_PERSON_ITEM_DROP_TICKS, 1.0F);
         return 1.0F - ((1.0F - value) * (1.0F - value));
+    }
+
+    private static float firstPersonHandRiseProgress(float ticks) {
+        return smoothStep(Math.min(ticks / 6.0F, 1.0F));
     }
 
     private static float smoothStep(float value) {
