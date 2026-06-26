@@ -15,7 +15,9 @@ import net.neoforged.neoforge.common.NeoForge;
 public final class LodgedClient {
     public LodgedClient(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(LodgedClient::registerParticleProviders);
+        modEventBus.addListener(LodgedShieldArrowRemovalClient::registerKeyMappings);
         modEventBus.addListener(LodgedDizzinessPostProcessor::registerReloadListeners);
+        NeoForge.EVENT_BUS.addListener(LodgedShieldArrowRemovalClient::onClientTick);
         NeoForge.EVENT_BUS.addListener(LodgedDizzinessClientEffects::onClientTick);
         NeoForge.EVENT_BUS.addListener(LodgedDizzinessClientEffects::onRenderGui);
         NeoForge.EVENT_BUS.addListener(LodgedDizzinessClientEffects::onComputeCameraAngles);

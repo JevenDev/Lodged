@@ -8,7 +8,9 @@
   ],
   "client": [
     "client.BlockEntityWithoutLevelRendererMixin",
+    "client.HumanoidModelMixin",
     "client.InventoryScreenMixin",
+    "client.ItemInHandRendererMixin",
     "client.LevelRendererAccessor",
     "client.LivingEntityRendererMixin",
     "client.StuckInBodyLayerMixin"

@@ -167,6 +167,7 @@
   "death.attack.lodged.arrow_removal.player": "%1$s pulled out one arrow too many while fighting %2$s",
   "death.attack.lodged.bleeding": "%1$s bled out",
   "death.attack.lodged.bleeding.player": "%1$s bled out while fighting %2$s",
+  "key.lodged.remove_shield_arrow": "Remove shield arrow",
   "tooltip.lodged.inventory_turn.rotate": "Drag the player preview to rotate",
   "tooltip.lodged.inventory_turn.reset": "Middle-click the preview to reset",
   "tooltip.lodged.inventory_turn.remove_arrows": "Click lodged arrows to remove them"

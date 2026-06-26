@@ -4,6 +4,7 @@ import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.effect.BleedingEvents;
 import com.jvn.lodged.effect.LodgedEffects;
 import com.jvn.lodged.network.LodgedNetwork;
+import com.jvn.lodged.network.PlayerArrowRemoval;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -138,6 +139,13 @@ public final class LodgedArrowEvents {
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onShieldBlock(LivingShieldBlockEvent event) {
         LivingEntity blocker = event.getEntity();
+        if (PlayerArrowRemoval.isRemovingShieldArrow(blocker)) {
+            event.setBlocked(false);
+            event.setBlockedDamage(0.0F);
+            event.setShieldDamage(0.0F);
+            return;
+        }
+
         if (event.isCanceled()
                 || blocker.level().isClientSide()
                 || !event.getBlocked()
@@ -314,6 +322,7 @@ public final class LodgedArrowEvents {
     public static void onPlayerStartTracking(PlayerEvent.StartTracking event) {
         if (event.getEntity() instanceof ServerPlayer player && event.getTarget() instanceof LivingEntity target) {
             LodgedNetwork.syncEntityArrowsToPlayer(player, target);
+            PlayerArrowRemoval.syncShieldArrowRemovalToPlayer(player, target);
         }
     }
 
@@ -552,7 +561,7 @@ public final class LodgedArrowEvents {
     }
 
     private static boolean wouldShieldBlock(LivingEntity target, AbstractArrow arrow) {
-        if (arrow.getPierceLevel() > 0 || !target.isBlocking()) {
+        if (arrow.getPierceLevel() > 0 || !target.isBlocking() || PlayerArrowRemoval.isRemovingShieldArrow(target)) {
             return false;
         }
 

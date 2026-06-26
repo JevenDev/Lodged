@@ -3,8 +3,10 @@ package com.jvn.lodged.network;
 import com.jvn.lodged.Lodged;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
+import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload;
 import com.jvn.lodged.network.payload.SyncEntityArrowsPayload;
 import com.jvn.lodged.network.payload.SyncPlayerArrowsPayload;
+import com.jvn.lodged.network.payload.SyncShieldArrowRemovalPayload;
 import com.jvn.lodged.world.LodgedArrowData;
 import com.jvn.lodged.world.LodgedArrowStorage;
 import com.jvn.lodged.world.LodgedArrowVisual;
@@ -18,7 +20,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class LodgedNetwork {
-    private static final String NETWORK_VERSION = "5";
+    private static final String NETWORK_VERSION = "7";
 
     private LodgedNetwork() {
     }
@@ -29,6 +31,10 @@ public final class LodgedNetwork {
                 RemovePlayerArrowPayload.TYPE,
                 RemovePlayerArrowPayload.STREAM_CODEC,
                 PlayerArrowRemoval::handleRequest);
+        registrar.playToServer(
+                ShieldArrowRemovalActionPayload.TYPE,
+                ShieldArrowRemovalActionPayload.STREAM_CODEC,
+                PlayerArrowRemoval::handleShieldAction);
         registrar.playToClient(
                 SyncPlayerArrowsPayload.TYPE,
                 SyncPlayerArrowsPayload.STREAM_CODEC,
@@ -36,6 +42,10 @@ public final class LodgedNetwork {
         registrar.playToClient(
                 SyncEntityArrowsPayload.TYPE,
                 SyncEntityArrowsPayload.STREAM_CODEC,
+                ClientArrowState::handleSync);
+        registrar.playToClient(
+                SyncShieldArrowRemovalPayload.TYPE,
+                SyncShieldArrowRemovalPayload.STREAM_CODEC,
                 ClientArrowState::handleSync);
     }
 
