@@ -51,7 +51,7 @@ public class LodgedConfigModel {
         public int maxTrackedArrowsPerEntity = 8;
 
         public boolean recoverPlayerArrowsOnly = true;
-        public boolean recoverMobArrows = false;
+        public boolean recoverMobArrows = true;
         public boolean recoverInfinityArrows = false;
         public boolean recoverCreativeArrows = false;
         public boolean preserveArrowItemStack = true;
@@ -130,6 +130,7 @@ public class LodgedConfigModel {
 
     public static class ShieldArrows {
         public boolean enableShieldArrowLodging = true;
+        public boolean recoverMobShieldArrows = true;
 
         @RangeConstraint(min = 0, max = 64)
         public int maxTrackedArrowsPerShield = 0;

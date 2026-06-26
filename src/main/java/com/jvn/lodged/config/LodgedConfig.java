@@ -123,6 +123,10 @@ public final class LodgedConfig {
         return shieldArrows().enableShieldArrowLodging();
     }
 
+    public static boolean recoverMobShieldArrows() {
+        return shieldArrows().recoverMobShieldArrows();
+    }
+
     public static int maxTrackedArrowsPerShield() {
         int configuredMax = shieldArrows().maxTrackedArrowsPerShield();
         return configuredMax > 0 ? configuredMax : maxTrackedArrowsPerEntity();

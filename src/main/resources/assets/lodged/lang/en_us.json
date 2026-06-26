@@ -85,6 +85,8 @@
   "text.config.lodged.option.playerArrowRemoval.lodgedArrowDizzinessRefreshInterval.tooltip": "Ticks between dizziness refresh checks while lodged arrow dizziness is enabled.",
   "text.config.lodged.option.shieldArrows.enableShieldArrowLodging": "Enable shield arrow lodging",
   "text.config.lodged.option.shieldArrows.enableShieldArrowLodging.tooltip": "Arrows blocked by shields can lodge into the shield item.",
+  "text.config.lodged.option.shieldArrows.recoverMobShieldArrows": "Recover mob shield arrows",
+  "text.config.lodged.option.shieldArrows.recoverMobShieldArrows.tooltip": "Arrows fired by mobs can be recovered when removed from shields.",
   "text.config.lodged.option.shieldArrows.maxTrackedArrowsPerShield": "Max tracked arrows per shield",
   "text.config.lodged.option.shieldArrows.maxTrackedArrowsPerShield.tooltip": "Maximum lodged arrows stored on a shield. Set to 0 to follow max tracked arrows per entity.",
   "text.config.lodged.option.shieldArrows.renderOwnShieldArrowsInFirstPerson": "Render own first-person shield arrows",

@@ -166,11 +166,23 @@ final class PlayerArrowRemoval {
     }
 
     private static double removalSuccessChance(LodgedShieldArrowData arrow) {
-        return removalSuccessChance(
-                arrow.fromPlayer(),
-                arrow.infinityGenerated(),
-                arrow.creativeGenerated(),
-                LodgedConfig.playerArrowRemovalSuccessChance(LodgedArrowBodyPart.ARM));
+        if (!arrow.fromPlayer() && !LodgedConfig.recoverMobShieldArrows()) {
+            return 0.0D;
+        }
+
+        if (arrow.infinityGenerated() && !LodgedConfig.recoverInfinityArrows()) {
+            return 0.0D;
+        }
+
+        if (arrow.creativeGenerated() && !LodgedConfig.recoverCreativeArrows()) {
+            return 0.0D;
+        }
+
+        double successChance = LodgedConfig.playerArrowRemovalSuccessChance(LodgedArrowBodyPart.ARM);
+        if (arrow.infinityGenerated()) {
+            successChance *= LodgedConfig.playerArrowRemovalInfinitySuccessMultiplier();
+        }
+        return successChance;
     }
 
     private static double removalSuccessChance(

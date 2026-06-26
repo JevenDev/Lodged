@@ -27,6 +27,7 @@ It is meant to make ranged combat a little grittier without replacing Minecraft'
 - Spectral and tipped arrow data can be preserved for recovery
 - Arrows can break on entity or block impact (configurable)
 - Players can remove lodged arrows from their own inventory preview
+- Shield-blocked arrows can lodge into shields and be removed from the inventory preview
 - Removal success can vary by body part
 - Having too many lodged arrows can cause mild dizziness until some are removed
 - Arrows that hit player legs can briefly apply Slowness
@@ -58,7 +59,7 @@ Supported arrow types:
 | Spectral arrows | Supported and recoverable as spectral arrows |
 | Tipped arrows | Preserved when original item stack recovery is enabled |
 | Infinity arrows | Disabled for recovery by default, configurable |
-| Mob-fired arrows | Disabled for recovery by default, configurable |
+| Mob-fired arrows | Enabled for recovery by default, configurable |
 | Creative arrows | Disabled for recovery by default, configurable |
 
 ### Arrow Recovery
@@ -70,7 +71,7 @@ Default recovery behaviour:
 - Arrow recovery is enabled
 - Player arrows can be recovered from entity death drops
 - Each tracked arrow has a 35% recovery chance
-- Mob arrows are not recovered unless enabled
+- Mob arrows can be recovered by default
 - Infinity arrows are not recovered unless enabled
 - Creative arrows are not recovered unless enabled
 - Original arrow item data is preserved
@@ -80,6 +81,8 @@ Default recovery behaviour:
 Players can remove arrows stuck in their own body from the inventory player preview.
 
 Open your inventory, rotate the player preview if needed, and click a lodged arrow. A successful removal gives the arrow back when that arrow type is recoverable. A failed removal breaks the arrow, can deal damage, and can apply bleeding.
+
+Shield arrows use the same inventory removal flow. Mob-fired arrows lodged in shields are recoverable by default and can be disabled separately from body arrow recovery.
 
 By default, carrying 4 or more lodged arrows, or reaching 50% of the configured tracked-arrow limit, applies Lodged's custom Dizziness effect. It uses a subtle border vignette, slight red tint, and first-person screen wobble that grows stronger as more arrows lodge. Removing arrows drops you below that threshold and lets the effect fade.
 
@@ -174,6 +177,7 @@ Major systems can be tuned or disabled:
 - Entity denylist
 - Arrow breakage on entities and blocks
 - Player arrow removal
+- Shield arrow lodging and mob-fired shield arrow recovery
 - Removal success chances by body part
 - Removal failure damage
 - Lodged arrow dizziness thresholds and duration
