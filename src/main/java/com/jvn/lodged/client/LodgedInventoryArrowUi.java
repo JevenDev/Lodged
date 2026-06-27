@@ -7,6 +7,8 @@ import com.jvn.lodged.effect.BloodColors;
 import com.jvn.lodged.effect.LodgedEffects;
 import com.jvn.lodged.mixin.client.LevelRendererAccessor;
 import com.jvn.lodged.network.ClientArrowState;
+import com.jvn.lodged.network.payload.ArrowRemovalResultPayload;
+import com.jvn.lodged.network.payload.ArrowRemovalResultPayload.Result;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload.Target;
 import com.jvn.lodged.world.LodgedArrowBodyPart;
@@ -17,17 +19,25 @@ import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
+import net.minecraft.ChatFormatting;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.HumanoidArm;
@@ -100,6 +110,21 @@ public final class LodgedInventoryArrowUi {
     private static final int GUI_BLOOD_HANG_TICKS = 6;
     private static final int GUI_BLOOD_FALL_TICKS = 18;
     private static final int GUI_BLOOD_LAND_TICKS = 7;
+    private static final int RISK_EASY_COLOR = 0x89F2A0;
+    private static final int RISK_MODERATE_COLOR = 0xFFD86A;
+    private static final int RISK_DANGEROUS_COLOR = 0xFF6A5E;
+    private static final int RISK_OUTLINE_ALPHA = 255;
+    private static final String TOOLTIP_ICON_SPACER = "     ";
+    private static final int TOOLTIP_ICON_WIDTH = 16;
+    private static final int TOOLTIP_ICON_HEIGHT = 32;
+    private static final int TOOLTIP_ICON_Z = 450;
+    private static final int REMOVAL_SUBTITLE_Z = 450;
+    private static final int REMOVAL_ANIMATION_MS = 620;
+    private static final int REMOVAL_ANIMATION_Z = 420;
+    private static final int MAX_REMOVAL_ANIMATIONS = 6;
+    private static final int REMOVAL_SUBTITLE_MS = 1400;
+    private static final int REMOVAL_SUBTITLE_FADE_MS = 350;
+    private static final int REMOVAL_SUBTITLE_COLOR = 0xFFD8D8D8;
     private static final List<Component> INVENTORY_TURN_TOOLTIP = List.of(
             Component.translatable("tooltip.lodged.inventory_turn.rotate"),
             Component.translatable("tooltip.lodged.inventory_turn.reset"),
@@ -172,6 +197,9 @@ public final class LodgedInventoryArrowUi {
     private static int sharpOutlineHeight = -1;
     private static boolean sharpOutlineLoadFailed;
     private static RenderTarget previousEntityTarget;
+    private static final List<RemovalAnimation> removalAnimations = new ArrayList<>();
+    private static Component removalSubtitle;
+    private static long removalSubtitleStartedAtMs;
 
     private LodgedInventoryArrowUi() {
     }
@@ -200,16 +228,34 @@ public final class LodgedInventoryArrowUi {
 
     @SubscribeEvent
     public static void onScreenRenderPost(ScreenEvent.Render.Post event) {
+        if (!(event.getScreen() instanceof InventoryScreen screen)) {
+            return;
+        }
+
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        if (player != null) {
+            renderRemovalAnimations(event.getGuiGraphics(), screen, player, event.getMouseX(), event.getMouseY());
+            renderRemovalSubtitle(event.getGuiGraphics(), screen);
+        }
+
+        if (LodgedConfig.enablePlayerArrowRemoval() && player != null) {
+            HoveredArrow hoveredArrow = hoveredArrow(player);
+            if (hoveredArrow != null) {
+                renderArrowRemovalTooltip(event.getGuiGraphics(), hoveredArrow, event.getMouseX(), event.getMouseY());
+                return;
+            }
+        }
+
         if (!LodgedConfig.enablePlayerArrowRemoval()
                 || !LodgedConfig.showInventoryTurnHint()
                 || !LodgedConfig.showInventoryTurnHintTooltip()
-                || !(event.getScreen() instanceof InventoryScreen screen)
                 || !isInInventoryTurnHint(screen, event.getMouseX(), event.getMouseY())) {
             return;
         }
 
         event.getGuiGraphics().renderComponentTooltip(
-                Minecraft.getInstance().font,
+                minecraft.font,
                 INVENTORY_TURN_TOOLTIP,
                 event.getMouseX(),
                 event.getMouseY());
@@ -297,6 +343,31 @@ public final class LodgedInventoryArrowUi {
         }
 
         return hoveredShieldArrowIndex;
+    }
+
+    public static OutlineColor riskOutlineColor(LodgedArrowVisual arrow) {
+        return outlineColorFor(removalChance(arrow));
+    }
+
+    public static OutlineColor shieldRiskOutlineColor() {
+        return outlineColorFor(removalChance(LodgedArrowBodyPart.ARM));
+    }
+
+    public static void handleRemovalResult(ArrowRemovalResultPayload payload) {
+        Result result = payload.result();
+        if (result == Result.TOO_RISKY || result == Result.CANT_REMOVE_NOW) {
+            showRemovalSubtitle(result);
+            return;
+        }
+
+        if (result == Result.INVENTORY_FULL) {
+            showRemovalSubtitle(result);
+        }
+
+        if (removalAnimations.size() >= MAX_REMOVAL_ANIMATIONS) {
+            removalAnimations.remove(0);
+        }
+        removalAnimations.add(new RemovalAnimation(payload, Util.getMillis()));
     }
 
     public static boolean prepareArrowOutlineTarget() {
@@ -397,6 +468,212 @@ public final class LodgedInventoryArrowUi {
                 INVENTORY_TURN_TEXTURE_WIDTH,
                 INVENTORY_TURN_TEXTURE_HEIGHT);
         RenderSystem.disableBlend();
+    }
+
+    private static void renderArrowRemovalTooltip(GuiGraphics guiGraphics, HoveredArrow hoveredArrow, int mouseX, int mouseY) {
+        Minecraft minecraft = Minecraft.getInstance();
+        Font font = minecraft.font;
+        double chance = hoveredArrow.target() == Target.SHIELD
+                ? removalChance(LodgedArrowBodyPart.ARM)
+                : removalChance(hoveredArrow.arrow().bodyPart());
+        int chancePercent = Math.round((float) (Mth.clamp(chance, 0.0D, 1.0D) * 100.0D));
+        OutlineColor outlineColor = hoveredArrow.target() == Target.SHIELD
+                ? shieldRiskOutlineColor()
+                : riskOutlineColor(hoveredArrow.arrow());
+        List<Component> lines = List.of(
+                paddedTooltipLine(hoveredArrow.arrow().stack().getHoverName()),
+                coloredTooltipLine(
+                        Component.translatable("tooltip.lodged.arrow_removal.chance", chancePercent),
+                        outlineColor.rgb()),
+                coloredTooltipLine(Component.translatable("tooltip.lodged.arrow_removal.bleeding_risk"), 0xFFFFA7A0),
+                paddedTooltipLine(Component.translatable("tooltip.lodged.arrow_removal.click").withStyle(ChatFormatting.GRAY)));
+
+        int textWidth = 0;
+        for (Component line : lines) {
+            textWidth = Math.max(textWidth, font.width(line));
+        }
+
+        int width = textWidth;
+        int height = lines.size() == 1 ? 8 : lines.size() * 10 + 2;
+        int x = mouseX + 12;
+        int y = mouseY - 12;
+        Window window = minecraft.getWindow();
+        int screenWidth = window.getGuiScaledWidth();
+        int screenHeight = window.getGuiScaledHeight();
+        if (x + width > screenWidth) {
+            x -= 28 + width;
+        }
+        if (y + height + 6 > screenHeight) {
+            y = screenHeight - height - 6;
+        }
+        y = Math.max(6, y);
+
+        guiGraphics.renderComponentTooltip(font, lines, mouseX, mouseY);
+        guiGraphics.flush();
+        drawBodyPartIcon(
+                guiGraphics,
+                x + 1,
+                y + Math.max(2, (height - TOOLTIP_ICON_HEIGHT) / 2),
+                hoveredArrow.target() == Target.SHIELD ? LodgedArrowBodyPart.ARM : hoveredArrow.arrow().bodyPart(),
+                outlineColor.rgb());
+        guiGraphics.flush();
+    }
+
+    private static Component coloredTooltipLine(Component component, int color) {
+        MutableComponent line = Component.literal(TOOLTIP_ICON_SPACER);
+        line.append(component.copy().withStyle(style -> style.withColor(TextColor.fromRgb(color & 0xFFFFFF))));
+        return line;
+    }
+
+    private static Component paddedTooltipLine(Component component) {
+        return Component.literal(TOOLTIP_ICON_SPACER).append(component.copy());
+    }
+
+    private static void drawBodyPartIcon(
+            GuiGraphics guiGraphics,
+            int x,
+            int y,
+            LodgedArrowBodyPart bodyPart,
+            int highlightColor) {
+        int base = 0xFF6F6860;
+        int dim = 0xFF37312D;
+        guiGraphics.fill(x + 4, y, x + 12, y + 8, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.HEAD ? highlightColor : base);
+        guiGraphics.fill(x + 4, y + 8, x + 12, y + 20, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.CHEST ? highlightColor : base);
+        guiGraphics.fill(x, y + 8, x + 4, y + 20, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.ARM ? highlightColor : dim);
+        guiGraphics.fill(x + 12, y + 8, x + TOOLTIP_ICON_WIDTH, y + 20, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.ARM ? highlightColor : dim);
+        guiGraphics.fill(x + 4, y + 20, x + 8, y + 32, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.LEG ? highlightColor : dim);
+        guiGraphics.fill(x + 8, y + 20, x + 12, y + 32, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.LEG ? highlightColor : dim);
+    }
+
+    private static void renderRemovalAnimations(
+            GuiGraphics guiGraphics,
+            InventoryScreen screen,
+            LocalPlayer player,
+            int mouseX,
+            int mouseY) {
+        if (removalAnimations.isEmpty()) {
+            return;
+        }
+
+        long now = Util.getMillis();
+        Iterator<RemovalAnimation> iterator = removalAnimations.iterator();
+        while (iterator.hasNext()) {
+            RemovalAnimation animation = iterator.next();
+            float progress = (now - animation.startedAtMs()) / (float) REMOVAL_ANIMATION_MS;
+            if (progress >= 1.0F) {
+                iterator.remove();
+                continue;
+            }
+
+            if (animation.payload().result() == Result.FAILED) {
+                renderFailedRemovalAnimation(guiGraphics, screen, player, animation.payload(), mouseX, mouseY, progress);
+            } else {
+                renderSuccessfulRemovalAnimation(guiGraphics, screen, player, animation.payload(), mouseX, mouseY, progress);
+            }
+        }
+    }
+
+    private static void renderSuccessfulRemovalAnimation(
+            GuiGraphics guiGraphics,
+            InventoryScreen screen,
+            LocalPlayer player,
+            ArrowRemovalResultPayload payload,
+            int mouseX,
+            int mouseY,
+            float progress) {
+        Vector3f source = removalAnimationSource(screen, player, payload, mouseX, mouseY);
+        float eased = easeOut(progress);
+        float pop = 1.0F + (float) Math.sin(progress * Math.PI) * 0.35F;
+        int targetX = screen.getGuiLeft() + 142;
+        int targetY = screen.getGuiTop() + 63;
+        float x = Mth.lerp(eased, source.x() - 8.0F, targetX);
+        float y = Mth.lerp(eased, source.y() - 8.0F, targetY - 10.0F * (float) Math.sin(progress * Math.PI));
+
+        guiGraphics.pose().pushPose();
+        guiGraphics.pose().translate(x + 8.0F, y + 8.0F, REMOVAL_ANIMATION_Z);
+        guiGraphics.pose().scale(pop, pop, 1.0F);
+        guiGraphics.pose().translate(-8.0F, -8.0F, 0.0F);
+        guiGraphics.renderItem(payload.arrow().stack(), 0, 0);
+        guiGraphics.pose().popPose();
+    }
+
+    private static void renderFailedRemovalAnimation(
+            GuiGraphics guiGraphics,
+            InventoryScreen screen,
+            LocalPlayer player,
+            ArrowRemovalResultPayload payload,
+            int mouseX,
+            int mouseY,
+            float progress) {
+        Vector3f source = removalAnimationSource(screen, player, payload, mouseX, mouseY);
+        float shake = (float) Math.sin(progress * Math.PI * 10.0D) * (1.0F - progress) * 3.0F;
+        int x = Math.round(source.x() + shake);
+        int y = Math.round(source.y());
+        int alpha = Math.round((1.0F - progress) * 255.0F) << 24;
+        guiGraphics.fill(x - 6, y - 2, x - 1, y, alpha | 0x7A4E2A);
+        guiGraphics.fill(x + 1, y + 1, x + 7, y + 3, alpha | 0x7A4E2A);
+        guiGraphics.fill(x - 1, y - 4, x + 1, y + 5, alpha | 0xD6D1C2);
+
+        if (payload.target() == Target.BODY && progress < 0.8F) {
+            int color = BloodColors.colorFor(player);
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+            guiGraphics.setColor(
+                    ((color >> 16) & 0xFF) / 255.0F,
+                    ((color >> 8) & 0xFF) / 255.0F,
+                    (color & 0xFF) / 255.0F,
+                    1.0F - progress);
+            drawInventoryBloodDrop(
+                    guiGraphics,
+                    source.x(),
+                    source.y(),
+                    progress * (GUI_BLOOD_HANG_TICKS + GUI_BLOOD_FALL_TICKS + GUI_BLOOD_LAND_TICKS),
+                    97);
+            guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+            RenderSystem.disableBlend();
+        }
+    }
+
+    private static Vector3f removalAnimationSource(
+            InventoryScreen screen,
+            LocalPlayer player,
+            ArrowRemovalResultPayload payload,
+            int mouseX,
+            int mouseY) {
+        return payload.target() == Target.SHIELD
+                ? projectShieldArrowToScreen(screen, player, payload.arrow(), payload.hand(), mouseX, mouseY)
+                : projectArrowToScreen(screen, player, payload.arrow(), mouseX, mouseY);
+    }
+
+    private static float easeOut(float progress) {
+        float inverse = 1.0F - Mth.clamp(progress, 0.0F, 1.0F);
+        return 1.0F - inverse * inverse * inverse;
+    }
+
+    private static void renderRemovalSubtitle(GuiGraphics guiGraphics, InventoryScreen screen) {
+        if (removalSubtitle == null) {
+            return;
+        }
+
+        long age = Util.getMillis() - removalSubtitleStartedAtMs;
+        if (age >= REMOVAL_SUBTITLE_MS) {
+            removalSubtitle = null;
+            return;
+        }
+
+        int alpha = 0xFF;
+        int fadeStart = REMOVAL_SUBTITLE_MS - REMOVAL_SUBTITLE_FADE_MS;
+        if (age > fadeStart) {
+            alpha = Math.round((1.0F - (age - fadeStart) / (float) REMOVAL_SUBTITLE_FADE_MS) * 255.0F);
+        }
+
+        Font font = Minecraft.getInstance().font;
+        int x = screen.getGuiLeft() + ((MODEL_LEFT + MODEL_RIGHT) / 2) - (font.width(removalSubtitle) / 2);
+        int y = screen.getGuiTop() + MODEL_BOTTOM + 6;
+        guiGraphics.pose().pushPose();
+        guiGraphics.pose().translate(0.0F, 0.0F, REMOVAL_SUBTITLE_Z);
+        guiGraphics.drawString(font, removalSubtitle, x, y, (alpha << 24) | (REMOVAL_SUBTITLE_COLOR & 0xFFFFFF), false);
+        guiGraphics.pose().popPose();
     }
 
     private static void renderInventoryPlayerWithLockedHead(
@@ -841,6 +1118,62 @@ public final class LodgedInventoryArrowUi {
         return new InventoryTurnHintBounds(x, y);
     }
 
+    private static HoveredArrow hoveredArrow(LocalPlayer player) {
+        if (hoveredArrowIndex >= 0) {
+            List<LodgedArrowVisual> arrows = ClientArrowState.removableArrows();
+            int arrowCount = Math.min(arrows.size(), ClientArrowState.syncedArrowCount());
+            arrowCount = Math.min(arrowCount, LodgedConfig.maxRemovablePlayerArrows());
+            if (hoveredArrowIndex < arrowCount) {
+                return new HoveredArrow(arrows.get(hoveredArrowIndex), Target.BODY, InteractionHand.MAIN_HAND);
+            }
+        }
+
+        if (hoveredShieldArrowIndex < 0) {
+            return null;
+        }
+
+        ItemStack shield = player.getItemInHand(hoveredShieldHand);
+        if (shield.isEmpty() || !shield.canPerformAction(ItemAbilities.SHIELD_BLOCK)) {
+            return null;
+        }
+
+        List<LodgedArrowVisual> arrows = LodgedShieldArrowStorage.readAll(shield);
+        int arrowCount = Math.min(arrows.size(), LodgedConfig.maxTrackedArrowsPerShield());
+        if (hoveredShieldArrowIndex >= arrowCount) {
+            return null;
+        }
+
+        return new HoveredArrow(arrows.get(hoveredShieldArrowIndex), Target.SHIELD, hoveredShieldHand);
+    }
+
+    private static double removalChance(LodgedArrowVisual arrow) {
+        return removalChance(arrow.bodyPart());
+    }
+
+    private static double removalChance(LodgedArrowBodyPart bodyPart) {
+        return Mth.clamp(LodgedConfig.playerArrowRemovalSuccessChance(bodyPart), 0.0D, 1.0D);
+    }
+
+    private static OutlineColor outlineColorFor(double chance) {
+        if (chance < 0.5D) {
+            return OutlineColor.fromRgb(RISK_DANGEROUS_COLOR);
+        }
+        if (chance < 0.8D) {
+            return OutlineColor.fromRgb(RISK_MODERATE_COLOR);
+        }
+        return OutlineColor.fromRgb(RISK_EASY_COLOR);
+    }
+
+    private static void showRemovalSubtitle(Result result) {
+        removalSubtitle = switch (result) {
+            case TOO_RISKY -> Component.translatable("subtitle.lodged.arrow_removal.too_risky");
+            case INVENTORY_FULL -> Component.translatable("subtitle.lodged.arrow_removal.inventory_full");
+            default -> Component.translatable("subtitle.lodged.arrow_removal.cant_remove_now");
+        };
+        removalSubtitle = removalSubtitle.copy().withStyle(ChatFormatting.ITALIC);
+        removalSubtitleStartedAtMs = Util.getMillis();
+    }
+
     private static void resetPreviewRotation() {
         yawDegrees = 0.0F;
         draggingPreview = false;
@@ -927,6 +1260,22 @@ public final class LodgedInventoryArrowUi {
 
     private record ShieldZoneResult(ArrowHitZone zone, double distanceToSqr) {
         private static final ShieldZoneResult EMPTY = new ShieldZoneResult(null, Double.MAX_VALUE);
+    }
+
+    private record HoveredArrow(LodgedArrowVisual arrow, Target target, InteractionHand hand) {
+    }
+
+    private record RemovalAnimation(ArrowRemovalResultPayload payload, long startedAtMs) {
+    }
+
+    public record OutlineColor(int red, int green, int blue, int alpha) {
+        private static OutlineColor fromRgb(int rgb) {
+            return new OutlineColor((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, RISK_OUTLINE_ALPHA);
+        }
+
+        private int rgb() {
+            return 0xFF000000 | (red << 16) | (green << 8) | blue;
+        }
     }
 
     private record ModelHitBox(

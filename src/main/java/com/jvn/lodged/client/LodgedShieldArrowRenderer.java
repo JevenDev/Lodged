@@ -17,10 +17,6 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 
 public final class LodgedShieldArrowRenderer {
-    private static final int SHIELD_HOVER_HIGHLIGHT_RED = 255;
-    private static final int SHIELD_HOVER_HIGHLIGHT_GREEN = 255;
-    private static final int SHIELD_HOVER_HIGHLIGHT_BLUE = 255;
-    private static final int SHIELD_HOVER_HIGHLIGHT_ALPHA = 255;
     private static final int HOVER_OUTLINE_BUFFER_SIZE = 1536;
 
     private LodgedShieldArrowRenderer() {
@@ -96,11 +92,12 @@ public final class LodgedShieldArrowRenderer {
 
         MultiBufferSource.BufferSource delegate = MultiBufferSource.immediate(new ByteBufferBuilder(HOVER_OUTLINE_BUFFER_SIZE));
         OutlineBufferSource outlineBuffer = new OutlineBufferSource(delegate);
+        LodgedInventoryArrowUi.OutlineColor outlineColor = LodgedInventoryArrowUi.shieldRiskOutlineColor();
         outlineBuffer.setColor(
-                SHIELD_HOVER_HIGHLIGHT_RED,
-                SHIELD_HOVER_HIGHLIGHT_GREEN,
-                SHIELD_HOVER_HIGHLIGHT_BLUE,
-                SHIELD_HOVER_HIGHLIGHT_ALPHA);
+                outlineColor.red(),
+                outlineColor.green(),
+                outlineColor.blue(),
+                outlineColor.alpha());
         try {
             renderArrow(dispatcher, level, poseStack, outlineBuffer, packedLight, arrow, partialTicks);
             outlineBuffer.endOutlineBatch();

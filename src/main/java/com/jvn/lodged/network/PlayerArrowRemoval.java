@@ -3,6 +3,8 @@ package com.jvn.lodged.network;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.effect.BleedingEvents;
 import com.jvn.lodged.effect.LodgedDamageTypes;
+import com.jvn.lodged.network.payload.ArrowRemovalResultPayload;
+import com.jvn.lodged.network.payload.ArrowRemovalResultPayload.Result;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload.Target;
 import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload;
@@ -64,6 +66,7 @@ public final class PlayerArrowRemoval {
         }
 
         if (!canAttemptRemoval(player, payload)) {
+            sendRemovalResult(player, Result.CANT_REMOVE_NOW, payload.target(), payload.hand(), LodgedArrowVisual.DEFAULT);
             LodgedNetwork.syncPlayerArrows(player);
             return;
         }
@@ -71,6 +74,7 @@ public final class PlayerArrowRemoval {
         long gameTime = player.level().getGameTime();
         Long lastRequestTick = LAST_REQUEST_TICK.get(player.getUUID());
         if (lastRequestTick != null && gameTime - lastRequestTick < REQUEST_COOLDOWN_TICKS) {
+            sendRemovalResult(player, Result.CANT_REMOVE_NOW, payload.target(), payload.hand(), LodgedArrowVisual.DEFAULT);
             return;
         }
         LAST_REQUEST_TICK.put(player.getUUID(), gameTime);
@@ -124,19 +128,40 @@ public final class PlayerArrowRemoval {
     }
 
     private static void removeBodyArrow(ServerPlayer player, int arrowIndex) {
-        LodgedArrowData removedArrow = LodgedArrowStorage.removeAt(player, arrowIndex);
-        if (removedArrow == null) {
+        List<LodgedArrowData> arrows = LodgedArrowStorage.readAll(player);
+        if (arrowIndex >= arrows.size()) {
+            sendRemovalResult(player, Result.CANT_REMOVE_NOW, Target.BODY, InteractionHand.MAIN_HAND, LodgedArrowVisual.DEFAULT);
             LodgedNetwork.syncPlayerArrows(player);
             return;
         }
 
-        double successChance = removalSuccessChance(removedArrow);
+        LodgedArrowData arrow = arrows.get(arrowIndex);
+        double successChance = removalSuccessChance(arrow);
+        if (successChance <= 0.0D) {
+            sendRemovalResult(player, Result.TOO_RISKY, Target.BODY, InteractionHand.MAIN_HAND, arrow.visual());
+            return;
+        }
+
+        LodgedArrowData removedArrow = LodgedArrowStorage.removeAt(player, arrowIndex);
+        if (removedArrow == null) {
+            sendRemovalResult(player, Result.CANT_REMOVE_NOW, Target.BODY, InteractionHand.MAIN_HAND, arrow.visual());
+            LodgedNetwork.syncPlayerArrows(player);
+            return;
+        }
+
         boolean recovered = successChance >= 1.0D || (successChance > 0.0D && player.getRandom().nextDouble() < successChance);
         if (recovered) {
-            recoverArrow(player, removedArrow.stack());
+            boolean inventoryFull = recoverArrow(player, removedArrow.stack());
+            sendRemovalResult(
+                    player,
+                    inventoryFull ? Result.INVENTORY_FULL : Result.SUCCESS,
+                    Target.BODY,
+                    InteractionHand.MAIN_HAND,
+                    removedArrow.visual());
             playSound(player, SoundEvents.ITEM_PICKUP, 0.2F, 2.0F);
         } else {
             damageForBrokenArrow(player);
+            sendRemovalResult(player, Result.FAILED, Target.BODY, InteractionHand.MAIN_HAND, removedArrow.visual());
             playSound(player, SoundEvents.ITEM_BREAK, 0.8F, 1.0F);
         }
         BleedingEvents.tryApplyFromArrowRemoval(player, removedArrow.visual(), !recovered);
@@ -147,18 +172,39 @@ public final class PlayerArrowRemoval {
 
     private static void removeShieldArrow(ServerPlayer player, InteractionHand hand, int arrowIndex, boolean spawnBreakParticles) {
         ItemStack shield = player.getItemInHand(hand);
-        LodgedShieldArrowData removedArrow = LodgedShieldArrowStorage.removeAt(shield, arrowIndex, player.registryAccess());
-        if (removedArrow == null) {
+        List<LodgedShieldArrowData> arrows = LodgedShieldArrowStorage.readData(shield, player.registryAccess());
+        if (arrowIndex >= arrows.size()) {
+            sendRemovalResult(player, Result.CANT_REMOVE_NOW, Target.SHIELD, hand, LodgedArrowVisual.DEFAULT);
             LodgedNetwork.syncPlayerArrows(player);
             return;
         }
 
-        double successChance = removalSuccessChance(removedArrow);
+        LodgedShieldArrowData arrow = arrows.get(arrowIndex);
+        double successChance = removalSuccessChance(arrow);
+        if (successChance <= 0.0D) {
+            sendRemovalResult(player, Result.TOO_RISKY, Target.SHIELD, hand, arrow.visual());
+            return;
+        }
+
+        LodgedShieldArrowData removedArrow = LodgedShieldArrowStorage.removeAt(shield, arrowIndex, player.registryAccess());
+        if (removedArrow == null) {
+            sendRemovalResult(player, Result.CANT_REMOVE_NOW, Target.SHIELD, hand, arrow.visual());
+            LodgedNetwork.syncPlayerArrows(player);
+            return;
+        }
+
         boolean recovered = successChance >= 1.0D || (successChance > 0.0D && player.getRandom().nextDouble() < successChance);
         if (recovered) {
-            recoverArrow(player, removedArrow.stack());
+            boolean inventoryFull = recoverArrow(player, removedArrow.stack());
+            sendRemovalResult(
+                    player,
+                    inventoryFull ? Result.INVENTORY_FULL : Result.SUCCESS,
+                    Target.SHIELD,
+                    hand,
+                    removedArrow.visual());
             playSound(player, SoundEvents.ITEM_PICKUP, 0.2F, 2.0F);
         } else {
+            sendRemovalResult(player, Result.FAILED, Target.SHIELD, hand, removedArrow.visual());
             playSound(player, SoundEvents.ITEM_BREAK, 0.8F, 1.0F);
         }
 
@@ -285,15 +331,17 @@ public final class PlayerArrowRemoval {
         return LodgedShieldArrowStorage.readData(shield, player.registryAccess()).size() > arrowIndex;
     }
 
-    private static void recoverArrow(Player player, ItemStack storedStack) {
+    private static boolean recoverArrow(Player player, ItemStack storedStack) {
         ItemStack recoveredStack = storedStack.copyWithCount(1);
         if (recoveredStack.isEmpty()) {
-            return;
+            return false;
         }
 
         if (!player.addItem(recoveredStack)) {
             player.drop(recoveredStack, false);
+            return true;
         }
+        return false;
     }
 
     private static double removalSuccessChance(LodgedArrowData arrow) {
@@ -408,6 +456,15 @@ public final class PlayerArrowRemoval {
 
     private static void playSound(ServerPlayer player, net.minecraft.sounds.SoundEvent sound, float volume, float pitch) {
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(), sound, SoundSource.PLAYERS, volume, pitch);
+    }
+
+    private static void sendRemovalResult(
+            ServerPlayer player,
+            Result result,
+            Target target,
+            InteractionHand hand,
+            LodgedArrowVisual arrow) {
+        PacketDistributor.sendToPlayer(player, new ArrowRemovalResultPayload(result, target, hand, arrow));
     }
 
     private record ShieldArrowRemovalAttempt(InteractionHand hand, int arrowIndex, long completeTick) {

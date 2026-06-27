@@ -168,6 +168,12 @@
   "death.attack.lodged.bleeding": "%1$s bled out",
   "death.attack.lodged.bleeding.player": "%1$s bled out while fighting %2$s",
   "key.lodged.remove_shield_arrow": "Remove shield arrow",
+  "tooltip.lodged.arrow_removal.chance": "%s%% removal chance",
+  "tooltip.lodged.arrow_removal.bleeding_risk": "Bleeding risk",
+  "tooltip.lodged.arrow_removal.click": "Click to pull",
+  "subtitle.lodged.arrow_removal.too_risky": "Too risky",
+  "subtitle.lodged.arrow_removal.inventory_full": "Inventory full",
+  "subtitle.lodged.arrow_removal.cant_remove_now": "Can't remove now",
   "tooltip.lodged.inventory_turn.rotate": "Drag the player preview to rotate",
   "tooltip.lodged.inventory_turn.reset": "Middle-click the preview to reset",
   "tooltip.lodged.inventory_turn.remove_arrows": "Click lodged arrows to remove them"

@@ -1,5 +1,6 @@
 package com.jvn.lodged.network;
 
+import com.jvn.lodged.network.payload.ArrowRemovalResultPayload;
 import com.jvn.lodged.network.payload.SyncPlayerArrowsPayload;
 import com.jvn.lodged.network.payload.SyncEntityArrowsPayload;
 import com.jvn.lodged.network.payload.SyncShieldArrowRemovalPayload;
@@ -70,6 +71,10 @@ public final class ClientArrowState {
 
     public static void handleSync(SyncShieldArrowRemovalPayload payload, IPayloadContext context) {
         setShieldArrowRemoval(payload.entityId(), payload.active(), payload.shieldHand());
+    }
+
+    public static void handleRemovalResult(ArrowRemovalResultPayload payload, IPayloadContext context) {
+        com.jvn.lodged.client.LodgedInventoryArrowUi.handleRemovalResult(payload);
     }
 
     private static void setShieldArrowRemoval(int entityId, boolean active, InteractionHand shieldHand) {

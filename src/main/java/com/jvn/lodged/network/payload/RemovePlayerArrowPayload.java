@@ -42,11 +42,11 @@ public record RemovePlayerArrowPayload(int arrowIndex, Target target, Interactio
             this.id = id;
         }
 
-        private int id() {
+        int id() {
             return id;
         }
 
-        private static Target byId(int id) {
+        static Target byId(int id) {
             for (Target target : values()) {
                 if (target.id == id) {
                     return target;

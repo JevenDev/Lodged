@@ -2,6 +2,7 @@ package com.jvn.lodged.network;
 
 import com.jvn.lodged.Lodged;
 import com.jvn.lodged.config.LodgedConfig;
+import com.jvn.lodged.network.payload.ArrowRemovalResultPayload;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload;
 import com.jvn.lodged.network.payload.SyncEntityArrowsPayload;
@@ -20,7 +21,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class LodgedNetwork {
-    private static final String NETWORK_VERSION = "7";
+    private static final String NETWORK_VERSION = "8";
 
     private LodgedNetwork() {
     }
@@ -47,6 +48,10 @@ public final class LodgedNetwork {
                 SyncShieldArrowRemovalPayload.TYPE,
                 SyncShieldArrowRemovalPayload.STREAM_CODEC,
                 ClientArrowState::handleSync);
+        registrar.playToClient(
+                ArrowRemovalResultPayload.TYPE,
+                ArrowRemovalResultPayload.STREAM_CODEC,
+                ClientArrowState::handleRemovalResult);
     }
 
     public static void syncPlayerArrows(ServerPlayer player) {

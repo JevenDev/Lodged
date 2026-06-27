@@ -27,10 +27,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(StuckInBodyLayer.class)
 public abstract class StuckInBodyLayerMixin {
-    private static final int HOVER_HIGHLIGHT_RED = 255;
-    private static final int HOVER_HIGHLIGHT_GREEN = 241;
-    private static final int HOVER_HIGHLIGHT_BLUE = 168;
-    private static final int HOVER_HIGHLIGHT_ALPHA = 255;
     private static final int HOVER_OUTLINE_BUFFER_SIZE = 1536;
 
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
@@ -111,7 +107,8 @@ public abstract class StuckInBodyLayerMixin {
 
         MultiBufferSource.BufferSource delegate = MultiBufferSource.immediate(new ByteBufferBuilder(HOVER_OUTLINE_BUFFER_SIZE));
         OutlineBufferSource outlineBuffer = new OutlineBufferSource(delegate);
-        outlineBuffer.setColor(HOVER_HIGHLIGHT_RED, HOVER_HIGHLIGHT_GREEN, HOVER_HIGHLIGHT_BLUE, HOVER_HIGHLIGHT_ALPHA);
+        LodgedInventoryArrowUi.OutlineColor outlineColor = LodgedInventoryArrowUi.riskOutlineColor(arrow);
+        outlineBuffer.setColor(outlineColor.red(), outlineColor.green(), outlineColor.blue(), outlineColor.alpha());
         try {
             renderArrow(poseStack, outlineBuffer, packedLight, livingEntity, arrow, partialTicks);
             outlineBuffer.endOutlineBatch();
