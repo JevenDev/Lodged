@@ -12,7 +12,8 @@ public record ArrowRemovalResultPayload(
         Result result,
         RemovePlayerArrowPayload.Target target,
         InteractionHand hand,
-        LodgedArrowVisual arrow) implements CustomPacketPayload {
+        LodgedArrowVisual arrow,
+        int inventorySlot) implements CustomPacketPayload {
     public static final Type<ArrowRemovalResultPayload> TYPE = new Type<>(LodgedNetwork.id("arrow_removal_result"));
     public static final StreamCodec<RegistryFriendlyByteBuf, ArrowRemovalResultPayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.idMapper(Result::byId, Result::id),
@@ -23,6 +24,8 @@ public record ArrowRemovalResultPayload(
             ArrowRemovalResultPayload::hand,
             LodgedArrowVisual.STREAM_CODEC,
             ArrowRemovalResultPayload::arrow,
+            ByteBufCodecs.VAR_INT,
+            ArrowRemovalResultPayload::inventorySlot,
             ArrowRemovalResultPayload::new);
 
     @Override

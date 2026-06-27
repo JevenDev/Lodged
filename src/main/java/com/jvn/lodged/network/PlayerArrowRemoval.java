@@ -50,6 +50,7 @@ public final class PlayerArrowRemoval {
     private static final int SHIELD_ARROW_REMOVAL_MIN_TICKS = 40;
     private static final int SHIELD_ARROW_REMOVAL_RANDOM_TICKS = 21;
     private static final int SHIELD_ARROW_BREAK_PARTICLES = 12;
+    private static final int NO_INVENTORY_SLOT = -1;
     private static final double SHIELD_CENTER_HEIGHT_RATIO = 0.55D;
     private static final double SHIELD_CENTER_FORWARD_OFFSET = 0.35D;
     private static final double SHIELD_HAND_SIDE_OFFSET = 0.28D;
@@ -151,13 +152,14 @@ public final class PlayerArrowRemoval {
 
         boolean recovered = successChance >= 1.0D || (successChance > 0.0D && player.getRandom().nextDouble() < successChance);
         if (recovered) {
-            boolean inventoryFull = recoverArrow(player, removedArrow.stack());
+            ArrowRecoveryResult recoveryResult = recoverArrow(player, removedArrow.stack());
             sendRemovalResult(
                     player,
-                    inventoryFull ? Result.INVENTORY_FULL : Result.SUCCESS,
+                    recoveryResult.inventoryFull() ? Result.INVENTORY_FULL : Result.SUCCESS,
                     Target.BODY,
                     InteractionHand.MAIN_HAND,
-                    removedArrow.visual());
+                    removedArrow.visual(),
+                    recoveryResult.inventorySlot());
             playSound(player, SoundEvents.ITEM_PICKUP, 0.2F, 2.0F);
         } else {
             damageForBrokenArrow(player);
@@ -195,13 +197,14 @@ public final class PlayerArrowRemoval {
 
         boolean recovered = successChance >= 1.0D || (successChance > 0.0D && player.getRandom().nextDouble() < successChance);
         if (recovered) {
-            boolean inventoryFull = recoverArrow(player, removedArrow.stack());
+            ArrowRecoveryResult recoveryResult = recoverArrow(player, removedArrow.stack());
             sendRemovalResult(
                     player,
-                    inventoryFull ? Result.INVENTORY_FULL : Result.SUCCESS,
+                    recoveryResult.inventoryFull() ? Result.INVENTORY_FULL : Result.SUCCESS,
                     Target.SHIELD,
                     hand,
-                    removedArrow.visual());
+                    removedArrow.visual(),
+                    recoveryResult.inventorySlot());
             playSound(player, SoundEvents.ITEM_PICKUP, 0.2F, 2.0F);
         } else {
             sendRemovalResult(player, Result.FAILED, Target.SHIELD, hand, removedArrow.visual());
@@ -331,17 +334,26 @@ public final class PlayerArrowRemoval {
         return LodgedShieldArrowStorage.readData(shield, player.registryAccess()).size() > arrowIndex;
     }
 
-    private static boolean recoverArrow(Player player, ItemStack storedStack) {
+    private static ArrowRecoveryResult recoverArrow(Player player, ItemStack storedStack) {
         ItemStack recoveredStack = storedStack.copyWithCount(1);
         if (recoveredStack.isEmpty()) {
-            return false;
+            return new ArrowRecoveryResult(false, NO_INVENTORY_SLOT);
         }
 
-        if (!player.addItem(recoveredStack)) {
-            player.drop(recoveredStack, false);
-            return true;
+        int inventorySlot = player.getInventory().getSlotWithRemainingSpace(recoveredStack);
+        if (inventorySlot == -1) {
+            inventorySlot = player.getInventory().getFreeSlot();
         }
-        return false;
+
+        if (inventorySlot >= 0 && player.getInventory().add(inventorySlot, recoveredStack)) {
+            return new ArrowRecoveryResult(false, inventorySlot);
+        }
+
+        if (!recoveredStack.isEmpty()) {
+            player.drop(recoveredStack, false);
+            return new ArrowRecoveryResult(true, NO_INVENTORY_SLOT);
+        }
+        return new ArrowRecoveryResult(false, inventorySlot);
     }
 
     private static double removalSuccessChance(LodgedArrowData arrow) {
@@ -349,7 +361,8 @@ public final class PlayerArrowRemoval {
                 arrow.fromPlayer(),
                 arrow.infinityGenerated(),
                 arrow.creativeGenerated(),
-                LodgedConfig.playerArrowRemovalSuccessChance(arrow.visual().bodyPart()));
+                LodgedConfig.playerArrowRemovalSuccessChance(arrow.visual().bodyPart())
+                        * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.visual().depth()));
     }
 
     private static double removalSuccessChance(LodgedShieldArrowData arrow) {
@@ -464,9 +477,22 @@ public final class PlayerArrowRemoval {
             Target target,
             InteractionHand hand,
             LodgedArrowVisual arrow) {
-        PacketDistributor.sendToPlayer(player, new ArrowRemovalResultPayload(result, target, hand, arrow));
+        sendRemovalResult(player, result, target, hand, arrow, NO_INVENTORY_SLOT);
+    }
+
+    private static void sendRemovalResult(
+            ServerPlayer player,
+            Result result,
+            Target target,
+            InteractionHand hand,
+            LodgedArrowVisual arrow,
+            int inventorySlot) {
+        PacketDistributor.sendToPlayer(player, new ArrowRemovalResultPayload(result, target, hand, arrow, inventorySlot));
     }
 
     private record ShieldArrowRemovalAttempt(InteractionHand hand, int arrowIndex, long completeTick) {
+    }
+
+    private record ArrowRecoveryResult(boolean inventoryFull, int inventorySlot) {
     }
 }

@@ -21,7 +21,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class LodgedNetwork {
-    private static final String NETWORK_VERSION = "8";
+    private static final String NETWORK_VERSION = "10";
 
     private LodgedNetwork() {
     }

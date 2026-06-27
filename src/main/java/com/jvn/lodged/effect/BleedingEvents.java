@@ -104,9 +104,9 @@ public final class BleedingEvents {
         double chance = failedRemoval ? failedArrowRemovalBleedingChance(target) : normalArmorBleedingChance(target);
         return tryApplyBleeding(
                 target,
-                LodgedConfig.bleedingArrowRemovalDuration(),
+                scaledArrowRemovalBleedingDuration(arrowVisual),
                 woundFromArrow(target, arrowVisual),
-                chance);
+                Mth.clamp(chance * LodgedConfig.arrowDepthBleedingChanceMultiplier(arrowVisual.depth()), 0.0D, 1.0D));
     }
 
     public static boolean tryApplyFromBrokenArrowImpact(LivingEntity target, LodgedArrowVisual arrowVisual) {
@@ -191,6 +191,12 @@ public final class BleedingEvents {
         target.addEffect(new MobEffectInstance(LodgedEffects.BLEEDING, newDuration, amplifier, false, false, true));
         spawnBleedingParticles(target, wound, existing == null ? 10 : 5);
         return true;
+    }
+
+    private static int scaledArrowRemovalBleedingDuration(LodgedArrowVisual arrowVisual) {
+        return Math.max(0, (int) Math.round(
+                LodgedConfig.bleedingArrowRemovalDuration()
+                        * LodgedConfig.arrowDepthBleedingDurationMultiplier(arrowVisual.depth())));
     }
 
     private static Wound woundFromArrow(LivingEntity target, LodgedArrowVisual arrowVisual) {

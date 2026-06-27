@@ -11,10 +11,13 @@ import java.util.Map;
 import java.util.UUID;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
@@ -26,6 +29,9 @@ import net.minecraft.world.entity.projectile.Arrow;
 import net.minecraft.world.entity.projectile.SpectralArrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.ArmorItem;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -99,6 +105,7 @@ public final class LodgedArrowEvents {
         }
 
         LodgedArrowVisual visual = LodgedArrowVisual.fromImpact(target, arrow, entityHitResult);
+        visual = visual.withDepth(arrowDepth(target, arrow, visual));
         applyLegShotSlowness(target, visual);
         if (LodgedConfig.enableArrowBreakOnEntityHit()
                 && breaksOnImpact(arrow, fromPlayer, fromMob, infinityGenerated, creativeGenerated)) {
@@ -401,6 +408,131 @@ public final class LodgedArrowEvents {
         }
 
         return LodgedConfig.regularArrowImpactBreakChance();
+    }
+
+    private static LodgedArrowDepth arrowDepth(LivingEntity target, AbstractArrow arrow, LodgedArrowVisual visual) {
+        if (!LodgedConfig.enableArrowDepthTiers()) {
+            return LodgedArrowDepth.LODGED;
+        }
+
+        LodgedArrowBodyPart bodyPart = visual.bodyPart();
+        double deepChance = deepLodgedChance(target, arrow, bodyPart);
+        if (deepChance >= 1.0D || (deepChance > 0.0D && target.getRandom().nextDouble() < deepChance)) {
+            return LodgedArrowDepth.DEEP_LODGED;
+        }
+
+        double shallowChance = shallowLodgedChance(bodyPart, arrow);
+        return target.getRandom().nextDouble() < shallowChance
+                ? LodgedArrowDepth.SHALLOW
+                : LodgedArrowDepth.LODGED;
+    }
+
+    private static double deepLodgedChance(LivingEntity target, AbstractArrow arrow, LodgedArrowBodyPart bodyPart) {
+        double chance = LodgedConfig.deepLodgedBaseChance(bodyPart);
+
+        double velocity = arrow.getDeltaMovement().length();
+        double velocityProgress = Mth.clamp(
+                (velocity - LodgedConfig.arrowDepthVelocityBonusStart())
+                        / LodgedConfig.arrowDepthVelocityBonusRange(),
+                0.0D,
+                1.0D);
+        chance += velocityProgress * LodgedConfig.velocityDeepLodgedMaxBonus();
+
+        if (arrow.isCritArrow()) {
+            chance += LodgedConfig.criticalDeepLodgedBonus();
+        }
+
+        ItemStack weapon = arrow.getWeaponItem();
+        int powerLevel = powerLevel(weapon);
+        double modifiedDamage = modifiedArrowDamage(target, arrow, weapon);
+        double weaponDamageBoost = Math.max(0.0D, modifiedDamage - arrow.getBaseDamage());
+        chance += Mth.clamp(
+                weaponDamageBoost * LodgedConfig.weaponDamageDeepLodgedBonusPerDamage(),
+                0.0D,
+                LodgedConfig.weaponDamageDeepLodgedMaxBonus());
+        chance += powerLevel * LodgedConfig.powerDeepLodgedBonusPerLevel();
+
+        if (arrow.shotFromCrossbow()) {
+            chance += LodgedConfig.crossbowDeepLodgedBonus();
+        }
+
+        boolean hasBodyPartArmor = hasArmorOnBodyPart(target, bodyPart);
+        if (hasBodyPartArmor) {
+            chance *= LodgedConfig.armoredDeepLodgedMultiplier();
+        } else {
+            chance += LodgedConfig.unarmoredDeepLodgedBonus(bodyPart);
+        }
+
+        if (!hasBodyPartArmor
+                && (bodyPart == LodgedArrowBodyPart.HEAD || bodyPart == LodgedArrowBodyPart.CHEST)
+                && arrow.isCritArrow()
+                && (powerLevel >= LodgedConfig.strongHeadChestPowerLevelThreshold()
+                || modifiedDamage >= LodgedConfig.strongHeadChestDamageThreshold())) {
+            chance = Math.max(chance, powerLevel >= 5
+                    ? LodgedConfig.powerFiveHeadChestDeepLodgedChance()
+                    : LodgedConfig.strongHeadChestDeepLodgedChance());
+        } else if (!hasBodyPartArmor
+                && (bodyPart == LodgedArrowBodyPart.HEAD || bodyPart == LodgedArrowBodyPart.CHEST)
+                && arrow.isCritArrow()
+                && arrow.getDeltaMovement().length() >= LodgedConfig.fastCriticalVelocityThreshold()) {
+            chance = Math.max(chance, LodgedConfig.fastCriticalHeadChestDeepLodgedChance());
+        } else if (!hasBodyPartArmor && arrow.isCritArrow() && powerLevel >= 5) {
+            chance = Math.max(chance, LodgedConfig.powerFiveAnyBodyPartDeepLodgedChance());
+        }
+
+        return Mth.clamp(chance, 0.0D, LodgedConfig.deepLodgedMaxChance(powerLevel));
+    }
+
+    private static double modifiedArrowDamage(LivingEntity target, AbstractArrow arrow, ItemStack weapon) {
+        if (weapon == null || weapon.isEmpty() || !(arrow.level() instanceof ServerLevel level)) {
+            return arrow.getBaseDamage();
+        }
+
+        Entity owner = arrow.getOwner();
+        DamageSource damageSource = arrow.damageSources().arrow(arrow, owner != null ? owner : arrow);
+        return EnchantmentHelper.modifyDamage(level, weapon, target, damageSource, (float) arrow.getBaseDamage());
+    }
+
+    private static int powerLevel(ItemStack weapon) {
+        if (weapon == null || weapon.isEmpty()) {
+            return 0;
+        }
+
+        for (var entry : EnchantmentHelper.getEnchantmentsForCrafting(weapon).entrySet()) {
+            if (entry.getKey().is(Enchantments.POWER)) {
+                return entry.getIntValue();
+            }
+        }
+        return 0;
+    }
+
+    private static double shallowLodgedChance(LodgedArrowBodyPart bodyPart, AbstractArrow arrow) {
+        double chance = LodgedConfig.shallowBaseChance(bodyPart);
+
+        double velocity = arrow.getDeltaMovement().length();
+        double velocityProgress = Mth.clamp(
+                (velocity - LodgedConfig.arrowDepthVelocityBonusStart())
+                        / LodgedConfig.arrowDepthVelocityBonusRange(),
+                0.0D,
+                1.0D);
+        chance -= velocityProgress * LodgedConfig.velocityShallowMaxPenalty();
+        if (arrow.isCritArrow()) {
+            chance -= LodgedConfig.criticalShallowPenalty();
+        }
+        return Mth.clamp(chance, LodgedConfig.shallowMinChance(), LodgedConfig.shallowMaxChance());
+    }
+
+    private static boolean hasArmorOnBodyPart(LivingEntity target, LodgedArrowBodyPart bodyPart) {
+        return switch (bodyPart) {
+            case HEAD -> isArmorInSlot(target, EquipmentSlot.HEAD);
+            case CHEST, ARM -> isArmorInSlot(target, EquipmentSlot.CHEST);
+            case LEG -> isArmorInSlot(target, EquipmentSlot.LEGS) || isArmorInSlot(target, EquipmentSlot.FEET);
+        };
+    }
+
+    private static boolean isArmorInSlot(LivingEntity target, EquipmentSlot slot) {
+        ItemStack stack = target.getItemBySlot(slot);
+        return stack.getItem() instanceof ArmorItem armorItem && armorItem.getEquipmentSlot() == slot;
     }
 
     private static void rememberBrokenArrowImpact(AbstractArrow arrow, LivingEntity target, LodgedArrowVisual visual) {

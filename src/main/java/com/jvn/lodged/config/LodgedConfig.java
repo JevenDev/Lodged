@@ -1,6 +1,7 @@
 package com.jvn.lodged.config;
 
 import com.jvn.lodged.world.LodgedArrowBodyPart;
+import com.jvn.lodged.world.LodgedArrowDepth;
 import java.util.List;
 
 public final class LodgedConfig {
@@ -89,6 +90,14 @@ public final class LodgedConfig {
         return playerArrowRemoval().showInventoryTurnHintTooltip();
     }
 
+    public static boolean enableArrowRemovalAnimation() {
+        return playerArrowRemoval().enableArrowRemovalAnimation();
+    }
+
+    public static double arrowRemovalAnimationSpeedMultiplier() {
+        return Math.max(0.1D, playerArrowRemoval().arrowRemovalAnimationSpeedMultiplier());
+    }
+
     public static double playerArrowRemovalSuccessChance(LodgedArrowBodyPart bodyPart) {
         return switch (bodyPart) {
             case HEAD -> playerArrowRemoval().playerArrowRemovalHeadSuccessChance();
@@ -117,6 +126,153 @@ public final class LodgedConfig {
     public static int maxRemovablePlayerArrows() {
         int configuredMax = playerArrowRemoval().maxRemovablePlayerArrows();
         return configuredMax > 0 ? configuredMax : maxTrackedArrowsPerEntity();
+    }
+
+    public static boolean enableArrowDepthTiers() {
+        return arrowDepth().enableArrowDepthTiers();
+    }
+
+    public static double deepLodgedBaseChance(LodgedArrowBodyPart bodyPart) {
+        return switch (bodyPart) {
+            case HEAD -> arrowDepth().deepLodgedHeadChance();
+            case CHEST -> arrowDepth().deepLodgedChestChance();
+            case ARM -> arrowDepth().deepLodgedArmChance();
+            case LEG -> arrowDepth().deepLodgedLegChance();
+        };
+    }
+
+    public static double shallowBaseChance(LodgedArrowBodyPart bodyPart) {
+        return switch (bodyPart) {
+            case HEAD -> arrowDepth().shallowHeadChance();
+            case CHEST -> arrowDepth().shallowChestChance();
+            case ARM -> arrowDepth().shallowArmChance();
+            case LEG -> arrowDepth().shallowLegChance();
+        };
+    }
+
+    public static double arrowDepthVelocityBonusStart() {
+        return arrowDepth().velocityBonusStart();
+    }
+
+    public static double arrowDepthVelocityBonusRange() {
+        return Math.max(0.01D, arrowDepth().velocityBonusRange());
+    }
+
+    public static double velocityDeepLodgedMaxBonus() {
+        return arrowDepth().velocityDeepLodgedMaxBonus();
+    }
+
+    public static double velocityShallowMaxPenalty() {
+        return arrowDepth().velocityShallowMaxPenalty();
+    }
+
+    public static double criticalDeepLodgedBonus() {
+        return arrowDepth().criticalDeepLodgedBonus();
+    }
+
+    public static double criticalShallowPenalty() {
+        return arrowDepth().criticalShallowPenalty();
+    }
+
+    public static double weaponDamageDeepLodgedBonusPerDamage() {
+        return arrowDepth().weaponDamageDeepLodgedBonusPerDamage();
+    }
+
+    public static double weaponDamageDeepLodgedMaxBonus() {
+        return arrowDepth().weaponDamageDeepLodgedMaxBonus();
+    }
+
+    public static double powerDeepLodgedBonusPerLevel() {
+        return arrowDepth().powerDeepLodgedBonusPerLevel();
+    }
+
+    public static double crossbowDeepLodgedBonus() {
+        return arrowDepth().crossbowDeepLodgedBonus();
+    }
+
+    public static double armoredDeepLodgedMultiplier() {
+        return arrowDepth().armoredDeepLodgedMultiplier();
+    }
+
+    public static double unarmoredDeepLodgedBonus(LodgedArrowBodyPart bodyPart) {
+        return switch (bodyPart) {
+            case HEAD, CHEST -> arrowDepth().unarmoredHeadChestDeepLodgedBonus();
+            case ARM, LEG -> arrowDepth().unarmoredLimbDeepLodgedBonus();
+        };
+    }
+
+    public static int strongHeadChestPowerLevelThreshold() {
+        return arrowDepth().strongHeadChestPowerLevelThreshold();
+    }
+
+    public static double strongHeadChestDamageThreshold() {
+        return arrowDepth().strongHeadChestDamageThreshold();
+    }
+
+    public static double strongHeadChestDeepLodgedChance() {
+        return arrowDepth().strongHeadChestDeepLodgedChance();
+    }
+
+    public static double powerFiveHeadChestDeepLodgedChance() {
+        return arrowDepth().powerFiveHeadChestDeepLodgedChance();
+    }
+
+    public static double fastCriticalVelocityThreshold() {
+        return arrowDepth().fastCriticalVelocityThreshold();
+    }
+
+    public static double fastCriticalHeadChestDeepLodgedChance() {
+        return arrowDepth().fastCriticalHeadChestDeepLodgedChance();
+    }
+
+    public static double powerFiveAnyBodyPartDeepLodgedChance() {
+        return arrowDepth().powerFiveAnyBodyPartDeepLodgedChance();
+    }
+
+    public static double deepLodgedMaxChance(int powerLevel) {
+        return powerLevel >= 5
+                ? arrowDepth().powerFiveDeepLodgedMaxChance()
+                : arrowDepth().deepLodgedMaxChance();
+    }
+
+    public static double shallowMinChance() {
+        return arrowDepth().shallowMinChance();
+    }
+
+    public static double shallowMaxChance() {
+        return Math.max(shallowMinChance(), arrowDepth().shallowMaxChance());
+    }
+
+    public static double arrowDepthRemovalSuccessMultiplier(LodgedArrowDepth depth) {
+        return switch (depth) {
+            case SHALLOW -> arrowDepth().shallowRemovalSuccessMultiplier();
+            case LODGED -> arrowDepth().lodgedRemovalSuccessMultiplier();
+            case DEEP_LODGED -> arrowDepth().deepLodgedRemovalSuccessMultiplier();
+        };
+    }
+
+    public static double arrowDepthBleedingChanceMultiplier(LodgedArrowDepth depth) {
+        return switch (depth) {
+            case SHALLOW -> arrowDepth().shallowBleedingChanceMultiplier();
+            case LODGED -> arrowDepth().lodgedBleedingChanceMultiplier();
+            case DEEP_LODGED -> arrowDepth().deepLodgedBleedingChanceMultiplier();
+        };
+    }
+
+    public static double arrowDepthBleedingDurationMultiplier(LodgedArrowDepth depth) {
+        return switch (depth) {
+            case SHALLOW -> arrowDepth().shallowBleedingDurationMultiplier();
+            case LODGED -> arrowDepth().lodgedBleedingDurationMultiplier();
+            case DEEP_LODGED -> arrowDepth().deepLodgedBleedingDurationMultiplier();
+        };
+    }
+
+    public static int arrowDepthRemovalAnimationMs(LodgedArrowDepth depth) {
+        return switch (depth) {
+            case SHALLOW -> arrowDepth().shallowRemovalAnimationMs();
+            case LODGED -> arrowDepth().lodgedRemovalAnimationMs();
+            case DEEP_LODGED -> arrowDepth().deepLodgedRemovalAnimationMs();
+        };
     }
 
     public static boolean enableShieldArrowLodging() {
@@ -312,6 +468,10 @@ public final class LodgedConfig {
 
     private static LodgedConfigWrapper.PlayerArrowRemoval playerArrowRemoval() {
         return CONFIG.playerArrowRemoval;
+    }
+
+    private static LodgedConfigWrapper.ArrowDepth arrowDepth() {
+        return CONFIG.arrowDepth;
     }
 
     private static LodgedConfigWrapper.ShieldArrows shieldArrows() {

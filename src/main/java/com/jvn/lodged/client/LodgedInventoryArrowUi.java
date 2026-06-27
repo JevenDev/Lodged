@@ -12,6 +12,7 @@ import com.jvn.lodged.network.payload.ArrowRemovalResultPayload.Result;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload.Target;
 import com.jvn.lodged.world.LodgedArrowBodyPart;
+import com.jvn.lodged.world.LodgedArrowDepth;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import com.jvn.lodged.world.LodgedShieldArrowStorage;
 import com.mojang.blaze3d.pipeline.RenderTarget;
@@ -42,6 +43,8 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.inventory.InventoryMenu;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.api.distmarker.Dist;
@@ -119,7 +122,6 @@ public final class LodgedInventoryArrowUi {
     private static final int TOOLTIP_ICON_HEIGHT = 32;
     private static final int TOOLTIP_ICON_Z = 450;
     private static final int REMOVAL_SUBTITLE_Z = 450;
-    private static final int REMOVAL_ANIMATION_MS = 620;
     private static final int REMOVAL_ANIMATION_Z = 420;
     private static final int MAX_REMOVAL_ANIMATIONS = 6;
     private static final int REMOVAL_SUBTITLE_MS = 1400;
@@ -364,6 +366,10 @@ public final class LodgedInventoryArrowUi {
             showRemovalSubtitle(result);
         }
 
+        if (!LodgedConfig.enableArrowRemovalAnimation()) {
+            return;
+        }
+
         if (removalAnimations.size() >= MAX_REMOVAL_ANIMATIONS) {
             removalAnimations.remove(0);
         }
@@ -475,13 +481,18 @@ public final class LodgedInventoryArrowUi {
         Font font = minecraft.font;
         double chance = hoveredArrow.target() == Target.SHIELD
                 ? removalChance(LodgedArrowBodyPart.ARM)
-                : removalChance(hoveredArrow.arrow().bodyPart());
+                : removalChance(hoveredArrow.arrow());
         int chancePercent = Math.round((float) (Mth.clamp(chance, 0.0D, 1.0D) * 100.0D));
         OutlineColor outlineColor = hoveredArrow.target() == Target.SHIELD
                 ? shieldRiskOutlineColor()
                 : riskOutlineColor(hoveredArrow.arrow());
         List<Component> lines = List.of(
                 paddedTooltipLine(hoveredArrow.arrow().stack().getHoverName()),
+                coloredTooltipLine(
+                        depthTooltip(hoveredArrow.target() == Target.SHIELD
+                                ? LodgedArrowDepth.LODGED
+                                : hoveredArrow.arrow().depth()),
+                        outlineColor.rgb()),
                 coloredTooltipLine(
                         Component.translatable("tooltip.lodged.arrow_removal.chance", chancePercent),
                         outlineColor.rgb()),
@@ -559,7 +570,7 @@ public final class LodgedInventoryArrowUi {
         Iterator<RemovalAnimation> iterator = removalAnimations.iterator();
         while (iterator.hasNext()) {
             RemovalAnimation animation = iterator.next();
-            float progress = (now - animation.startedAtMs()) / (float) REMOVAL_ANIMATION_MS;
+            float progress = (now - animation.startedAtMs()) / (float) removalAnimationMs(animation.payload());
             if (progress >= 1.0F) {
                 iterator.remove();
                 continue;
@@ -582,12 +593,12 @@ public final class LodgedInventoryArrowUi {
             int mouseY,
             float progress) {
         Vector3f source = removalAnimationSource(screen, player, payload, mouseX, mouseY);
+        Vector3f destination = removalAnimationDestination(screen, payload);
         float eased = easeOut(progress);
         float pop = 1.0F + (float) Math.sin(progress * Math.PI) * 0.35F;
-        int targetX = screen.getGuiLeft() + 142;
-        int targetY = screen.getGuiTop() + 63;
-        float x = Mth.lerp(eased, source.x() - 8.0F, targetX);
-        float y = Mth.lerp(eased, source.y() - 8.0F, targetY - 10.0F * (float) Math.sin(progress * Math.PI));
+        float arc = -10.0F * (float) Math.sin(progress * Math.PI);
+        float x = Mth.lerp(eased, source.x() - 8.0F, destination.x() - 8.0F);
+        float y = Mth.lerp(eased, source.y() - 8.0F, destination.y() - 8.0F) + arc;
 
         guiGraphics.pose().pushPose();
         guiGraphics.pose().translate(x + 8.0F, y + 8.0F, REMOVAL_ANIMATION_Z);
@@ -643,6 +654,39 @@ public final class LodgedInventoryArrowUi {
         return payload.target() == Target.SHIELD
                 ? projectShieldArrowToScreen(screen, player, payload.arrow(), payload.hand(), mouseX, mouseY)
                 : projectArrowToScreen(screen, player, payload.arrow(), mouseX, mouseY);
+    }
+
+    private static Vector3f removalAnimationDestination(InventoryScreen screen, ArrowRemovalResultPayload payload) {
+        Slot slot = inventorySlot(screen, payload.inventorySlot());
+        if (slot != null) {
+            return new Vector3f(
+                    screen.getGuiLeft() + slot.x + 8.0F,
+                    screen.getGuiTop() + slot.y + 8.0F,
+                    0.0F);
+        }
+
+        return new Vector3f(screen.getGuiLeft() + 150.0F, screen.getGuiTop() + 71.0F, 0.0F);
+    }
+
+    private static Slot inventorySlot(InventoryScreen screen, int inventorySlot) {
+        int menuSlot = menuSlotForInventorySlot(inventorySlot);
+        if (menuSlot < 0 || menuSlot >= screen.getMenu().slots.size()) {
+            return null;
+        }
+        return screen.getMenu().slots.get(menuSlot);
+    }
+
+    private static int menuSlotForInventorySlot(int inventorySlot) {
+        if (inventorySlot >= 0 && inventorySlot < 9) {
+            return InventoryMenu.USE_ROW_SLOT_START + inventorySlot;
+        }
+        if (inventorySlot >= 9 && inventorySlot < 36) {
+            return InventoryMenu.INV_SLOT_START + (inventorySlot - 9);
+        }
+        if (inventorySlot == 40) {
+            return InventoryMenu.SHIELD_SLOT;
+        }
+        return -1;
     }
 
     private static float easeOut(float progress) {
@@ -1147,11 +1191,22 @@ public final class LodgedInventoryArrowUi {
     }
 
     private static double removalChance(LodgedArrowVisual arrow) {
-        return removalChance(arrow.bodyPart());
+        return removalChance(arrow.bodyPart()) * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.depth());
     }
 
     private static double removalChance(LodgedArrowBodyPart bodyPart) {
         return Mth.clamp(LodgedConfig.playerArrowRemovalSuccessChance(bodyPart), 0.0D, 1.0D);
+    }
+
+    private static Component depthTooltip(LodgedArrowDepth depth) {
+        return Component.translatable("tooltip.lodged.arrow_depth." + depth.serializedName());
+    }
+
+    private static int removalAnimationMs(ArrowRemovalResultPayload payload) {
+        int baseDuration = payload.target() == Target.BODY
+                ? LodgedConfig.arrowDepthRemovalAnimationMs(payload.arrow().depth())
+                : LodgedConfig.arrowDepthRemovalAnimationMs(LodgedArrowDepth.LODGED);
+        return Math.max(1, (int) Math.round(baseDuration / LodgedConfig.arrowRemovalAnimationSpeedMultiplier()));
     }
 
     private static OutlineColor outlineColorFor(double chance) {

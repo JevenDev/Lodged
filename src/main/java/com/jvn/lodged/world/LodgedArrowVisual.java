@@ -4,6 +4,7 @@ import java.util.Optional;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
@@ -22,6 +23,7 @@ public record LodgedArrowVisual(
         float directionX,
         float directionY,
         float directionZ,
+        LodgedArrowDepth depth,
         ItemStack stack) {
     private static final String MODEL_X_KEY = "visual_model_x";
     private static final String MODEL_Y_KEY = "visual_model_y";
@@ -29,6 +31,7 @@ public record LodgedArrowVisual(
     private static final String DIRECTION_X_KEY = "visual_direction_x";
     private static final String DIRECTION_Y_KEY = "visual_direction_y";
     private static final String DIRECTION_Z_KEY = "visual_direction_z";
+    private static final String DEPTH_KEY = "visual_depth";
     private static final float MODEL_HEAD_TOP = -8.0F / 16.0F;
     private static final float MODEL_HEAD_BOTTOM = 0.0F;
     private static final float MODEL_LEG_TOP = 12.0F / 16.0F;
@@ -69,6 +72,7 @@ public record LodgedArrowVisual(
             LodgedArrowVisual::decode);
 
     public LodgedArrowVisual {
+        depth = depth == null ? LodgedArrowDepth.LODGED : depth;
         stack = renderStack(stack);
     }
 
@@ -79,11 +83,15 @@ public record LodgedArrowVisual(
             float directionX,
             float directionY,
             float directionZ) {
-        this(modelX, modelY, modelZ, directionX, directionY, directionZ, new ItemStack(Items.ARROW));
+        this(modelX, modelY, modelZ, directionX, directionY, directionZ, LodgedArrowDepth.LODGED, new ItemStack(Items.ARROW));
     }
 
     public LodgedArrowVisual withStack(ItemStack stack) {
-        return new LodgedArrowVisual(modelX, modelY, modelZ, directionX, directionY, directionZ, stack);
+        return new LodgedArrowVisual(modelX, modelY, modelZ, directionX, directionY, directionZ, depth, stack);
+    }
+
+    public LodgedArrowVisual withDepth(LodgedArrowDepth depth) {
+        return new LodgedArrowVisual(modelX, modelY, modelZ, directionX, directionY, directionZ, depth, stack);
     }
 
     public static LodgedArrowVisual fromImpact(LivingEntity target, AbstractArrow arrow, EntityHitResult hitResult) {
@@ -174,6 +182,7 @@ public record LodgedArrowVisual(
         tag.putFloat(DIRECTION_X_KEY, directionX);
         tag.putFloat(DIRECTION_Y_KEY, directionY);
         tag.putFloat(DIRECTION_Z_KEY, directionZ);
+        tag.putString(DEPTH_KEY, depth.serializedName());
     }
 
     static LodgedArrowVisual load(CompoundTag tag) {
@@ -192,7 +201,11 @@ public record LodgedArrowVisual(
                 tag.getFloat(MODEL_Z_KEY),
                 tag.getFloat(DIRECTION_X_KEY),
                 tag.getFloat(DIRECTION_Y_KEY),
-                tag.getFloat(DIRECTION_Z_KEY));
+                tag.getFloat(DIRECTION_Z_KEY),
+                tag.contains(DEPTH_KEY, Tag.TAG_STRING)
+                        ? LodgedArrowDepth.bySerializedName(tag.getString(DEPTH_KEY))
+                        : LodgedArrowDepth.LODGED,
+                new ItemStack(Items.ARROW));
     }
 
     private void encode(RegistryFriendlyByteBuf buffer) {
@@ -202,6 +215,7 @@ public record LodgedArrowVisual(
         buffer.writeFloat(directionX);
         buffer.writeFloat(directionY);
         buffer.writeFloat(directionZ);
+        ByteBufCodecs.idMapper(LodgedArrowDepth::byId, LodgedArrowDepth::id).encode(buffer, depth);
         ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, stack);
     }
 
@@ -213,6 +227,7 @@ public record LodgedArrowVisual(
                 buffer.readFloat(),
                 buffer.readFloat(),
                 buffer.readFloat(),
+                ByteBufCodecs.idMapper(LodgedArrowDepth::byId, LodgedArrowDepth::id).decode(buffer),
                 ItemStack.OPTIONAL_STREAM_CODEC.decode(buffer));
     }
 

@@ -21,6 +21,7 @@ It is meant to make ranged combat a little grittier without replacing Minecraft'
 * Players can remove lodged arrows from their own inventory preview
 * Shield-blocked arrows can lodge into shields and be removed from the inventory preview
 * Removal success can vary by body part
+* Body arrows can be shallow, lodged, or deep lodged based on hit force, hit location, critical shots, and armour
 * Having too many lodged arrows can cause mild dizziness until some are removed
 * Arrows that hit player legs can briefly apply Slowness
 * Failed removal can break the arrow, hurt the player, and apply bleeding
@@ -73,6 +74,8 @@ Default recovery behaviour:
 Players can remove arrows stuck in their own body from the inventory player preview.
 
 Open your inventory, rotate the player preview if needed, and click a lodged arrow. A successful removal gives the arrow back when that arrow type is recoverable. A failed removal breaks the arrow, can deal damage, and can apply bleeding.
+
+Body arrows can land as shallow hits, normal lodged hits, or deep lodged hits. Deep lodged arrows are more likely from fast, critical, high-damage shots to the head or chest, especially when that body area is unarmoured. They are harder to remove, take longer to pull, and carry higher bleeding risk.
 
 Shield arrows use the same inventory removal flow. Mob-fired arrows lodged in shields are recoverable by default and can be disabled separately from body arrow recovery.
 
@@ -169,8 +172,10 @@ Major systems can be tuned or disabled:
 * Entity denylist
 * Arrow breakage on entities and blocks
 * Player arrow removal
+* Arrow removal animation enablement and speed
 * Shield arrow lodging and mob-fired shield arrow recovery
 * Removal success chances by body part
+* Arrow depth chances, Power/crit/velocity/armor modifiers, and shallow/deep removal and bleeding multipliers
 * Removal failure damage
 * Lodged arrow dizziness thresholds and duration
 * Leg shot Slowness duration, level, and enablement
