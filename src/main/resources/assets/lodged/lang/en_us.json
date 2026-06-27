@@ -73,6 +73,8 @@
   "text.config.lodged.option.playerArrowRemoval.playerArrowRemovalInfinitySuccessMultiplier.tooltip": "Multiplier applied to player arrow removal success chance for Infinity-generated arrows. This only applies when Recover Infinity arrows is enabled.",
   "text.config.lodged.option.playerArrowRemoval.playerArrowRemovalBreakDamage": "Player arrow removal break damage",
   "text.config.lodged.option.playerArrowRemoval.playerArrowRemovalBreakDamage.tooltip": "Damage dealt when player arrow removal fails and breaks the arrow. Damage is in half-hearts, so 2.0 equals one heart.",
+  "text.config.lodged.option.playerArrowRemoval.arrowRemovalAppliesKnockback": "Arrow removal applies knockback",
+  "text.config.lodged.option.playerArrowRemoval.arrowRemovalAppliesKnockback.tooltip": "Failed arrow removal damage can push the player when the arrow breaks.",
   "text.config.lodged.option.playerArrowRemoval.allowArrowRemovalInCreative": "Allow arrow removal in Creative",
   "text.config.lodged.option.playerArrowRemoval.allowArrowRemovalInCreative.tooltip": "Creative-mode players may remove arrows lodged in their own body.",
   "text.config.lodged.option.playerArrowRemoval.requireInventoryScreenForRemoval": "Require inventory screen for removal",

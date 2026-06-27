@@ -415,7 +415,11 @@ public final class PlayerArrowRemoval {
             Holder<DamageType> arrowRemoval = player.level().registryAccess()
                     .registryOrThrow(Registries.DAMAGE_TYPE)
                     .getHolderOrThrow(LodgedDamageTypes.ARROW_REMOVAL);
+            Vec3 previousMovement = player.getDeltaMovement();
             player.hurt(new DamageSource(arrowRemoval), damage);
+            if (!LodgedConfig.arrowRemovalAppliesKnockback()) {
+                player.setDeltaMovement(previousMovement);
+            }
         }
     }
 

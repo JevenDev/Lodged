@@ -115,6 +115,10 @@ public final class LodgedConfig {
         return (float) playerArrowRemoval().playerArrowRemovalBreakDamage();
     }
 
+    public static boolean arrowRemovalAppliesKnockback() {
+        return playerArrowRemoval().arrowRemovalAppliesKnockback();
+    }
+
     public static boolean allowArrowRemovalInCreative() {
         return playerArrowRemoval().allowArrowRemovalInCreative();
     }

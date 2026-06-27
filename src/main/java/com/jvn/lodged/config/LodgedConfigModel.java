@@ -115,6 +115,7 @@ public class LodgedConfigModel {
         @RangeConstraint(min = 0.0D, max = 20.0D)
         public double playerArrowRemovalBreakDamage = 2.0D;
 
+        public boolean arrowRemovalAppliesKnockback = false;
         public boolean allowArrowRemovalInCreative = true;
         public boolean requireInventoryScreenForRemoval = true;
 
