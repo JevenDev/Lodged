@@ -150,7 +150,8 @@ public final class PlayerArrowRemoval {
             return;
         }
 
-        boolean recovered = successChance >= 1.0D || (successChance > 0.0D && player.getRandom().nextDouble() < successChance);
+        boolean recovered = removedArrow.recoverable()
+                && (successChance >= 1.0D || (successChance > 0.0D && player.getRandom().nextDouble() < successChance));
         if (recovered) {
             ArrowRecoveryResult recoveryResult = recoverArrow(player, removedArrow.stack());
             sendRemovalResult(
@@ -166,7 +167,9 @@ public final class PlayerArrowRemoval {
             sendRemovalResult(player, Result.FAILED, Target.BODY, InteractionHand.MAIN_HAND, removedArrow.visual());
             playSound(player, SoundEvents.ITEM_BREAK, 0.8F, 1.0F);
         }
-        BleedingEvents.tryApplyFromArrowRemoval(player, removedArrow.visual(), !recovered);
+        if (removedArrow.causesBleeding()) {
+            BleedingEvents.tryApplyFromArrowRemoval(player, removedArrow.visual(), !recovered);
+        }
 
         LodgedNetwork.syncPlayerArrows(player);
         LodgedNetwork.syncEntityArrows(player);
@@ -195,7 +198,8 @@ public final class PlayerArrowRemoval {
             return;
         }
 
-        boolean recovered = successChance >= 1.0D || (successChance > 0.0D && player.getRandom().nextDouble() < successChance);
+        boolean recovered = removedArrow.recoverable()
+                && (successChance >= 1.0D || (successChance > 0.0D && player.getRandom().nextDouble() < successChance));
         if (recovered) {
             ArrowRecoveryResult recoveryResult = recoverArrow(player, removedArrow.stack());
             sendRemovalResult(
@@ -357,15 +361,25 @@ public final class PlayerArrowRemoval {
     }
 
     private static double removalSuccessChance(LodgedArrowData arrow) {
+        double baseSuccessChance = LodgedConfig.playerArrowRemovalSuccessChance(arrow.visual().bodyPart())
+                * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.visual().depth());
+        if (!arrow.recoverable()) {
+            return baseSuccessChance;
+        }
+
         return removalSuccessChance(
                 arrow.fromPlayer(),
                 arrow.infinityGenerated(),
                 arrow.creativeGenerated(),
-                LodgedConfig.playerArrowRemovalSuccessChance(arrow.visual().bodyPart())
-                        * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.visual().depth()));
+                baseSuccessChance);
     }
 
     private static double removalSuccessChance(LodgedShieldArrowData arrow) {
+        double successChance = LodgedConfig.playerArrowRemovalSuccessChance(LodgedArrowBodyPart.ARM);
+        if (!arrow.recoverable()) {
+            return successChance;
+        }
+
         if (!arrow.fromPlayer() && !LodgedConfig.recoverMobShieldArrows()) {
             return 0.0D;
         }
@@ -378,7 +392,6 @@ public final class PlayerArrowRemoval {
             return 0.0D;
         }
 
-        double successChance = LodgedConfig.playerArrowRemovalSuccessChance(LodgedArrowBodyPart.ARM);
         if (arrow.infinityGenerated()) {
             successChance *= LodgedConfig.playerArrowRemovalInfinitySuccessMultiplier();
         }

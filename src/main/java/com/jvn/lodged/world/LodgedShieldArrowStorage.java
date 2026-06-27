@@ -15,6 +15,7 @@ import net.minecraft.world.item.component.CustomData;
 public final class LodgedShieldArrowStorage {
     private static final String STORAGE_KEY = Lodged.MOD_ID + ":shield_arrows";
     private static final String STACK_KEY = "stack";
+    private static final String RECOVERABLE_KEY = "recoverable";
     private static final String FROM_PLAYER_KEY = "from_player";
     private static final String INFINITY_GENERATED_KEY = "infinity_generated";
     private static final String CREATIVE_GENERATED_KEY = "creative_generated";
@@ -90,6 +91,7 @@ public final class LodgedShieldArrowStorage {
             if (!stack.isEmpty()) {
                 arrows.add(new LodgedShieldArrowData(
                         stack,
+                        !arrowTag.contains(RECOVERABLE_KEY) || arrowTag.getBoolean(RECOVERABLE_KEY),
                         arrowTag.getBoolean(FROM_PLAYER_KEY),
                         arrowTag.getBoolean(INFINITY_GENERATED_KEY),
                         arrowTag.getBoolean(CREATIVE_GENERATED_KEY),
@@ -110,6 +112,7 @@ public final class LodgedShieldArrowStorage {
             for (LodgedShieldArrowData arrow : arrows) {
                 CompoundTag arrowTag = new CompoundTag();
                 arrowTag.put(STACK_KEY, arrow.stack().copyWithCount(1).save(registries));
+                arrowTag.putBoolean(RECOVERABLE_KEY, arrow.recoverable());
                 arrowTag.putBoolean(FROM_PLAYER_KEY, arrow.fromPlayer());
                 arrowTag.putBoolean(INFINITY_GENERATED_KEY, arrow.infinityGenerated());
                 arrowTag.putBoolean(CREATIVE_GENERATED_KEY, arrow.creativeGenerated());
@@ -122,6 +125,7 @@ public final class LodgedShieldArrowStorage {
 
     public record LodgedShieldArrowData(
             ItemStack stack,
+            boolean recoverable,
             boolean fromPlayer,
             boolean infinityGenerated,
             boolean creativeGenerated,
@@ -134,6 +138,7 @@ public final class LodgedShieldArrowStorage {
         LodgedShieldArrowData withSingleStack() {
             return new LodgedShieldArrowData(
                     stack.copyWithCount(1),
+                    recoverable,
                     fromPlayer,
                     infinityGenerated,
                     creativeGenerated,

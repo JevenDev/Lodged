@@ -22,6 +22,7 @@ Arrows can stay lodged in living entities, carry their original item data, drop 
 It is meant to make ranged combat a little grittier without replacing Minecraft's core combat loop.
 
 - Arrows can be tracked after hitting living entities
+- Modded arrow entity types can opt into tracking, recovery, bleeding, or non-lodging behavior with datapack tags
 - Tracked arrows can drop when the target dies
 - Player, mob, Infinity, and creative arrows can each be controlled separately
 - Spectral and tipped arrow data can be preserved for recovery
@@ -59,6 +60,7 @@ Supported arrow types:
 | Regular arrows | Supported for tracking, recovery, breakage, and player removal |
 | Spectral arrows | Supported and recoverable as spectral arrows |
 | Tipped arrows | Preserved when original item stack recovery is enabled |
+| Modded arrows | Supported when their `AbstractArrow` entity type is added to Lodged's projectile tags |
 | Infinity arrows | Disabled for recovery by default, configurable |
 | Mob-fired arrows | Enabled for recovery by default, configurable |
 | Creative arrows | Disabled for recovery by default, configurable |
@@ -199,8 +201,14 @@ Entity tags:
 - `lodged:bleeding_immune`
 - `lodged:bleeding_skeletons`
 - `lodged:bleeding_undead`
+- `lodged:trackable_projectiles`
+- `lodged:recoverable_projectiles`
+- `lodged:bleeding_projectiles`
+- `lodged:non_lodging_projectiles`
 
 The default `lodged:bleeding_immune` tag includes entities like skeletons, golems, slimes, magma cubes, blazes, breezes, guardians, and armour stands. Datapacks can add to it or replace it like any normal Minecraft entity type tag.
+
+The projectile tags apply to `AbstractArrow` entity types. `lodged:trackable_projectiles` opts an arrow entity into Lodged's impact handling, `lodged:recoverable_projectiles` allows its pickup item stack to be stored and returned, `lodged:bleeding_projectiles` allows broken impacts and arrow removal to apply bleeding, and `lodged:non_lodging_projectiles` prevents body and shield lodging while still letting the projectile remain trackable for other impact behavior. Vanilla arrows and spectral arrows are included in the first three projectile tags by default.
 
 Blood color files live under `data/<namespace>/lodged/blood_colors/*.json`. Each file can target entity type IDs or entity type tags:
 
@@ -233,7 +241,8 @@ These tags let packs decide which entities can bleed and which weapons or enchan
 
 Lodged is designed to work with vanilla-style combat and projectile behaviour instead of replacing entity classes.
 
-- Supports vanilla arrows and spectral arrows, have not tested modded arrows
+- Supports vanilla arrows and spectral arrows by default
+- Supports modded `AbstractArrow` entity types through datapack projectile tags
 - Uses synced arrow data for client visuals and player removal
 - Integrates with Simple Blood when installed by spawning matching ground decals from Lodged blood drops
 - Does not replace Minecraft's living entity classes

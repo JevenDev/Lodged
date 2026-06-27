@@ -3,6 +3,7 @@ package com.jvn.lodged.world;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.effect.BleedingEvents;
 import com.jvn.lodged.effect.LodgedEffects;
+import com.jvn.lodged.effect.LodgedTags;
 import com.jvn.lodged.network.LodgedNetwork;
 import com.jvn.lodged.network.PlayerArrowRemoval;
 import java.util.HashMap;
@@ -97,6 +98,19 @@ public final class LodgedArrowEvents {
             return;
         }
 
+        boolean canLodge = canLodge(arrow);
+        if (!canLodge) {
+            if (wouldShieldBlock(target, arrow)) {
+                return;
+            }
+
+            if (LodgedConfig.enableArrowBreakOnEntityHit()
+                    && breaksOnImpact(arrow, fromPlayer, fromMob, infinityGenerated, creativeGenerated)) {
+                rememberBrokenArrowImpact(arrow, target, LodgedArrowVisual.fromImpact(target, arrow, entityHitResult));
+            }
+            return;
+        }
+
         if (wouldShieldBlock(target, arrow)) {
             if (LodgedConfig.enableShieldArrowLodging()) {
                 rememberShieldArrowImpact(arrow, target, LodgedArrowVisual.fromShieldImpact(target, arrow, entityHitResult));
@@ -118,19 +132,22 @@ public final class LodgedArrowEvents {
         }
 
         boolean trackForVisuals = !(target instanceof Player);
-        boolean trackForDeathRecovery = canRecoverOnDeath(fromPlayer, infinityGenerated, creativeGenerated);
+        ProjectileStack projectileStack = projectileStack(arrow);
+        boolean trackForDeathRecovery = projectileStack.recoverable()
+                && canRecoverOnDeath(fromPlayer, infinityGenerated, creativeGenerated);
         boolean trackForPlayerRemoval = target instanceof Player && LodgedConfig.enablePlayerArrowRemoval();
         if (!trackForVisuals && !trackForDeathRecovery && !trackForPlayerRemoval) {
             return;
         }
 
-        ItemStack recoveredStack = getRecoverableStack(arrow);
-        if (recoveredStack.isEmpty()) {
+        if (projectileStack.stack().isEmpty()) {
             return;
         }
 
         LodgedArrowStorage.add(target, new LodgedArrowData(
-                recoveredStack,
+                projectileStack.stack(),
+                projectileStack.recoverable(),
+                causesBleeding(arrow),
                 fromPlayer,
                 infinityGenerated,
                 creativeGenerated,
@@ -186,7 +203,7 @@ public final class LodgedArrowEvents {
         }
 
         ShieldArrowImpact rememberedImpact = SHIELD_ARROW_IMPACTS.remove(arrow.getUUID());
-        if (!LodgedConfig.enableShieldArrowLodging()) {
+        if (!LodgedConfig.enableShieldArrowLodging() || !canLodge(arrow)) {
             return;
         }
 
@@ -195,11 +212,12 @@ public final class LodgedArrowEvents {
                 : LodgedArrowVisual.fromShieldImpact(blocker, arrow, new EntityHitResult(blocker, arrow.position()));
 
         boolean willEvictArrow = willEvictShieldArrow(shield);
-        ItemStack recoveredStack = getRecoverableStack(arrow);
+        ProjectileStack projectileStack = projectileStack(arrow);
         if (LodgedShieldArrowStorage.add(
                 shield,
                 new LodgedShieldArrowStorage.LodgedShieldArrowData(
-                        recoveredStack,
+                        projectileStack.stack(),
+                        projectileStack.recoverable(),
                         fromPlayer,
                         infinityGenerated,
                         creativeGenerated,
@@ -230,7 +248,9 @@ public final class LodgedArrowEvents {
             return;
         }
 
-        BleedingEvents.tryApplyFromBrokenArrowImpact(target, brokenImpact.visual());
+        if (brokenImpact.causesBleeding()) {
+            BleedingEvents.tryApplyFromBrokenArrowImpact(target, brokenImpact.visual());
+        }
         if (arrow.getPierceLevel() <= 0) {
             PENDING_ARROW_COUNT_REMOVALS.merge(target.getUUID(), 1, Integer::sum);
         }
@@ -357,7 +377,8 @@ public final class LodgedArrowEvents {
     }
 
     private static boolean canRecoverOnDeath(LodgedArrowData lodgedArrow) {
-        return canRecoverOnDeath(lodgedArrow.fromPlayer(), lodgedArrow.infinityGenerated(), lodgedArrow.creativeGenerated());
+        return lodgedArrow.recoverable()
+                && canRecoverOnDeath(lodgedArrow.fromPlayer(), lodgedArrow.infinityGenerated(), lodgedArrow.creativeGenerated());
     }
 
     private static boolean canRecoverOnDeath(boolean fromPlayer, boolean infinityGenerated, boolean creativeGenerated) {
@@ -538,7 +559,7 @@ public final class LodgedArrowEvents {
     private static void rememberBrokenArrowImpact(AbstractArrow arrow, LivingEntity target, LodgedArrowVisual visual) {
         BROKEN_ARROW_IMPACTS.put(
                 arrow.getUUID(),
-                new BrokenArrowImpact(target.getUUID(), visual, arrow.level().getGameTime()));
+                new BrokenArrowImpact(target.getUUID(), visual, causesBleeding(arrow), arrow.level().getGameTime()));
     }
 
     private static void rememberShieldArrowImpact(AbstractArrow arrow, LivingEntity target, LodgedArrowVisual visual) {
@@ -689,7 +710,15 @@ public final class LodgedArrowEvents {
     }
 
     private static boolean isSupportedArrow(AbstractArrow arrow) {
-        return arrow instanceof Arrow || arrow instanceof SpectralArrow;
+        return arrow.getType().is(LodgedTags.TRACKABLE_PROJECTILES);
+    }
+
+    private static boolean canLodge(AbstractArrow arrow) {
+        return !arrow.getType().is(LodgedTags.NON_LODGING_PROJECTILES);
+    }
+
+    private static boolean causesBleeding(AbstractArrow arrow) {
+        return arrow.getType().is(LodgedTags.BLEEDING_PROJECTILES);
     }
 
     private static boolean wouldShieldBlock(LivingEntity target, AbstractArrow arrow) {
@@ -731,11 +760,34 @@ public final class LodgedArrowEvents {
         shield.hurtAndBreak(1, holder, slot);
     }
 
-    private static ItemStack getRecoverableStack(AbstractArrow arrow) {
-        if (LodgedConfig.preserveArrowItemStack()) {
-            return arrow.getPickupItemStackOrigin().copyWithCount(1);
+    private static ProjectileStack projectileStack(AbstractArrow arrow) {
+        ItemStack recoverableStack = arrow.getType().is(LodgedTags.RECOVERABLE_PROJECTILES)
+                ? getRecoverableStack(arrow)
+                : ItemStack.EMPTY;
+        if (!recoverableStack.isEmpty()) {
+            return new ProjectileStack(recoverableStack, true);
         }
 
+        ItemStack renderStack = getRenderStack(arrow);
+        return new ProjectileStack(renderStack, false);
+    }
+
+    private static ItemStack getRecoverableStack(AbstractArrow arrow) {
+        if (LodgedConfig.preserveArrowItemStack()) {
+            ItemStack originalStack = arrow.getPickupItemStackOrigin();
+            if (!originalStack.isEmpty()) {
+                return originalStack.copyWithCount(1);
+            }
+        }
+
+        if (arrow instanceof SpectralArrow) {
+            return new ItemStack(Items.SPECTRAL_ARROW);
+        }
+
+        return arrow instanceof Arrow ? new ItemStack(Items.ARROW) : ItemStack.EMPTY;
+    }
+
+    private static ItemStack getRenderStack(AbstractArrow arrow) {
         if (arrow instanceof SpectralArrow) {
             return new ItemStack(Items.SPECTRAL_ARROW);
         }
@@ -743,7 +795,10 @@ public final class LodgedArrowEvents {
         return new ItemStack(Items.ARROW);
     }
 
-    private record BrokenArrowImpact(UUID targetUuid, LodgedArrowVisual visual, long gameTime) {
+    private record ProjectileStack(ItemStack stack, boolean recoverable) {
+    }
+
+    private record BrokenArrowImpact(UUID targetUuid, LodgedArrowVisual visual, boolean causesBleeding, long gameTime) {
     }
 
     private record ShieldArrowImpact(UUID targetUuid, LodgedArrowVisual visual, long gameTime) {

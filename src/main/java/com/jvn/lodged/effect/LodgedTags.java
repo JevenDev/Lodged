@@ -17,6 +17,10 @@ public final class LodgedTags {
     public static final TagKey<EntityType<?>> BLEEDING_UNDEAD = entityType("bleeding_undead");
     public static final TagKey<EntityType<?>> BLEEDING_SKELETONS = entityType("bleeding_skeletons");
     public static final TagKey<EntityType<?>> BLEEDING_IMMUNE = entityType("bleeding_immune");
+    public static final TagKey<EntityType<?>> TRACKABLE_PROJECTILES = entityType("trackable_projectiles");
+    public static final TagKey<EntityType<?>> RECOVERABLE_PROJECTILES = entityType("recoverable_projectiles");
+    public static final TagKey<EntityType<?>> BLEEDING_PROJECTILES = entityType("bleeding_projectiles");
+    public static final TagKey<EntityType<?>> NON_LODGING_PROJECTILES = entityType("non_lodging_projectiles");
 
     private LodgedTags() {
     }
