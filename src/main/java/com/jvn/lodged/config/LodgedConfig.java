@@ -152,8 +152,8 @@ public final class LodgedConfig {
         return switch (bodyPart) {
             case HEAD -> playerArrowRemoval().playerArrowRemovalHeadSuccessChance();
             case CHEST -> playerArrowRemoval().playerArrowRemovalChestSuccessChance();
-            case ARM -> playerArrowRemoval().playerArrowRemovalArmSuccessChance();
-            case LEG -> playerArrowRemoval().playerArrowRemovalLegSuccessChance();
+            case LEFT_ARM, RIGHT_ARM -> playerArrowRemoval().playerArrowRemovalArmSuccessChance();
+            case LEFT_LEG, RIGHT_LEG -> playerArrowRemoval().playerArrowRemovalLegSuccessChance();
         };
     }
 
@@ -190,8 +190,8 @@ public final class LodgedConfig {
         return switch (bodyPart) {
             case HEAD -> arrowDepth().deepLodgedHeadChance();
             case CHEST -> arrowDepth().deepLodgedChestChance();
-            case ARM -> arrowDepth().deepLodgedArmChance();
-            case LEG -> arrowDepth().deepLodgedLegChance();
+            case LEFT_ARM, RIGHT_ARM -> arrowDepth().deepLodgedArmChance();
+            case LEFT_LEG, RIGHT_LEG -> arrowDepth().deepLodgedLegChance();
         };
     }
 
@@ -199,8 +199,8 @@ public final class LodgedConfig {
         return switch (bodyPart) {
             case HEAD -> arrowDepth().shallowHeadChance();
             case CHEST -> arrowDepth().shallowChestChance();
-            case ARM -> arrowDepth().shallowArmChance();
-            case LEG -> arrowDepth().shallowLegChance();
+            case LEFT_ARM, RIGHT_ARM -> arrowDepth().shallowArmChance();
+            case LEFT_LEG, RIGHT_LEG -> arrowDepth().shallowLegChance();
         };
     }
 
@@ -251,7 +251,7 @@ public final class LodgedConfig {
     public static double unarmoredDeepLodgedBonus(LodgedArrowBodyPart bodyPart) {
         return switch (bodyPart) {
             case HEAD, CHEST -> arrowDepth().unarmoredHeadChestDeepLodgedBonus();
-            case ARM, LEG -> arrowDepth().unarmoredLimbDeepLodgedBonus();
+            case LEFT_ARM, RIGHT_ARM, LEFT_LEG, RIGHT_LEG -> arrowDepth().unarmoredLimbDeepLodgedBonus();
         };
     }
 

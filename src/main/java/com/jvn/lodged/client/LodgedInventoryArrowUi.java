@@ -388,7 +388,7 @@ public final class LodgedInventoryArrowUi {
     }
 
     public static OutlineColor shieldRiskOutlineColor() {
-        return outlineColorFor(removalChance(LodgedArrowBodyPart.ARM));
+        return outlineColorFor(removalChance(LodgedArrowBodyPart.LEFT_ARM));
     }
 
     public static void handleRemovalResult(ArrowRemovalResultPayload payload) {
@@ -520,6 +520,9 @@ public final class LodgedInventoryArrowUi {
         OutlineColor outlineColor = riskOutlineColor(hoveredArrow);
         List<Component> lines = new ArrayList<>();
         lines.add(paddedTooltipLine(hoveredArrow.arrow().stack().getHoverName()));
+        if (hoveredArrow.target() != Target.SHIELD) {
+            lines.add(paddedTooltipLine(bodyPartTooltip(hoveredArrow.arrow().bodyPart())));
+        }
         lines.add(coloredTooltipLine(depthTooltip(removalDepth(hoveredArrow)), outlineColor.rgb()));
         lines.add(coloredTooltipLine(
                 Component.translatable("tooltip.lodged.arrow_removal.chance", chancePercent),
@@ -594,10 +597,10 @@ public final class LodgedInventoryArrowUi {
         int dim = 0xFF37312D;
         guiGraphics.fill(x + 4, y, x + 12, y + 8, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.HEAD ? highlightColor : dim);
         guiGraphics.fill(x + 4, y + 8, x + 12, y + 20, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.CHEST ? highlightColor : base);
-        guiGraphics.fill(x, y + 8, x + 4, y + 20, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.ARM ? highlightColor : dim);
-        guiGraphics.fill(x + 12, y + 8, x + TOOLTIP_ICON_WIDTH, y + 20, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.ARM ? highlightColor : dim);
-        guiGraphics.fill(x + 4, y + 20, x + 8, y + 32, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.LEG ? highlightColor : dim);
-        guiGraphics.fill(x + 8, y + 20, x + 12, y + 32, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.LEG ? highlightColor : dim);
+        guiGraphics.fill(x, y + 8, x + 4, y + 20, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.RIGHT_ARM ? highlightColor : dim);
+        guiGraphics.fill(x + 12, y + 8, x + TOOLTIP_ICON_WIDTH, y + 20, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.LEFT_ARM ? highlightColor : dim);
+        guiGraphics.fill(x + 4, y + 20, x + 8, y + 32, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.RIGHT_LEG ? highlightColor : dim);
+        guiGraphics.fill(x + 8, y + 20, x + 12, y + 32, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.LEFT_LEG ? highlightColor : dim);
     }
 
     private static void drawShieldIcon(GuiGraphics guiGraphics, int x, int y, int highlightColor) {
@@ -1344,7 +1347,7 @@ public final class LodgedInventoryArrowUi {
 
     private static double removalChance(HoveredArrow hoveredArrow) {
         if (hoveredArrow.target() == Target.SHIELD) {
-            return removalChance(LodgedArrowBodyPart.ARM);
+            return removalChance(LodgedArrowBodyPart.LEFT_ARM);
         }
         if (hoveredArrow.target() == Target.ARMOR) {
             return Mth.clamp(LodgedConfig.armorArrowRemovalSuccessChance(), 0.0D, 1.0D);
@@ -1366,6 +1369,10 @@ public final class LodgedInventoryArrowUi {
 
     private static Component depthTooltip(LodgedArrowDepth depth) {
         return Component.translatable("tooltip.lodged.arrow_depth." + depth.serializedName());
+    }
+
+    private static Component bodyPartTooltip(LodgedArrowBodyPart bodyPart) {
+        return Component.translatable("tooltip.lodged.body_part." + bodyPart.serializedName()).withStyle(ChatFormatting.GRAY);
     }
 
     private static int removalAnimationMs(ArrowRemovalResultPayload payload) {

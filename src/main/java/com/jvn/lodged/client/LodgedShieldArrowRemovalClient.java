@@ -212,7 +212,7 @@ public final class LodgedShieldArrowRemovalClient {
     public static HumanoidArm armorPullingArm(LivingEntity entity) {
         ArmorArrowRemovalState state = ClientArrowState.armorArrowRemoval(entity);
         LodgedArrowVisual arrow = state.arrow();
-        if (arrow.bodyPart() == LodgedArrowBodyPart.ARM) {
+        if (arrow.bodyPart().isArm()) {
             return arrow.modelX() < 0.0F ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
         }
         if (Math.abs(arrow.modelX()) > 0.05F) {
@@ -233,8 +233,8 @@ public final class LodgedShieldArrowRemovalClient {
 
         float target = switch (arrow.bodyPart()) {
             case HEAD -> -2.15F;
-            case CHEST, ARM -> -1.35F;
-            case LEG -> -0.45F;
+            case CHEST, LEFT_ARM, RIGHT_ARM -> -1.35F;
+            case LEFT_LEG, RIGHT_LEG -> -0.45F;
         };
         float pulse = (float) Math.sin(ageInTicks * ARM_PULSE_SPEED) * ARM_PULSE_AMOUNT;
         return Mth.lerp(pull, ARM_X_ROT, target) + pulse;
@@ -257,7 +257,7 @@ public final class LodgedShieldArrowRemovalClient {
             return side * pullingArmZRot();
         }
 
-        float target = arrow.bodyPart() == LodgedArrowBodyPart.LEG ? -0.35F : 0.25F;
+        float target = arrow.bodyPart().isLeg() ? -0.35F : 0.25F;
         return side * target;
     }
 
@@ -395,7 +395,7 @@ public final class LodgedShieldArrowRemovalClient {
 
     private static int bodyPartRemovalPriority(LodgedArrowBodyPart bodyPart) {
         return switch (bodyPart) {
-            case ARM, LEG -> 0;
+            case LEFT_ARM, RIGHT_ARM, LEFT_LEG, RIGHT_LEG -> 0;
             case CHEST -> 1;
             case HEAD -> 2;
         };

@@ -636,7 +636,7 @@ public final class PlayerArrowRemoval {
 
     private static int bodyPartRemovalPriority(LodgedArrowBodyPart bodyPart) {
         return switch (bodyPart) {
-            case ARM, LEG -> 0;
+            case LEFT_ARM, RIGHT_ARM, LEFT_LEG, RIGHT_LEG -> 0;
             case CHEST -> 1;
             case HEAD -> 2;
         };
@@ -652,7 +652,7 @@ public final class PlayerArrowRemoval {
     }
 
     private static HumanoidArm armorPullingArm(ServerPlayer player, LodgedArrowVisual visual) {
-        if (visual.bodyPart() == LodgedArrowBodyPart.ARM) {
+        if (visual.bodyPart().isArm()) {
             return visual.modelX() < 0.0F ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
         }
         if (Math.abs(visual.modelX()) > 0.05F) {
@@ -690,7 +690,7 @@ public final class PlayerArrowRemoval {
     }
 
     private static double removalSuccessChance(LodgedShieldArrowData arrow) {
-        double successChance = LodgedConfig.playerArrowRemovalSuccessChance(LodgedArrowBodyPart.ARM);
+        double successChance = LodgedConfig.playerArrowRemovalSuccessChance(LodgedArrowBodyPart.LEFT_ARM);
         return removalSuccessChance(arrow.infinityGenerated(), successChance);
     }
 

@@ -158,11 +158,11 @@ public record LodgedArrowVisual(
         }
 
         if (modelY >= MODEL_LEG_TOP) {
-            return LodgedArrowBodyPart.LEG;
+            return modelX < 0.0F ? LodgedArrowBodyPart.RIGHT_LEG : LodgedArrowBodyPart.LEFT_LEG;
         }
 
         if (Math.abs(modelX) > MODEL_BODY_HALF_WIDTH) {
-            return LodgedArrowBodyPart.ARM;
+            return modelX < 0.0F ? LodgedArrowBodyPart.RIGHT_ARM : LodgedArrowBodyPart.LEFT_ARM;
         }
 
         return LodgedArrowBodyPart.CHEST;
@@ -171,8 +171,8 @@ public record LodgedArrowVisual(
     public EquipmentSlot armorSlot() {
         return switch (bodyPart()) {
             case HEAD -> EquipmentSlot.HEAD;
-            case CHEST, ARM -> EquipmentSlot.CHEST;
-            case LEG -> modelY > 20.0F / 16.0F ? EquipmentSlot.FEET : EquipmentSlot.LEGS;
+            case CHEST, LEFT_ARM, RIGHT_ARM -> EquipmentSlot.CHEST;
+            case LEFT_LEG, RIGHT_LEG -> modelY > 20.0F / 16.0F ? EquipmentSlot.FEET : EquipmentSlot.LEGS;
         };
     }
 

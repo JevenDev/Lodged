@@ -396,7 +396,7 @@ public final class LodgedArrowEvents {
         int duration = LodgedConfig.legShotSlownessDuration();
         if (!LodgedConfig.enableLegShotSlowness()
                 || duration <= 0
-                || visual.bodyPart() != LodgedArrowBodyPart.LEG
+                || !visual.bodyPart().isLeg()
                 || !(target instanceof ServerPlayer player)) {
             return;
         }
@@ -587,8 +587,8 @@ public final class LodgedArrowEvents {
     private static boolean hasArmorOnBodyPart(LivingEntity target, LodgedArrowBodyPart bodyPart) {
         return switch (bodyPart) {
             case HEAD -> isArmorInSlot(target, EquipmentSlot.HEAD);
-            case CHEST, ARM -> isArmorInSlot(target, EquipmentSlot.CHEST);
-            case LEG -> isArmorInSlot(target, EquipmentSlot.LEGS) || isArmorInSlot(target, EquipmentSlot.FEET);
+            case CHEST, LEFT_ARM, RIGHT_ARM -> isArmorInSlot(target, EquipmentSlot.CHEST);
+            case LEFT_LEG, RIGHT_LEG -> isArmorInSlot(target, EquipmentSlot.LEGS) || isArmorInSlot(target, EquipmentSlot.FEET);
         };
     }
 

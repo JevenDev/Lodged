@@ -182,8 +182,10 @@ public abstract class StuckInBodyLayerMixin {
         LodgedArrowBodyPart bodyPart = arrow.bodyPart();
         return switch (bodyPart) {
             case HEAD -> model.head;
-            case LEG -> arrow.modelX() < 0.0F ? model.rightLeg : model.leftLeg;
-            case ARM -> arrow.modelX() < 0.0F ? model.rightArm : model.leftArm;
+            case RIGHT_LEG -> model.rightLeg;
+            case LEFT_LEG -> model.leftLeg;
+            case RIGHT_ARM -> model.rightArm;
+            case LEFT_ARM -> model.leftArm;
             case CHEST -> model.body;
         };
     }
