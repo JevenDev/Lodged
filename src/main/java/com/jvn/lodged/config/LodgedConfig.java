@@ -3,6 +3,7 @@ package com.jvn.lodged.config;
 import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowDepth;
 import java.util.List;
+import net.minecraft.util.Mth;
 
 public final class LodgedConfig {
     private static final LodgedConfigWrapper CONFIG = LodgedConfigWrapper.createAndLoad();
@@ -217,8 +218,12 @@ public final class LodgedConfig {
         return arrowDepth().strongHeadChestDeepLodgedChance();
     }
 
-    public static double powerFiveHeadChestDeepLodgedChance() {
-        return arrowDepth().powerFiveHeadChestDeepLodgedChance();
+    public static double powerHeadChestDeepLodgedChance(int powerLevel) {
+        return Mth.clamp(
+                strongHeadChestDeepLodgedChance()
+                        + positivePowerLevel(powerLevel) * arrowDepth().powerHeadChestDeepLodgedChanceBonusPerLevel(),
+                0.0D,
+                1.0D);
     }
 
     public static double fastCriticalVelocityThreshold() {
@@ -229,14 +234,19 @@ public final class LodgedConfig {
         return arrowDepth().fastCriticalHeadChestDeepLodgedChance();
     }
 
-    public static double powerFiveAnyBodyPartDeepLodgedChance() {
-        return arrowDepth().powerFiveAnyBodyPartDeepLodgedChance();
+    public static double powerAnyBodyPartDeepLodgedChance(int powerLevel) {
+        return Mth.clamp(
+                positivePowerLevel(powerLevel) * arrowDepth().powerAnyBodyPartDeepLodgedChancePerLevel(),
+                0.0D,
+                1.0D);
     }
 
     public static double deepLodgedMaxChance(int powerLevel) {
-        return powerLevel >= 5
-                ? arrowDepth().powerFiveDeepLodgedMaxChance()
-                : arrowDepth().deepLodgedMaxChance();
+        return Mth.clamp(
+                arrowDepth().deepLodgedMaxChance()
+                        + positivePowerLevel(powerLevel) * arrowDepth().powerDeepLodgedMaxChanceBonusPerLevel(),
+                0.0D,
+                1.0D);
     }
 
     public static double shallowMinChance() {
@@ -569,5 +579,9 @@ public final class LodgedConfig {
 
     private static LodgedConfigWrapper.BleedingEffect bleedingEffect() {
         return CONFIG.bleedingEffect;
+    }
+
+    private static int positivePowerLevel(int powerLevel) {
+        return Math.max(0, powerLevel);
     }
 }

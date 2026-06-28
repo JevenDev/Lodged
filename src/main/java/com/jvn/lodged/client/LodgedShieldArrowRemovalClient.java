@@ -169,8 +169,9 @@ public final class LodgedShieldArrowRemovalClient {
             return hand == pullingHand(state.shieldHand()) && !player.isInvisible();
         }
 
-        return ClientArrowState.armorArrowRemoval(player).active()
-                && hand == InteractionHand.MAIN_HAND
+        ArmorArrowRemovalState armorState = ClientArrowState.armorArrowRemoval(player);
+        return armorState.active()
+                && hand == handForArm(player, armorPullingArm(player))
                 && !player.isInvisible();
     }
 
@@ -185,7 +186,7 @@ public final class LodgedShieldArrowRemovalClient {
         }
 
         ArmorArrowRemovalState armorState = ClientArrowState.armorArrowRemoval(player);
-        if (!armorState.active() || hand != InteractionHand.MAIN_HAND) {
+        if (!armorState.active() || hand != handForArm(player, armorPullingArm(player))) {
             return 1.0F;
         }
 
@@ -212,7 +213,7 @@ public final class LodgedShieldArrowRemovalClient {
         ArmorArrowRemovalState state = ClientArrowState.armorArrowRemoval(entity);
         LodgedArrowVisual arrow = state.arrow();
         if (arrow.bodyPart() == LodgedArrowBodyPart.ARM) {
-            return arrow.modelX() < 0.0F ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
+            return arrow.modelX() < 0.0F ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
         }
         if (Math.abs(arrow.modelX()) > 0.05F) {
             return arrow.modelX() < 0.0F ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
@@ -226,6 +227,10 @@ public final class LodgedShieldArrowRemovalClient {
 
     public static float armorPullingArmXRot(LivingEntity entity, float ageInTicks, float pull) {
         LodgedArrowVisual arrow = ClientArrowState.armorArrowRemoval(entity).arrow();
+        if (ClientArrowState.armorArrowRemoval(entity).target() == Target.BODY) {
+            return pullingArmXRot(ageInTicks, pull);
+        }
+
         float target = switch (arrow.bodyPart()) {
             case HEAD -> -2.15F;
             case CHEST, ARM -> -1.35F;
@@ -238,12 +243,20 @@ public final class LodgedShieldArrowRemovalClient {
     public static float armorPullingArmYRot(LivingEntity entity) {
         LodgedArrowVisual arrow = ClientArrowState.armorArrowRemoval(entity).arrow();
         float side = armorPullingArm(entity) == HumanoidArm.RIGHT ? 1.0F : -1.0F;
+        if (ClientArrowState.armorArrowRemoval(entity).target() == Target.BODY) {
+            return side * pullingArmYRot();
+        }
+
         return side * Mth.clamp(Math.abs(arrow.modelX()) * 1.5F + 0.2F, 0.2F, 0.75F);
     }
 
     public static float armorPullingArmZRot(LivingEntity entity) {
         LodgedArrowVisual arrow = ClientArrowState.armorArrowRemoval(entity).arrow();
         float side = armorPullingArm(entity) == HumanoidArm.RIGHT ? 1.0F : -1.0F;
+        if (ClientArrowState.armorArrowRemoval(entity).target() == Target.BODY) {
+            return side * pullingArmZRot();
+        }
+
         float target = arrow.bodyPart() == LodgedArrowBodyPart.LEG ? -0.35F : 0.25F;
         return side * target;
     }
@@ -406,6 +419,10 @@ public final class LodgedShieldArrowRemovalClient {
             return HumanoidArm.RIGHT;
         }
         return hand == InteractionHand.MAIN_HAND ? entity.getMainArm() : entity.getMainArm().getOpposite();
+    }
+
+    private static InteractionHand handForArm(LivingEntity entity, HumanoidArm arm) {
+        return entity.getMainArm() == arm ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
     }
 
     private static void renderPlayerHand(

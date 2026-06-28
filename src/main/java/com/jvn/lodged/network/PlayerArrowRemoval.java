@@ -653,7 +653,7 @@ public final class PlayerArrowRemoval {
 
     private static HumanoidArm armorPullingArm(ServerPlayer player, LodgedArrowVisual visual) {
         if (visual.bodyPart() == LodgedArrowBodyPart.ARM) {
-            return visual.modelX() < 0.0F ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
+            return visual.modelX() < 0.0F ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
         }
         if (Math.abs(visual.modelX()) > 0.05F) {
             return visual.modelX() < 0.0F ? HumanoidArm.RIGHT : HumanoidArm.LEFT;

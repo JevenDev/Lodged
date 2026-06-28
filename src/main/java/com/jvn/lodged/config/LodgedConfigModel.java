@@ -217,7 +217,7 @@ public class LodgedConfigModel {
         public double strongHeadChestDeepLodgedChance = 0.80D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double powerFiveHeadChestDeepLodgedChance = 0.95D;
+        public double powerHeadChestDeepLodgedChanceBonusPerLevel = 0.03D;
 
         @RangeConstraint(min = 0.0D, max = 10.0D)
         public double fastCriticalVelocityThreshold = 2.75D;
@@ -226,13 +226,13 @@ public class LodgedConfigModel {
         public double fastCriticalHeadChestDeepLodgedChance = 0.65D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double powerFiveAnyBodyPartDeepLodgedChance = 0.55D;
+        public double powerAnyBodyPartDeepLodgedChancePerLevel = 0.11D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
         public double deepLodgedMaxChance = 0.85D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double powerFiveDeepLodgedMaxChance = 0.98D;
+        public double powerDeepLodgedMaxChanceBonusPerLevel = 0.026D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
         public double shallowMinChance = 0.10D;
@@ -423,7 +423,7 @@ public class LodgedConfigModel {
         public double simpleBloodGroundDecalRandomMaxScale = 1.18D;
 
         @RangeConstraint(min = 1, max = 1200)
-        public int bleedingBaseDripInterval = 8;
+        public int bleedingBaseDripInterval = 10;
 
         @RangeConstraint(min = 1, max = 1200)
         public int bleedingStrongDripInterval = 5;

@@ -528,16 +528,18 @@ public final class LodgedArrowEvents {
                 && arrow.isCritArrow()
                 && (powerLevel >= LodgedConfig.strongHeadChestPowerLevelThreshold()
                 || modifiedDamage >= LodgedConfig.strongHeadChestDamageThreshold())) {
-            chance = Math.max(chance, powerLevel >= 5
-                    ? LodgedConfig.powerFiveHeadChestDeepLodgedChance()
-                    : LodgedConfig.strongHeadChestDeepLodgedChance());
-        } else if (!hasBodyPartArmor
+            chance = Math.max(chance, LodgedConfig.powerHeadChestDeepLodgedChance(powerLevel));
+        }
+
+        if (!hasBodyPartArmor
                 && (bodyPart == LodgedArrowBodyPart.HEAD || bodyPart == LodgedArrowBodyPart.CHEST)
                 && arrow.isCritArrow()
                 && arrow.getDeltaMovement().length() >= LodgedConfig.fastCriticalVelocityThreshold()) {
             chance = Math.max(chance, LodgedConfig.fastCriticalHeadChestDeepLodgedChance());
-        } else if (!hasBodyPartArmor && arrow.isCritArrow() && powerLevel >= 5) {
-            chance = Math.max(chance, LodgedConfig.powerFiveAnyBodyPartDeepLodgedChance());
+        }
+
+        if (!hasBodyPartArmor && arrow.isCritArrow() && powerLevel > 0) {
+            chance = Math.max(chance, LodgedConfig.powerAnyBodyPartDeepLodgedChance(powerLevel));
         }
 
         return Mth.clamp(chance, 0.0D, LodgedConfig.deepLodgedMaxChance(powerLevel));
