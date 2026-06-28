@@ -123,6 +123,37 @@ public final class LodgedInventoryArrowUi {
     private static final int TOOLTIP_ICON_WIDTH = 16;
     private static final int TOOLTIP_ICON_HEIGHT = 32;
     private static final int TOOLTIP_ICON_Z = 450;
+    private static final int[][] SHIELD_ICON_OUTER_SPANS = {
+            {7, 9},
+            {4, 13},
+            {2, 14},
+            {1, 15},
+            {1, 15},
+            {2, 14},
+            {2, 14},
+            {2, 14},
+            {3, 13},
+            {3, 13},
+            {3, 13},
+            {4, 12},
+            {5, 11},
+            {7, 9}
+    };
+    private static final int[][] SHIELD_ICON_INNER_SPANS = {
+            {5, 12},
+            {3, 13},
+            {2, 14},
+            {2, 14},
+            {3, 13},
+            {3, 13},
+            {3, 13},
+            {4, 12},
+            {4, 12},
+            {4, 12},
+            {5, 11},
+            {6, 10},
+            {7, 9}
+    };
     private static final int REMOVAL_SUBTITLE_Z = 450;
     private static final int REMOVAL_ANIMATION_Z = 420;
     private static final int MAX_REMOVAL_ANIMATIONS = 6;
@@ -520,11 +551,11 @@ public final class LodgedInventoryArrowUi {
 
         guiGraphics.renderComponentTooltip(font, lines, mouseX, mouseY);
         guiGraphics.flush();
-        drawBodyPartIcon(
+        drawTooltipTargetIcon(
                 guiGraphics,
                 x + 1,
                 y + Math.max(2, (height - TOOLTIP_ICON_HEIGHT) / 2),
-                hoveredArrow.target() == Target.SHIELD ? LodgedArrowBodyPart.ARM : hoveredArrow.arrow().bodyPart(),
+                hoveredArrow,
                 outlineColor.rgb());
         guiGraphics.flush();
     }
@@ -539,6 +570,20 @@ public final class LodgedInventoryArrowUi {
         return Component.literal(TOOLTIP_ICON_SPACER).append(component.copy());
     }
 
+    private static void drawTooltipTargetIcon(
+            GuiGraphics guiGraphics,
+            int x,
+            int y,
+            HoveredArrow hoveredArrow,
+            int highlightColor) {
+        if (hoveredArrow.target() == Target.SHIELD) {
+            drawShieldIcon(guiGraphics, x, y, highlightColor);
+            return;
+        }
+
+        drawBodyPartIcon(guiGraphics, x, y, hoveredArrow.arrow().bodyPart(), highlightColor);
+    }
+
     private static void drawBodyPartIcon(
             GuiGraphics guiGraphics,
             int x,
@@ -547,12 +592,37 @@ public final class LodgedInventoryArrowUi {
             int highlightColor) {
         int base = 0xFF6F6860;
         int dim = 0xFF37312D;
-        guiGraphics.fill(x + 4, y, x + 12, y + 8, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.HEAD ? highlightColor : base);
+        guiGraphics.fill(x + 4, y, x + 12, y + 8, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.HEAD ? highlightColor : dim);
         guiGraphics.fill(x + 4, y + 8, x + 12, y + 20, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.CHEST ? highlightColor : base);
         guiGraphics.fill(x, y + 8, x + 4, y + 20, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.ARM ? highlightColor : dim);
         guiGraphics.fill(x + 12, y + 8, x + TOOLTIP_ICON_WIDTH, y + 20, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.ARM ? highlightColor : dim);
         guiGraphics.fill(x + 4, y + 20, x + 8, y + 32, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.LEG ? highlightColor : dim);
         guiGraphics.fill(x + 8, y + 20, x + 12, y + 32, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.LEG ? highlightColor : dim);
+    }
+
+    private static void drawShieldIcon(GuiGraphics guiGraphics, int x, int y, int highlightColor) {
+        int top = y + 8;
+
+        for (int row = 0; row < SHIELD_ICON_OUTER_SPANS.length; row++) {
+            int rowY = top + row + 1;
+            guiGraphics.fill(
+                    x + SHIELD_ICON_OUTER_SPANS[row][0],
+                    rowY,
+                    x + SHIELD_ICON_OUTER_SPANS[row][1],
+                    rowY + 1,
+                    TOOLTIP_ICON_Z,
+                    highlightColor);
+        }
+        for (int row = 0; row < SHIELD_ICON_INNER_SPANS.length; row++) {
+            int rowY = top + row + 2;
+            guiGraphics.fill(
+                    x + SHIELD_ICON_INNER_SPANS[row][0],
+                    rowY,
+                    x + SHIELD_ICON_INNER_SPANS[row][1],
+                    rowY + 1,
+                    TOOLTIP_ICON_Z,
+                    highlightColor);
+        }
     }
 
     private static void renderRemovalAnimations(
