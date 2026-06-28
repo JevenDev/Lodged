@@ -18,6 +18,7 @@ public final class LodgedClient {
         modEventBus.addListener(LodgedShieldArrowRemovalClient::registerKeyMappings);
         modEventBus.addListener(LodgedDizzinessPostProcessor::registerReloadListeners);
         NeoForge.EVENT_BUS.addListener(LodgedShieldArrowRemovalClient::onClientTick);
+        NeoForge.EVENT_BUS.addListener(LodgedArmorArrowTooltip::onItemTooltip);
         NeoForge.EVENT_BUS.addListener(LodgedDizzinessClientEffects::onClientTick);
         NeoForge.EVENT_BUS.addListener(LodgedDizzinessClientEffects::onRenderGui);
         NeoForge.EVENT_BUS.addListener(LodgedDizzinessClientEffects::onComputeCameraAngles);

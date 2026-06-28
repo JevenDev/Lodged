@@ -7,6 +7,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
@@ -165,6 +166,14 @@ public record LodgedArrowVisual(
         }
 
         return LodgedArrowBodyPart.CHEST;
+    }
+
+    public EquipmentSlot armorSlot() {
+        return switch (bodyPart()) {
+            case HEAD -> EquipmentSlot.HEAD;
+            case CHEST, ARM -> EquipmentSlot.CHEST;
+            case LEG -> modelY > 20.0F / 16.0F ? EquipmentSlot.FEET : EquipmentSlot.LEGS;
+        };
     }
 
     public Vec3 toEntityLocalPosition(LivingEntity target) {

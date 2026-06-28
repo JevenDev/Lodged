@@ -5,11 +5,13 @@ import com.jvn.lodged.client.LodgedArrowRenderHelper;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.network.ClientArrowState;
 import com.jvn.lodged.network.ClientArrowState.EntityArrows;
+import com.jvn.lodged.world.LodgedArmorArrowStorage;
 import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.List;
+import java.util.ArrayList;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
@@ -74,25 +76,42 @@ public abstract class StuckInBodyLayerMixin {
     }
 
     private static List<LodgedArrowVisual> arrowsFor(LivingEntity livingEntity, boolean isLocalPlayer) {
+        List<LodgedArrowVisual> armorArrows = LodgedConfig.renderArmorArrows()
+                ? LodgedArmorArrowStorage.readAllEquipped(livingEntity)
+                : List.of();
         if (isLocalPlayer && LodgedConfig.enablePlayerArrowRemoval()) {
-            return ClientArrowState.removableArrows();
-        }
-
-        return ClientArrowState.entityArrows(livingEntity).arrows();
-    }
-
-    private static int arrowCountFor(LivingEntity livingEntity, List<LodgedArrowVisual> arrows, boolean isLocalPlayer) {
-        if (arrows.isEmpty()) {
-            return 0;
-        }
-
-        if (isLocalPlayer && LodgedConfig.enablePlayerArrowRemoval()) {
-            int arrowCount = Math.min(arrows.size(), ClientArrowState.syncedArrowCount());
-            return Math.min(arrowCount, LodgedConfig.maxRemovablePlayerArrows());
+            List<LodgedArrowVisual> bodyArrows = ClientArrowState.removableArrows();
+            int bodyArrowCount = Math.min(bodyArrows.size(), ClientArrowState.syncedArrowCount());
+            bodyArrowCount = Math.min(bodyArrowCount, LodgedConfig.maxRemovablePlayerArrows());
+            return combinedArrows(bodyArrows, bodyArrowCount, armorArrows);
         }
 
         EntityArrows entityArrows = ClientArrowState.entityArrows(livingEntity);
-        return Math.min(arrows.size(), entityArrows.arrowCount());
+        int bodyArrowCount = Math.min(entityArrows.arrows().size(), entityArrows.arrowCount());
+        return combinedArrows(entityArrows.arrows(), bodyArrowCount, armorArrows);
+    }
+
+    private static int arrowCountFor(LivingEntity livingEntity, List<LodgedArrowVisual> arrows, boolean isLocalPlayer) {
+        return arrows.size();
+    }
+
+    private static List<LodgedArrowVisual> combinedArrows(
+            List<LodgedArrowVisual> bodyArrows,
+            int bodyArrowCount,
+            List<LodgedArrowVisual> armorArrows) {
+        if (bodyArrowCount <= 0) {
+            return armorArrows;
+        }
+        if (armorArrows.isEmpty() && bodyArrowCount == bodyArrows.size()) {
+            return bodyArrows;
+        }
+
+        List<LodgedArrowVisual> arrows = new ArrayList<>(bodyArrowCount + armorArrows.size());
+        for (int index = 0; index < bodyArrowCount; index++) {
+            arrows.add(bodyArrows.get(index));
+        }
+        arrows.addAll(armorArrows);
+        return arrows;
     }
 
     private void renderHoverOutline(

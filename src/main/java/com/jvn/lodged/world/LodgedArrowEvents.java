@@ -41,6 +41,7 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.neoforge.event.entity.ProjectileImpactEvent;
+import net.neoforged.neoforge.event.entity.living.ArmorHurtEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingShieldBlockEvent;
@@ -119,6 +120,20 @@ public final class LodgedArrowEvents {
         }
 
         LodgedArrowVisual visual = LodgedArrowVisual.fromImpact(target, arrow, entityHitResult);
+        ProjectileStack projectileStack = projectileStack(arrow);
+        if (tryStopArrowInArmor(
+                event,
+                target,
+                arrow,
+                visual,
+                projectileStack,
+                fromPlayer,
+                fromMob,
+                infinityGenerated,
+                creativeGenerated)) {
+            return;
+        }
+
         visual = visual.withDepth(arrowDepth(target, arrow, visual));
         applyLegShotSlowness(target, visual);
         if (LodgedConfig.enableArrowBreakOnEntityHit()
@@ -132,7 +147,6 @@ public final class LodgedArrowEvents {
         }
 
         boolean trackForVisuals = !(target instanceof Player);
-        ProjectileStack projectileStack = projectileStack(arrow);
         boolean trackForDeathRecovery = projectileStack.recoverable()
                 && canRecoverOnDeath(fromPlayer, infinityGenerated, creativeGenerated);
         boolean trackForPlayerRemoval = target instanceof Player && LodgedConfig.enablePlayerArrowRemoval();
@@ -253,6 +267,31 @@ public final class LodgedArrowEvents {
         }
         if (arrow.getPierceLevel() <= 0) {
             PENDING_ARROW_COUNT_REMOVALS.merge(target.getUUID(), 1, Integer::sum);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onArmorHurt(ArmorHurtEvent event) {
+        LivingEntity entity = event.getEntity();
+        if (entity.level().isClientSide()
+                || !LodgedConfig.enableArmorArrowDurabilityPenalty()
+                || LodgedConfig.armorArrowExtraDurabilityLossAmount() <= 0) {
+            return;
+        }
+
+        for (EquipmentSlot slot : LodgedArmorArrowStorage.armorSlots()) {
+            ItemStack armor = event.getArmorItemStack(slot);
+            int arrowCount = LodgedArmorArrowStorage.readAll(armor).size();
+            if (arrowCount <= 0 || event.getNewDamage(slot) <= 0.0F) {
+                continue;
+            }
+
+            double chance = armorArrowExtraDurabilityLossChance(arrowCount);
+            if (chance >= 1.0D || entity.getRandom().nextDouble() < chance) {
+                event.setNewDamage(
+                        slot,
+                        event.getNewDamage(slot) + LodgedConfig.armorArrowExtraDurabilityLossAmount());
+            }
         }
     }
 
@@ -556,6 +595,85 @@ public final class LodgedArrowEvents {
         return stack.getItem() instanceof ArmorItem armorItem && armorItem.getEquipmentSlot() == slot;
     }
 
+    private static boolean tryStopArrowInArmor(
+            ProjectileImpactEvent event,
+            LivingEntity target,
+            AbstractArrow arrow,
+            LodgedArrowVisual visual,
+            ProjectileStack projectileStack,
+            boolean fromPlayer,
+            boolean fromMob,
+            boolean infinityGenerated,
+            boolean creativeGenerated) {
+        if (!LodgedConfig.enableArmorArrowLodging()
+                || LodgedConfig.maxTrackedArrowsPerArmorPiece() <= 0
+                || projectileStack.stack().isEmpty()) {
+            return false;
+        }
+
+        EquipmentSlot slot = visual.armorSlot();
+        ItemStack armor = target.getItemBySlot(slot);
+        if (!(armor.getItem() instanceof ArmorItem armorItem) || armorItem.getEquipmentSlot() != slot) {
+            return false;
+        }
+
+        double penetrationChance = armorPenetrationChance(armorItem);
+        if (penetrationChance >= 1.0D || target.getRandom().nextDouble() < penetrationChance) {
+            return false;
+        }
+
+        event.setCanceled(true);
+        if (LodgedConfig.enableArrowBreakOnEntityHit()
+                && breaksOnImpact(arrow, fromPlayer, fromMob, infinityGenerated, creativeGenerated)) {
+            playArrowBreakSound(arrow);
+            maybeDamageArmor(target, armor, slot, LodgedConfig.armorArrowBreakDurabilityDamageChance());
+            target.setItemSlot(slot, armor);
+            arrow.discard();
+            return true;
+        }
+
+        boolean willEvictArrow = willEvictArmorArrow(armor);
+        if (LodgedArmorArrowStorage.add(
+                armor,
+                new LodgedArmorArrowStorage.LodgedArmorArrowData(
+                        projectileStack.stack(),
+                        projectileStack.recoverable(),
+                        fromPlayer,
+                        infinityGenerated,
+                        creativeGenerated,
+                        visual),
+                target.registryAccess())) {
+            if (willEvictArrow) {
+                maybeDamageArmor(target, armor, slot, LodgedConfig.armorArrowRemovalDurabilityDamageChance());
+            }
+            target.setItemSlot(slot, armor);
+            if (target instanceof ServerPlayer player) {
+                player.containerMenu.broadcastChanges();
+            }
+            LodgedNetwork.syncEntityArrows(target);
+            if (target instanceof ServerPlayer player) {
+                LodgedNetwork.syncPlayerArrows(player);
+            }
+        }
+        arrow.discard();
+        return true;
+    }
+
+    private static double armorPenetrationChance(ArmorItem armorItem) {
+        double chance = LodgedConfig.armorArrowBasePenetrationChance()
+                - (armorItem.getDefense() * LodgedConfig.armorArrowDefensePenaltyPerPoint());
+        return Mth.clamp(
+                chance,
+                LodgedConfig.armorArrowMinPenetrationChance(),
+                LodgedConfig.armorArrowMaxPenetrationChance());
+    }
+
+    private static double armorArrowExtraDurabilityLossChance(int arrowCount) {
+        double chance = LodgedConfig.armorArrowExtraDurabilityLossChance()
+                + Math.max(0, arrowCount - 1) * LodgedConfig.armorArrowExtraDurabilityLossChancePerAdditionalArrow();
+        return Mth.clamp(chance, 0.0D, LodgedConfig.armorArrowExtraDurabilityLossMaxChance());
+    }
+
     private static void rememberBrokenArrowImpact(AbstractArrow arrow, LivingEntity target, LodgedArrowVisual visual) {
         BROKEN_ARROW_IMPACTS.put(
                 arrow.getUUID(),
@@ -746,6 +864,11 @@ public final class LodgedArrowEvents {
         return maxTrackedArrows > 0 && LodgedShieldArrowStorage.readAll(shield).size() >= maxTrackedArrows;
     }
 
+    private static boolean willEvictArmorArrow(ItemStack armor) {
+        int maxTrackedArrows = LodgedConfig.maxTrackedArrowsPerArmorPiece();
+        return maxTrackedArrows > 0 && LodgedArmorArrowStorage.readAll(armor).size() >= maxTrackedArrows;
+    }
+
     private static void maybeDamageShieldFromArrowRemoval(LivingEntity holder, ItemStack shield) {
         maybeDamageShieldFromArrowRemoval(holder, shield, LivingEntity.getSlotForHand(holder.getUsedItemHand()));
     }
@@ -758,6 +881,17 @@ public final class LodgedArrowEvents {
         }
 
         shield.hurtAndBreak(1, holder, slot);
+    }
+
+    private static void maybeDamageArmor(LivingEntity holder, ItemStack armor, EquipmentSlot slot, double chance) {
+        if (armor.isEmpty()
+                || chance <= 0.0D
+                || holder.level().random.nextDouble() >= chance
+                || holder instanceof Player player && player.getAbilities().instabuild) {
+            return;
+        }
+
+        armor.hurtAndBreak(1, holder, slot);
     }
 
     private static ProjectileStack projectileStack(AbstractArrow arrow) {

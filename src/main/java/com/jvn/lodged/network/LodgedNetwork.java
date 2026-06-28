@@ -2,10 +2,12 @@ package com.jvn.lodged.network;
 
 import com.jvn.lodged.Lodged;
 import com.jvn.lodged.config.LodgedConfig;
+import com.jvn.lodged.network.payload.ArmorArrowRemovalActionPayload;
 import com.jvn.lodged.network.payload.ArrowRemovalResultPayload;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload;
 import com.jvn.lodged.network.payload.SyncEntityArrowsPayload;
+import com.jvn.lodged.network.payload.SyncArmorArrowRemovalPayload;
 import com.jvn.lodged.network.payload.SyncPlayerArrowsPayload;
 import com.jvn.lodged.network.payload.SyncShieldArrowRemovalPayload;
 import com.jvn.lodged.world.LodgedArrowData;
@@ -21,7 +23,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class LodgedNetwork {
-    private static final String NETWORK_VERSION = "10";
+    private static final String NETWORK_VERSION = "12";
 
     private LodgedNetwork() {
     }
@@ -36,6 +38,10 @@ public final class LodgedNetwork {
                 ShieldArrowRemovalActionPayload.TYPE,
                 ShieldArrowRemovalActionPayload.STREAM_CODEC,
                 PlayerArrowRemoval::handleShieldAction);
+        registrar.playToServer(
+                ArmorArrowRemovalActionPayload.TYPE,
+                ArmorArrowRemovalActionPayload.STREAM_CODEC,
+                PlayerArrowRemoval::handleArmorAction);
         registrar.playToClient(
                 SyncPlayerArrowsPayload.TYPE,
                 SyncPlayerArrowsPayload.STREAM_CODEC,
@@ -47,6 +53,10 @@ public final class LodgedNetwork {
         registrar.playToClient(
                 SyncShieldArrowRemovalPayload.TYPE,
                 SyncShieldArrowRemovalPayload.STREAM_CODEC,
+                ClientArrowState::handleSync);
+        registrar.playToClient(
+                SyncArmorArrowRemovalPayload.TYPE,
+                SyncArmorArrowRemovalPayload.STREAM_CODEC,
                 ClientArrowState::handleSync);
         registrar.playToClient(
                 ArrowRemovalResultPayload.TYPE,

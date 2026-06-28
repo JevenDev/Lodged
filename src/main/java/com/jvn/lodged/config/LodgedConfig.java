@@ -296,6 +296,79 @@ public final class LodgedConfig {
         return shieldArrows().renderOwnShieldArrowsInFirstPerson();
     }
 
+    public static boolean enableArmorArrowLodging() {
+        return armorArrows().enableArmorArrowLodging();
+    }
+
+    public static boolean recoverMobArmorArrows() {
+        return armorArrows().recoverMobArmorArrows();
+    }
+
+    public static boolean renderArmorArrows() {
+        return armorArrows().renderArmorArrows();
+    }
+
+    public static boolean enableArmorArrowDurabilityPenalty() {
+        return armorArrows().enableArmorArrowDurabilityPenalty();
+    }
+
+    public static int maxTrackedArrowsPerArmorPiece() {
+        int configuredMax = armorArrows().maxTrackedArrowsPerArmorPiece();
+        return configuredMax > 0 ? configuredMax : maxTrackedArrowsPerEntity();
+    }
+
+    public static double armorArrowBasePenetrationChance() {
+        return armorArrows().armorArrowBasePenetrationChance();
+    }
+
+    public static double armorArrowDefensePenaltyPerPoint() {
+        return armorArrows().armorArrowDefensePenaltyPerPoint();
+    }
+
+    public static double armorArrowMinPenetrationChance() {
+        return Math.min(armorArrows().armorArrowMinPenetrationChance(), armorArrowMaxPenetrationChance());
+    }
+
+    public static double armorArrowMaxPenetrationChance() {
+        return Math.max(armorArrows().armorArrowMinPenetrationChance(), armorArrows().armorArrowMaxPenetrationChance());
+    }
+
+    public static double armorArrowRemovalSuccessChance() {
+        return armorArrows().armorArrowRemovalSuccessChance();
+    }
+
+    public static int armorArrowRemovalTicks() {
+        return armorArrows().armorArrowRemovalTicks();
+    }
+
+    public static double armorArrowRemovalDurabilityDamageChance() {
+        return armorArrows().armorArrowRemovalDurabilityDamageChance();
+    }
+
+    public static double armorArrowRemovalBreakChance() {
+        return armorArrows().armorArrowRemovalBreakChance();
+    }
+
+    public static double armorArrowBreakDurabilityDamageChance() {
+        return armorArrows().armorArrowBreakDurabilityDamageChance();
+    }
+
+    public static double armorArrowExtraDurabilityLossChance() {
+        return armorArrows().armorArrowExtraDurabilityLossChance();
+    }
+
+    public static double armorArrowExtraDurabilityLossChancePerAdditionalArrow() {
+        return armorArrows().armorArrowExtraDurabilityLossChancePerAdditionalArrow();
+    }
+
+    public static double armorArrowExtraDurabilityLossMaxChance() {
+        return armorArrows().armorArrowExtraDurabilityLossMaxChance();
+    }
+
+    public static int armorArrowExtraDurabilityLossAmount() {
+        return armorArrows().armorArrowExtraDurabilityLossAmount();
+    }
+
     public static boolean enableLodgedArrowDizziness() {
         return playerArrowRemoval().enableLodgedArrowDizziness();
     }
@@ -480,6 +553,10 @@ public final class LodgedConfig {
 
     private static LodgedConfigWrapper.ShieldArrows shieldArrows() {
         return CONFIG.shieldArrows;
+    }
+
+    private static LodgedConfigWrapper.ArmorArrows armorArrows() {
+        return CONFIG.armorArrows;
     }
 
     private static LodgedConfigWrapper.LegShotSlowness legShotSlowness() {

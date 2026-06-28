@@ -1,6 +1,8 @@
 package com.jvn.lodged.network;
 
 import com.jvn.lodged.network.payload.ArrowRemovalResultPayload;
+import com.jvn.lodged.network.payload.RemovePlayerArrowPayload.Target;
+import com.jvn.lodged.network.payload.SyncArmorArrowRemovalPayload;
 import com.jvn.lodged.network.payload.SyncPlayerArrowsPayload;
 import com.jvn.lodged.network.payload.SyncEntityArrowsPayload;
 import com.jvn.lodged.network.payload.SyncShieldArrowRemovalPayload;
@@ -9,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -16,6 +19,7 @@ public final class ClientArrowState {
     private static List<LodgedArrowVisual> removableArrows = List.of();
     private static final Map<Integer, EntityArrows> ENTITY_ARROWS = new HashMap<>();
     private static final Map<Integer, ShieldArrowRemovalState> SHIELD_ARROW_REMOVALS = new HashMap<>();
+    private static final Map<Integer, ArmorArrowRemovalState> ARMOR_ARROW_REMOVALS = new HashMap<>();
     private static int syncedArrowCount;
     private static boolean synced;
 
@@ -46,12 +50,26 @@ public final class ClientArrowState {
         return SHIELD_ARROW_REMOVALS.getOrDefault(entity.getId(), ShieldArrowRemovalState.INACTIVE);
     }
 
+    public static ArmorArrowRemovalState armorArrowRemoval(LivingEntity entity) {
+        return ARMOR_ARROW_REMOVALS.getOrDefault(entity.getId(), ArmorArrowRemovalState.INACTIVE);
+    }
+
     public static void tickShieldArrowRemovals() {
         SHIELD_ARROW_REMOVALS.replaceAll((entityId, state) -> state.tick());
+        ARMOR_ARROW_REMOVALS.replaceAll((entityId, state) -> state.tick());
     }
 
     public static void setLocalShieldArrowRemoval(int entityId, InteractionHand shieldHand, boolean active) {
         setShieldArrowRemoval(entityId, active, shieldHand);
+    }
+
+    public static void setLocalArmorArrowRemoval(
+            int entityId,
+            boolean active,
+            Target target,
+            EquipmentSlot slot,
+            LodgedArrowVisual arrow) {
+        setArmorArrowRemoval(entityId, active, target, slot, arrow);
     }
 
     static void handleSync(SyncPlayerArrowsPayload payload, IPayloadContext context) {
@@ -73,6 +91,10 @@ public final class ClientArrowState {
         setShieldArrowRemoval(payload.entityId(), payload.active(), payload.shieldHand());
     }
 
+    public static void handleSync(SyncArmorArrowRemovalPayload payload, IPayloadContext context) {
+        setArmorArrowRemoval(payload.entityId(), payload.active(), payload.target(), payload.slot(), payload.arrow());
+    }
+
     public static void handleRemovalResult(ArrowRemovalResultPayload payload, IPayloadContext context) {
         com.jvn.lodged.client.LodgedInventoryArrowUi.handleRemovalResult(payload);
     }
@@ -84,6 +106,20 @@ public final class ClientArrowState {
         }
 
         SHIELD_ARROW_REMOVALS.put(entityId, new ShieldArrowRemovalState(shieldHand, 0));
+    }
+
+    private static void setArmorArrowRemoval(
+            int entityId,
+            boolean active,
+            Target target,
+            EquipmentSlot slot,
+            LodgedArrowVisual arrow) {
+        if (!active) {
+            ARMOR_ARROW_REMOVALS.remove(entityId);
+            return;
+        }
+
+        ARMOR_ARROW_REMOVALS.put(entityId, new ArmorArrowRemovalState(target, slot, arrow, 0));
     }
 
     public record EntityArrows(List<LodgedArrowVisual> arrows, int arrowCount) {
@@ -99,6 +135,19 @@ public final class ClientArrowState {
 
         private ShieldArrowRemovalState tick() {
             return new ShieldArrowRemovalState(shieldHand, ticks + 1);
+        }
+    }
+
+    public record ArmorArrowRemovalState(Target target, EquipmentSlot slot, LodgedArrowVisual arrow, int ticks) {
+        private static final ArmorArrowRemovalState INACTIVE =
+                new ArmorArrowRemovalState(Target.ARMOR, EquipmentSlot.CHEST, LodgedArrowVisual.DEFAULT, -1);
+
+        public boolean active() {
+            return ticks >= 0;
+        }
+
+        private ArmorArrowRemovalState tick() {
+            return new ArmorArrowRemovalState(target, slot, arrow, ticks + 1);
         }
     }
 }

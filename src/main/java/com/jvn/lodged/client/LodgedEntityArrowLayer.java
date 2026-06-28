@@ -1,6 +1,8 @@
 package com.jvn.lodged.client;
 
 import com.jvn.lodged.network.ClientArrowState;
+import com.jvn.lodged.config.LodgedConfig;
+import com.jvn.lodged.world.LodgedArmorArrowStorage;
 import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -41,9 +43,8 @@ public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends Enti
             return;
         }
 
-        ClientArrowState.EntityArrows entityArrows = ClientArrowState.entityArrows(livingEntity);
-        List<LodgedArrowVisual> arrows = entityArrows.arrows();
-        int arrowCount = Math.min(arrows.size(), entityArrows.arrowCount());
+        List<LodgedArrowVisual> arrows = arrowsFor(livingEntity);
+        int arrowCount = arrows.size();
         if (arrowCount <= 0) {
             return;
         }
@@ -59,6 +60,24 @@ public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends Enti
             }
             poseStack.popPose();
         }
+    }
+
+    private static List<LodgedArrowVisual> arrowsFor(LivingEntity livingEntity) {
+        ClientArrowState.EntityArrows entityArrows = ClientArrowState.entityArrows(livingEntity);
+        int bodyArrowCount = Math.min(entityArrows.arrows().size(), entityArrows.arrowCount());
+        List<LodgedArrowVisual> armorArrows = LodgedConfig.renderArmorArrows()
+                ? LodgedArmorArrowStorage.readAllEquipped(livingEntity)
+                : List.of();
+        if (bodyArrowCount <= 0) {
+            return armorArrows;
+        }
+
+        java.util.ArrayList<LodgedArrowVisual> arrows = new java.util.ArrayList<>(bodyArrowCount + armorArrows.size());
+        for (int index = 0; index < bodyArrowCount; index++) {
+            arrows.add(entityArrows.arrows().get(index));
+        }
+        arrows.addAll(armorArrows);
+        return arrows;
     }
 
     private void renderHumanoidArrow(

@@ -2,13 +2,20 @@ package com.jvn.lodged.client;
 
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.network.ClientArrowState;
+import com.jvn.lodged.network.ClientArrowState.ArmorArrowRemovalState;
 import com.jvn.lodged.network.ClientArrowState.ShieldArrowRemovalState;
+import com.jvn.lodged.network.payload.ArmorArrowRemovalActionPayload;
+import com.jvn.lodged.network.payload.RemovePlayerArrowPayload.Target;
 import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload;
 import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload.Action;
+import com.jvn.lodged.world.LodgedArmorArrowStorage;
+import com.jvn.lodged.world.LodgedArrowBodyPart;
+import com.jvn.lodged.world.LodgedArrowVisual;
 import com.jvn.lodged.world.LodgedShieldArrowStorage;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import java.util.List;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -17,6 +24,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
@@ -46,6 +54,8 @@ public final class LodgedShieldArrowRemovalClient {
 
     private static InteractionHand activeShieldHand;
     private static int activeTicks;
+    private static boolean activeArmorRemoval;
+    private static int activeArmorTicks;
 
     private LodgedShieldArrowRemovalClient() {
     }
@@ -70,20 +80,45 @@ public final class LodgedShieldArrowRemovalClient {
                 activeTicks = 0;
                 ClientArrowState.setLocalShieldArrowRemoval(player.getId(), activeShieldHand, true);
                 PacketDistributor.sendToServer(new ShieldArrowRemovalActionPayload(Action.START, activeShieldHand));
+            } else if (!activeArmorRemoval && activeShieldHand == null && canStartInWorldRemoval(player, minecraft)) {
+                activeArmorRemoval = true;
+                activeArmorTicks = 0;
+                InWorldArrowTarget target = priorityInWorldArrow(player);
+                ClientArrowState.setLocalArmorArrowRemoval(
+                        player.getId(),
+                        true,
+                        target.target(),
+                        target.slot(),
+                        target.arrow());
+                PacketDistributor.sendToServer(new ArmorArrowRemovalActionPayload(ArmorArrowRemovalActionPayload.Action.START));
             }
         }
 
-        if (activeShieldHand == null) {
-            return;
+        if (activeShieldHand != null) {
+            activeTicks++;
+            if (!ClientArrowState.shieldArrowRemoval(player).active()) {
+                clearShieldLocalState();
+            } else if (!canContinue(player, minecraft, activeShieldHand) || activeTicks > LOCAL_REMOVAL_MAX_TICKS) {
+                PacketDistributor.sendToServer(new ShieldArrowRemovalActionPayload(Action.CANCEL, activeShieldHand));
+                ClientArrowState.setLocalShieldArrowRemoval(player.getId(), activeShieldHand, false);
+                clearShieldLocalState();
+            }
         }
 
-        activeTicks++;
-        if (!ClientArrowState.shieldArrowRemoval(player).active()) {
-            clearLocalState();
-        } else if (!canContinue(player, minecraft, activeShieldHand) || activeTicks > LOCAL_REMOVAL_MAX_TICKS) {
-            PacketDistributor.sendToServer(new ShieldArrowRemovalActionPayload(Action.CANCEL, activeShieldHand));
-            ClientArrowState.setLocalShieldArrowRemoval(player.getId(), activeShieldHand, false);
-            clearLocalState();
+        if (activeArmorRemoval) {
+            activeArmorTicks++;
+            if (!ClientArrowState.armorArrowRemoval(player).active()) {
+                clearArmorLocalState();
+            } else if (!canContinueInWorldRemoval(player, minecraft) || activeArmorTicks > LOCAL_REMOVAL_MAX_TICKS) {
+                PacketDistributor.sendToServer(new ArmorArrowRemovalActionPayload(ArmorArrowRemovalActionPayload.Action.CANCEL));
+                ClientArrowState.setLocalArmorArrowRemoval(
+                        player.getId(),
+                        false,
+                        Target.ARMOR,
+                        EquipmentSlot.CHEST,
+                        LodgedArrowVisual.DEFAULT);
+                clearArmorLocalState();
+            }
         }
     }
 
@@ -99,9 +134,9 @@ public final class LodgedShieldArrowRemovalClient {
             return false;
         }
 
-        ShieldArrowRemovalState state = ClientArrowState.shieldArrowRemoval(player);
+        int ticks = pullingTicks(player);
         boolean heldItemDropping = !player.getItemInHand(hand).isEmpty();
-        float age = state.ticks() + partialTick;
+        float age = ticks + partialTick;
         float handAge = heldItemDropping ? age - FIRST_PERSON_ITEM_DROP_TICKS : age;
         if (handAge <= 0.0F) {
             return true;
@@ -130,20 +165,39 @@ public final class LodgedShieldArrowRemovalClient {
 
     public static boolean shouldRenderFirstPersonPullingHand(LocalPlayer player, InteractionHand hand) {
         ShieldArrowRemovalState state = ClientArrowState.shieldArrowRemoval(player);
-        return state.active() && hand == pullingHand(state.shieldHand()) && !player.isInvisible();
+        if (state.active()) {
+            return hand == pullingHand(state.shieldHand()) && !player.isInvisible();
+        }
+
+        return ClientArrowState.armorArrowRemoval(player).active()
+                && hand == InteractionHand.MAIN_HAND
+                && !player.isInvisible();
     }
 
     public static float firstPersonHeldItemDropProgress(LocalPlayer player, InteractionHand hand, float partialTick) {
         ShieldArrowRemovalState state = ClientArrowState.shieldArrowRemoval(player);
-        if (!state.active() || hand != pullingHand(state.shieldHand())) {
+        if (state.active()) {
+            if (hand != pullingHand(state.shieldHand())) {
+                return 1.0F;
+            }
+
+            return smoothStep(Math.min((state.ticks() + partialTick) / FIRST_PERSON_ITEM_DROP_TICKS, 1.0F));
+        }
+
+        ArmorArrowRemovalState armorState = ClientArrowState.armorArrowRemoval(player);
+        if (!armorState.active() || hand != InteractionHand.MAIN_HAND) {
             return 1.0F;
         }
 
-        return smoothStep(Math.min((state.ticks() + partialTick) / FIRST_PERSON_ITEM_DROP_TICKS, 1.0F));
+        return smoothStep(Math.min((armorState.ticks() + partialTick) / FIRST_PERSON_ITEM_DROP_TICKS, 1.0F));
     }
 
     public static boolean isPullingShieldArrow(LivingEntity entity) {
         return ClientArrowState.shieldArrowRemoval(entity).active();
+    }
+
+    public static boolean isPullingArmorArrow(LivingEntity entity) {
+        return ClientArrowState.armorArrowRemoval(entity).active();
     }
 
     public static HumanoidArm pullingArm(LivingEntity entity) {
@@ -152,6 +206,46 @@ public final class LodgedShieldArrowRemovalClient {
 
     public static float pullProgress(LivingEntity entity) {
         return pullProgress(ClientArrowState.shieldArrowRemoval(entity).ticks());
+    }
+
+    public static HumanoidArm armorPullingArm(LivingEntity entity) {
+        ArmorArrowRemovalState state = ClientArrowState.armorArrowRemoval(entity);
+        LodgedArrowVisual arrow = state.arrow();
+        if (arrow.bodyPart() == LodgedArrowBodyPart.ARM) {
+            return arrow.modelX() < 0.0F ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
+        }
+        if (Math.abs(arrow.modelX()) > 0.05F) {
+            return arrow.modelX() < 0.0F ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
+        }
+        return entity.getMainArm();
+    }
+
+    public static float armorPullProgress(LivingEntity entity) {
+        return pullProgress(ClientArrowState.armorArrowRemoval(entity).ticks());
+    }
+
+    public static float armorPullingArmXRot(LivingEntity entity, float ageInTicks, float pull) {
+        LodgedArrowVisual arrow = ClientArrowState.armorArrowRemoval(entity).arrow();
+        float target = switch (arrow.bodyPart()) {
+            case HEAD -> -2.15F;
+            case CHEST, ARM -> -1.35F;
+            case LEG -> -0.45F;
+        };
+        float pulse = (float) Math.sin(ageInTicks * ARM_PULSE_SPEED) * ARM_PULSE_AMOUNT;
+        return Mth.lerp(pull, ARM_X_ROT, target) + pulse;
+    }
+
+    public static float armorPullingArmYRot(LivingEntity entity) {
+        LodgedArrowVisual arrow = ClientArrowState.armorArrowRemoval(entity).arrow();
+        float side = armorPullingArm(entity) == HumanoidArm.RIGHT ? 1.0F : -1.0F;
+        return side * Mth.clamp(Math.abs(arrow.modelX()) * 1.5F + 0.2F, 0.2F, 0.75F);
+    }
+
+    public static float armorPullingArmZRot(LivingEntity entity) {
+        LodgedArrowVisual arrow = ClientArrowState.armorArrowRemoval(entity).arrow();
+        float side = armorPullingArm(entity) == HumanoidArm.RIGHT ? 1.0F : -1.0F;
+        float target = arrow.bodyPart() == LodgedArrowBodyPart.LEG ? -0.35F : 0.25F;
+        return side * target;
     }
 
     public static float pullingArmXRot(float ageInTicks, float pull) {
@@ -185,11 +279,122 @@ public final class LodgedShieldArrowRemovalClient {
                 && hasShieldArrows(player, shieldHand);
     }
 
+    private static boolean canStartInWorldRemoval(LocalPlayer player, Minecraft minecraft) {
+        return minecraft.screen == null
+                && LodgedConfig.enablePlayerArrowRemoval()
+                && player.isAlive()
+                && !player.isUsingItem()
+                && priorityInWorldArrow(player) != null;
+    }
+
+    private static boolean canContinueInWorldRemoval(LocalPlayer player, Minecraft minecraft) {
+        return minecraft.screen == null
+                && player.isAlive()
+                && !player.isUsingItem()
+                && REMOVE_SHIELD_ARROW_KEY.isDown()
+                && hasInWorldArrows(player);
+    }
+
     private static boolean hasShieldArrows(LocalPlayer player, InteractionHand hand) {
         ItemStack shield = player.getItemInHand(hand);
         return !shield.isEmpty()
                 && shield.canPerformAction(ItemAbilities.SHIELD_BLOCK)
                 && !LodgedShieldArrowStorage.readAll(shield).isEmpty();
+    }
+
+    private static boolean hasArmorArrows(LocalPlayer player) {
+        for (EquipmentSlot slot : LodgedArmorArrowStorage.armorSlots()) {
+            if (!LodgedArmorArrowStorage.readAll(player.getItemBySlot(slot)).isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasBodyArrows() {
+        return ClientArrowState.removableArrowCount() > 0;
+    }
+
+    private static boolean hasInWorldArrows(LocalPlayer player) {
+        return hasArmorArrows(player) || hasBodyArrows();
+    }
+
+    private static InWorldArrowTarget priorityInWorldArrow(LocalPlayer player) {
+        InWorldArrowTarget armorTarget = priorityArmorArrow(player);
+        return armorTarget != null ? armorTarget : priorityBodyArrow();
+    }
+
+    private static InWorldArrowTarget priorityArmorArrow(LocalPlayer player) {
+        InWorldArrowTarget best = null;
+        double bestScore = Double.MAX_VALUE;
+        for (EquipmentSlot slot : LodgedArmorArrowStorage.armorSlots()) {
+            for (LodgedArrowVisual arrow : LodgedArmorArrowStorage.readAll(player.getItemBySlot(slot))) {
+                double score = armorArrowPriorityScore(slot, arrow);
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = new InWorldArrowTarget(Target.ARMOR, slot, arrow);
+                }
+            }
+        }
+        return best;
+    }
+
+    private static InWorldArrowTarget priorityBodyArrow() {
+        List<LodgedArrowVisual> arrows = ClientArrowState.removableArrows();
+        int arrowCount = Math.min(arrows.size(), ClientArrowState.syncedArrowCount());
+        arrowCount = Math.min(arrowCount, LodgedConfig.maxRemovablePlayerArrows());
+        InWorldArrowTarget best = null;
+        double bestScore = Double.MAX_VALUE;
+        for (int index = 0; index < arrowCount; index++) {
+            LodgedArrowVisual arrow = arrows.get(index);
+            double score = bodyArrowPriorityScore(arrow);
+            if (score < bestScore) {
+                bestScore = score;
+                best = new InWorldArrowTarget(Target.BODY, EquipmentSlot.CHEST, arrow);
+            }
+        }
+        return best;
+    }
+
+    private static double armorArrowPriorityScore(EquipmentSlot slot, LodgedArrowVisual arrow) {
+        double visibleScore = arrow.modelZ() <= 0.0F ? 0.0D : 1000.0D;
+        return visibleScore + (armorSlotPriority(slot) * 100.0D) + arrowReachDistance(arrow);
+    }
+
+    private static int armorSlotPriority(EquipmentSlot slot) {
+        return switch (slot) {
+            case HEAD -> 0;
+            case CHEST -> 1;
+            case LEGS -> 2;
+            case FEET -> 3;
+            default -> 4;
+        };
+    }
+
+    private static double bodyArrowPriorityScore(LodgedArrowVisual arrow) {
+        double successChance = Mth.clamp(
+                LodgedConfig.playerArrowRemovalSuccessChance(arrow.bodyPart())
+                        * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.depth()),
+                0.0D,
+                1.0D);
+        return (bodyPartRemovalPriority(arrow.bodyPart()) * 100.0D) - successChance;
+    }
+
+    private static int bodyPartRemovalPriority(LodgedArrowBodyPart bodyPart) {
+        return switch (bodyPart) {
+            case ARM, LEG -> 0;
+            case CHEST -> 1;
+            case HEAD -> 2;
+        };
+    }
+
+    private static double arrowReachDistance(LodgedArrowVisual arrow) {
+        HumanoidArm arm = arrow.modelX() < 0.0F ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
+        double armX = arm == HumanoidArm.RIGHT ? -5.0D / 16.0D : 5.0D / 16.0D;
+        double armY = 6.0D / 16.0D;
+        double dx = arrow.modelX() - armX;
+        double dy = arrow.modelY() - armY;
+        return (dx * dx) + (dy * dy);
     }
 
     private static InteractionHand pullingHand(InteractionHand shieldHand) {
@@ -241,8 +446,29 @@ public final class LodgedShieldArrowRemovalClient {
         return value * value * (3.0F - (2.0F * value));
     }
 
+    private static int pullingTicks(LocalPlayer player) {
+        ShieldArrowRemovalState shieldState = ClientArrowState.shieldArrowRemoval(player);
+        if (shieldState.active()) {
+            return shieldState.ticks();
+        }
+        return ClientArrowState.armorArrowRemoval(player).ticks();
+    }
+
     private static void clearLocalState() {
+        clearShieldLocalState();
+        clearArmorLocalState();
+    }
+
+    private static void clearShieldLocalState() {
         activeShieldHand = null;
         activeTicks = 0;
+    }
+
+    private static void clearArmorLocalState() {
+        activeArmorRemoval = false;
+        activeArmorTicks = 0;
+    }
+
+    private record InWorldArrowTarget(Target target, EquipmentSlot slot, LodgedArrowVisual arrow) {
     }
 }

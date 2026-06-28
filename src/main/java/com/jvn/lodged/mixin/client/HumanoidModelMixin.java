@@ -28,16 +28,24 @@ public abstract class HumanoidModelMixin<T extends LivingEntity> {
             float netHeadYaw,
             float headPitch,
             CallbackInfo callbackInfo) {
-        if (!LodgedShieldArrowRemovalClient.isPullingShieldArrow(entity)) {
+        if (LodgedShieldArrowRemovalClient.isPullingShieldArrow(entity)) {
+            HumanoidArm arm = LodgedShieldArrowRemovalClient.pullingArm(entity);
+            ModelPart modelPart = arm == HumanoidArm.RIGHT ? rightArm : leftArm;
+            float side = arm == HumanoidArm.RIGHT ? 1.0F : -1.0F;
+            float pull = LodgedShieldArrowRemovalClient.pullProgress(entity);
+            modelPart.xRot = LodgedShieldArrowRemovalClient.pullingArmXRot(ageInTicks, pull);
+            modelPart.yRot = side * LodgedShieldArrowRemovalClient.pullingArmYRot();
+            modelPart.zRot = side * LodgedShieldArrowRemovalClient.pullingArmZRot();
             return;
         }
 
-        HumanoidArm arm = LodgedShieldArrowRemovalClient.pullingArm(entity);
-        ModelPart modelPart = arm == HumanoidArm.RIGHT ? rightArm : leftArm;
-        float side = arm == HumanoidArm.RIGHT ? 1.0F : -1.0F;
-        float pull = LodgedShieldArrowRemovalClient.pullProgress(entity);
-        modelPart.xRot = LodgedShieldArrowRemovalClient.pullingArmXRot(ageInTicks, pull);
-        modelPart.yRot = side * LodgedShieldArrowRemovalClient.pullingArmYRot();
-        modelPart.zRot = side * LodgedShieldArrowRemovalClient.pullingArmZRot();
+        if (LodgedShieldArrowRemovalClient.isPullingArmorArrow(entity)) {
+            HumanoidArm arm = LodgedShieldArrowRemovalClient.armorPullingArm(entity);
+            ModelPart modelPart = arm == HumanoidArm.RIGHT ? rightArm : leftArm;
+            float pull = LodgedShieldArrowRemovalClient.armorPullProgress(entity);
+            modelPart.xRot = LodgedShieldArrowRemovalClient.armorPullingArmXRot(entity, ageInTicks, pull);
+            modelPart.yRot = LodgedShieldArrowRemovalClient.armorPullingArmYRot(entity);
+            modelPart.zRot = LodgedShieldArrowRemovalClient.armorPullingArmZRot(entity);
+        }
     }
 }

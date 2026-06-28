@@ -35,6 +35,10 @@ public class LodgedConfigModel {
 
     @Nest
     @Expanded
+    public ArmorArrows armorArrows = new ArmorArrows();
+
+    @Nest
+    @Expanded
     public LegShotSlowness legShotSlowness = new LegShotSlowness();
 
     @Nest
@@ -281,6 +285,55 @@ public class LodgedConfigModel {
         public int maxTrackedArrowsPerShield = 0;
 
         public boolean renderOwnShieldArrowsInFirstPerson = true;
+    }
+
+    public static class ArmorArrows {
+        public boolean enableArmorArrowLodging = true;
+        public boolean recoverMobArmorArrows = true;
+        public boolean renderArmorArrows = true;
+        public boolean enableArmorArrowDurabilityPenalty = true;
+
+        @RangeConstraint(min = 0, max = 64)
+        public int maxTrackedArrowsPerArmorPiece = 4;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double armorArrowBasePenetrationChance = 0.72D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double armorArrowDefensePenaltyPerPoint = 0.055D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double armorArrowMinPenetrationChance = 0.05D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double armorArrowMaxPenetrationChance = 0.95D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double armorArrowRemovalSuccessChance = 0.92D;
+
+        @RangeConstraint(min = 1, max = 1200)
+        public int armorArrowRemovalTicks = 45;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double armorArrowRemovalDurabilityDamageChance = 0.35D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double armorArrowRemovalBreakChance = 0.05D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double armorArrowBreakDurabilityDamageChance = 1.0D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double armorArrowExtraDurabilityLossChance = 0.10D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double armorArrowExtraDurabilityLossChancePerAdditionalArrow = 0.05D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double armorArrowExtraDurabilityLossMaxChance = 0.50D;
+
+        @RangeConstraint(min = 0, max = 64)
+        public int armorArrowExtraDurabilityLossAmount = 1;
     }
 
     public static class LegShotSlowness {
