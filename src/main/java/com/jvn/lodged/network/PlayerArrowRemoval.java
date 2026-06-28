@@ -14,8 +14,8 @@ import com.jvn.lodged.network.payload.SyncArmorArrowRemovalPayload;
 import com.jvn.lodged.network.payload.SyncShieldArrowRemovalPayload;
 import com.jvn.lodged.world.LodgedArmorArrowStorage;
 import com.jvn.lodged.world.LodgedArmorArrowStorage.LodgedArmorArrowData;
-import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowData;
+import com.jvn.lodged.world.LodgedArrowRemovalScoring;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import com.jvn.lodged.world.LodgedArrowStorage;
 import com.jvn.lodged.world.LodgedShieldArrowStorage;
@@ -32,7 +32,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.InteractionHand;
@@ -597,7 +596,7 @@ public final class PlayerArrowRemoval {
             List<LodgedArmorArrowData> arrows = LodgedArmorArrowStorage.readData(armor, player.registryAccess());
             for (int index = 0; index < arrows.size(); index++) {
                 LodgedArrowVisual visual = arrows.get(index).visual();
-                double score = armorArrowPriorityScore(player, slot, visual);
+                double score = LodgedArrowRemovalScoring.armorArrowPriorityScore(slot, visual, player.getMainArm());
                 if (score < bestScore) {
                     bestScore = score;
                     best = new InWorldArrowTarget(Target.ARMOR, slot, index, visual);
@@ -614,60 +613,15 @@ public final class PlayerArrowRemoval {
         double bestScore = Double.MAX_VALUE;
         for (int index = 0; index < arrowCount; index++) {
             LodgedArrowData arrow = arrows.get(index);
-            double score = bodyArrowPriorityScore(arrow);
+            double score = LodgedArrowRemovalScoring.bodyArrowPriorityScore(
+                    arrow.visual(),
+                    removalSuccessChance(arrow));
             if (score < bestScore) {
                 bestScore = score;
                 best = new InWorldArrowTarget(Target.BODY, EquipmentSlot.CHEST, index, arrow.visual());
             }
         }
         return best;
-    }
-
-    private static double armorArrowPriorityScore(ServerPlayer player, EquipmentSlot slot, LodgedArrowVisual visual) {
-        double visibleScore = visual.modelZ() <= 0.0F ? 0.0D : 1000.0D;
-        return visibleScore + (armorSlotPriority(slot) * 100.0D) + armorArrowReachDistance(player, visual);
-    }
-
-    private static int armorSlotPriority(EquipmentSlot slot) {
-        return switch (slot) {
-            case HEAD -> 0;
-            case CHEST -> 1;
-            case LEGS -> 2;
-            case FEET -> 3;
-            default -> 4;
-        };
-    }
-
-    private static double bodyArrowPriorityScore(LodgedArrowData arrow) {
-        double successChance = Mth.clamp(removalSuccessChance(arrow), 0.0D, 1.0D);
-        return (bodyPartRemovalPriority(arrow.visual().bodyPart()) * 100.0D) - successChance;
-    }
-
-    private static int bodyPartRemovalPriority(LodgedArrowBodyPart bodyPart) {
-        return switch (bodyPart) {
-            case LEFT_ARM, RIGHT_ARM, LEFT_LEG, RIGHT_LEG -> 0;
-            case CHEST -> 1;
-            case HEAD -> 2;
-        };
-    }
-
-    private static double armorArrowReachDistance(ServerPlayer player, LodgedArrowVisual visual) {
-        HumanoidArm arm = armorPullingArm(player, visual);
-        double armX = arm == HumanoidArm.RIGHT ? -5.0D / 16.0D : 5.0D / 16.0D;
-        double armY = 6.0D / 16.0D;
-        double dx = visual.modelX() - armX;
-        double dy = visual.modelY() - armY;
-        return (dx * dx) + (dy * dy);
-    }
-
-    private static HumanoidArm armorPullingArm(ServerPlayer player, LodgedArrowVisual visual) {
-        if (visual.bodyPart().isArm()) {
-            return visual.modelX() < 0.0F ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
-        }
-        if (Math.abs(visual.modelX()) > 0.05F) {
-            return visual.modelX() < 0.0F ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
-        }
-        return player.getMainArm();
     }
 
     private static ArrowRecoveryResult recoverArrow(Player player, ItemStack storedStack) {

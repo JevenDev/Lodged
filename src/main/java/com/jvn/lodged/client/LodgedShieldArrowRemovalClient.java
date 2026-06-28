@@ -9,7 +9,7 @@ import com.jvn.lodged.network.payload.RemovePlayerArrowPayload.Target;
 import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload;
 import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload.Action;
 import com.jvn.lodged.world.LodgedArmorArrowStorage;
-import com.jvn.lodged.world.LodgedArrowBodyPart;
+import com.jvn.lodged.world.LodgedArrowRemovalScoring;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import com.jvn.lodged.world.LodgedShieldArrowStorage;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -211,14 +211,7 @@ public final class LodgedShieldArrowRemovalClient {
 
     public static HumanoidArm armorPullingArm(LivingEntity entity) {
         ArmorArrowRemovalState state = ClientArrowState.armorArrowRemoval(entity);
-        LodgedArrowVisual arrow = state.arrow();
-        if (arrow.bodyPart().isArm()) {
-            return arrow.modelX() < 0.0F ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
-        }
-        if (Math.abs(arrow.modelX()) > 0.05F) {
-            return arrow.modelX() < 0.0F ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
-        }
-        return entity.getMainArm();
+        return LodgedArrowRemovalScoring.armorPullingArm(entity.getMainArm(), state.arrow());
     }
 
     public static float armorPullProgress(LivingEntity entity) {
@@ -352,7 +345,7 @@ public final class LodgedShieldArrowRemovalClient {
         double bestScore = Double.MAX_VALUE;
         for (EquipmentSlot slot : LodgedArmorArrowStorage.armorSlots()) {
             for (LodgedArrowVisual arrow : LodgedArmorArrowStorage.readAll(player.getItemBySlot(slot))) {
-                double score = armorArrowPriorityScore(slot, arrow);
+                double score = LodgedArrowRemovalScoring.armorArrowPriorityScore(slot, arrow, player.getMainArm());
                 if (score < bestScore) {
                     bestScore = score;
                     best = new InWorldArrowTarget(Target.ARMOR, slot, arrow);
@@ -370,54 +363,16 @@ public final class LodgedShieldArrowRemovalClient {
         double bestScore = Double.MAX_VALUE;
         for (int index = 0; index < arrowCount; index++) {
             LodgedArrowVisual arrow = arrows.get(index);
-            double score = bodyArrowPriorityScore(arrow);
+            double score = LodgedArrowRemovalScoring.bodyArrowPriorityScore(
+                    arrow,
+                    LodgedConfig.playerArrowRemovalSuccessChance(arrow.bodyPart())
+                            * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.depth()));
             if (score < bestScore) {
                 bestScore = score;
                 best = new InWorldArrowTarget(Target.BODY, EquipmentSlot.CHEST, arrow);
             }
         }
         return best;
-    }
-
-    private static double armorArrowPriorityScore(EquipmentSlot slot, LodgedArrowVisual arrow) {
-        double visibleScore = arrow.modelZ() <= 0.0F ? 0.0D : 1000.0D;
-        return visibleScore + (armorSlotPriority(slot) * 100.0D) + arrowReachDistance(arrow);
-    }
-
-    private static int armorSlotPriority(EquipmentSlot slot) {
-        return switch (slot) {
-            case HEAD -> 0;
-            case CHEST -> 1;
-            case LEGS -> 2;
-            case FEET -> 3;
-            default -> 4;
-        };
-    }
-
-    private static double bodyArrowPriorityScore(LodgedArrowVisual arrow) {
-        double successChance = Mth.clamp(
-                LodgedConfig.playerArrowRemovalSuccessChance(arrow.bodyPart())
-                        * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.depth()),
-                0.0D,
-                1.0D);
-        return (bodyPartRemovalPriority(arrow.bodyPart()) * 100.0D) - successChance;
-    }
-
-    private static int bodyPartRemovalPriority(LodgedArrowBodyPart bodyPart) {
-        return switch (bodyPart) {
-            case LEFT_ARM, RIGHT_ARM, LEFT_LEG, RIGHT_LEG -> 0;
-            case CHEST -> 1;
-            case HEAD -> 2;
-        };
-    }
-
-    private static double arrowReachDistance(LodgedArrowVisual arrow) {
-        HumanoidArm arm = arrow.modelX() < 0.0F ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
-        double armX = arm == HumanoidArm.RIGHT ? -5.0D / 16.0D : 5.0D / 16.0D;
-        double armY = 6.0D / 16.0D;
-        double dx = arrow.modelX() - armX;
-        double dy = arrow.modelY() - armY;
-        return (dx * dx) + (dy * dy);
     }
 
     private static InteractionHand pullingHand(InteractionHand shieldHand) {
