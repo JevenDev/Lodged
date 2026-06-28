@@ -1,11 +1,12 @@
 package com.jvn.lodged.config;
 
 import io.wispforest.owo.config.annotation.Config;
-import io.wispforest.owo.config.annotation.Expanded;
+import io.wispforest.owo.config.annotation.ExcludeFromScreen;
 import io.wispforest.owo.config.annotation.Modmenu;
 import io.wispforest.owo.config.annotation.Nest;
 import io.wispforest.owo.config.annotation.PredicateConstraint;
 import io.wispforest.owo.config.annotation.RangeConstraint;
+import io.wispforest.owo.config.annotation.SectionHeader;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.resources.ResourceLocation;
@@ -13,43 +14,43 @@ import net.minecraft.resources.ResourceLocation;
 @Config(name = "lodged", wrapperName = "LodgedConfigWrapper")
 @Modmenu(modId = "lodged")
 public class LodgedConfigModel {
-    @RangeConstraint(min = 1, max = 1)
+    @ExcludeFromScreen
     public int configVersion = 1;
 
     @Nest
-    @Expanded
+    @SectionHeader("arrowRecovery")
     public ArrowRecovery arrowRecovery = new ArrowRecovery();
 
     @Nest
-    @Expanded
+    @SectionHeader("arrowBreakage")
     public ArrowBreakage arrowBreakage = new ArrowBreakage();
 
     @Nest
-    @Expanded
+    @SectionHeader("playerArrowRemoval")
     public PlayerArrowRemoval playerArrowRemoval = new PlayerArrowRemoval();
 
     @Nest
-    @Expanded
+    @SectionHeader("arrowDepth")
     public ArrowDepth arrowDepth = new ArrowDepth();
 
     @Nest
-    @Expanded
+    @SectionHeader("shieldArrows")
     public ShieldArrows shieldArrows = new ShieldArrows();
 
     @Nest
-    @Expanded
+    @SectionHeader("armorArrows")
     public ArmorArrows armorArrows = new ArmorArrows();
 
     @Nest
-    @Expanded
+    @SectionHeader("legShotSlowness")
     public LegShotSlowness legShotSlowness = new LegShotSlowness();
 
     @Nest
-    @Expanded
+    @SectionHeader("bleedingRules")
     public BleedingRules bleedingRules = new BleedingRules();
 
     @Nest
-    @Expanded
+    @SectionHeader("bleedingEffect")
     public BleedingEffect bleedingEffect = new BleedingEffect();
 
     public static class ArrowRecovery {
@@ -61,6 +62,7 @@ public class LodgedConfigModel {
         @RangeConstraint(min = 0, max = 64)
         public int maxTrackedArrowsPerEntity = 8;
 
+        @ExcludeFromScreen
         public boolean recoverPlayerArrowsOnly = true;
         public boolean recoverMobArrows = true;
         public boolean recoverInfinityArrows = false;
@@ -128,6 +130,12 @@ public class LodgedConfigModel {
 
         @RangeConstraint(min = 0, max = 64)
         public int maxRemovablePlayerArrows = 0;
+
+        @RangeConstraint(min = 1, max = 1200)
+        public int inWorldBodyArrowRemovalMinTicks = 40;
+
+        @RangeConstraint(min = 1, max = 1200)
+        public int inWorldBodyArrowRemovalMaxTicks = 60;
 
         public boolean enableLodgedArrowDizziness = true;
 
@@ -286,6 +294,18 @@ public class LodgedConfigModel {
 
         @RangeConstraint(min = 0, max = 64)
         public int maxTrackedArrowsPerShield = 0;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double shieldArrowRemovalSuccessChance = 0.85D;
+
+        @RangeConstraint(min = 1, max = 1200)
+        public int shieldArrowRemovalMinTicks = 40;
+
+        @RangeConstraint(min = 1, max = 1200)
+        public int shieldArrowRemovalMaxTicks = 60;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double shieldArrowDurabilityDamageChance = 0.35D;
 
         public boolean renderOwnShieldArrowsInFirstPerson = true;
     }

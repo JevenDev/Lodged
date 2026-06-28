@@ -37,7 +37,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
 
 public final class LodgedShieldArrowRemovalClient {
-    private static final int LOCAL_REMOVAL_MAX_TICKS = 65;
+    private static final int LOCAL_REMOVAL_GRACE_TICKS = 5;
     private static final float PULL_EASE_TICKS = 16.0F;
     private static final float FIRST_PERSON_ITEM_DROP_TICKS = 8.0F;
     private static final float ARM_X_ROT = -1.35F;
@@ -98,7 +98,7 @@ public final class LodgedShieldArrowRemovalClient {
             activeTicks++;
             if (!ClientArrowState.shieldArrowRemoval(player).active()) {
                 clearShieldLocalState();
-            } else if (!canContinue(player, minecraft, activeShieldHand) || activeTicks > LOCAL_REMOVAL_MAX_TICKS) {
+            } else if (!canContinue(player, minecraft, activeShieldHand) || activeTicks > maxLocalShieldRemovalTicks()) {
                 PacketDistributor.sendToServer(new ShieldArrowRemovalActionPayload(Action.CANCEL, activeShieldHand));
                 ClientArrowState.setLocalShieldArrowRemoval(player.getId(), activeShieldHand, false);
                 clearShieldLocalState();
@@ -109,7 +109,7 @@ public final class LodgedShieldArrowRemovalClient {
             activeArmorTicks++;
             if (!ClientArrowState.armorArrowRemoval(player).active()) {
                 clearArmorLocalState();
-            } else if (!canContinueInWorldRemoval(player, minecraft) || activeArmorTicks > LOCAL_REMOVAL_MAX_TICKS) {
+            } else if (!canContinueInWorldRemoval(player, minecraft) || activeArmorTicks > maxLocalInWorldRemovalTicks()) {
                 PacketDistributor.sendToServer(new ArmorArrowRemovalActionPayload(ArmorArrowRemovalActionPayload.Action.CANCEL));
                 ClientArrowState.setLocalArmorArrowRemoval(
                         player.getId(),
@@ -281,6 +281,16 @@ public final class LodgedShieldArrowRemovalClient {
                 && minecraft.options.keyUse.isDown()
                 && player.isUsingItem()
                 && hasShieldArrows(player, player.getUsedItemHand());
+    }
+
+    private static int maxLocalShieldRemovalTicks() {
+        return LodgedConfig.shieldArrowRemovalMaxTicks() + LOCAL_REMOVAL_GRACE_TICKS;
+    }
+
+    private static int maxLocalInWorldRemovalTicks() {
+        return Math.max(
+                LodgedConfig.armorArrowRemovalTicks(),
+                LodgedConfig.inWorldBodyArrowRemovalMaxTicks()) + LOCAL_REMOVAL_GRACE_TICKS;
     }
 
     private static boolean canContinue(LocalPlayer player, Minecraft minecraft, InteractionHand shieldHand) {

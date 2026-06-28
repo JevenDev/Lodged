@@ -192,6 +192,16 @@ public final class LodgedConfig {
                 : Math.min(maxTrackedBodyArrowsPerEntity(), MAX_SYNCED_BODY_ARROW_VISUALS);
     }
 
+    public static int inWorldBodyArrowRemovalMinTicks() {
+        return Math.min(playerArrowRemoval().inWorldBodyArrowRemovalMinTicks(), inWorldBodyArrowRemovalMaxTicks());
+    }
+
+    public static int inWorldBodyArrowRemovalMaxTicks() {
+        return Math.max(
+                playerArrowRemoval().inWorldBodyArrowRemovalMinTicks(),
+                playerArrowRemoval().inWorldBodyArrowRemovalMaxTicks());
+    }
+
     public static boolean enableArrowDepthTiers() {
         return arrowDepth().enableArrowDepthTiers();
     }
@@ -359,6 +369,22 @@ public final class LodgedConfig {
     public static int maxTrackedArrowsPerShield() {
         int configuredMax = shieldArrows().maxTrackedArrowsPerShield();
         return configuredMax > 0 ? configuredMax : maxTrackedArrowsPerEntity();
+    }
+
+    public static double shieldArrowRemovalSuccessChance() {
+        return shieldArrows().shieldArrowRemovalSuccessChance();
+    }
+
+    public static int shieldArrowRemovalMinTicks() {
+        return Math.min(shieldArrows().shieldArrowRemovalMinTicks(), shieldArrowRemovalMaxTicks());
+    }
+
+    public static int shieldArrowRemovalMaxTicks() {
+        return Math.max(shieldArrows().shieldArrowRemovalMinTicks(), shieldArrows().shieldArrowRemovalMaxTicks());
+    }
+
+    public static double shieldArrowDurabilityDamageChance() {
+        return shieldArrows().shieldArrowDurabilityDamageChance();
     }
 
     public static boolean renderOwnShieldArrowsInFirstPerson() {

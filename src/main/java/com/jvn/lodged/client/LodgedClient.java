@@ -2,12 +2,13 @@ package com.jvn.lodged.client;
 
 import com.jvn.lodged.Lodged;
 import com.jvn.lodged.particle.LodgedParticles;
+import io.wispforest.owo.config.ui.ConfigScreenProviders;
+import net.minecraft.client.gui.screens.Screen;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
-import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.common.NeoForge;
 
@@ -23,9 +24,7 @@ public final class LodgedClient {
         NeoForge.EVENT_BUS.addListener(LodgedDizzinessClientEffects::onRenderGui);
         NeoForge.EVENT_BUS.addListener(LodgedDizzinessClientEffects::onComputeCameraAngles);
         NeoForge.EVENT_BUS.addListener(LodgedDizzinessPostProcessor::onRenderLevelStage);
-        modContainer.registerExtensionPoint(
-                IConfigScreenFactory.class,
-                (IConfigScreenFactory) (container, parent) -> new ConfigurationScreen(container, parent));
+        modContainer.registerExtensionPoint(IConfigScreenFactory.class, (IConfigScreenFactory) LodgedClient::createConfigScreen);
     }
 
     private static void registerParticleProviders(RegisterParticleProvidersEvent event) {
@@ -33,5 +32,13 @@ public final class LodgedClient {
                 LodgedParticles.BLEEDING_DROP.get(),
                 sprites -> (type, level, x, y, z, xSpeed, ySpeed, zSpeed) ->
                         BleedingDropParticle.create(sprites, type, level, x, y, z, xSpeed, ySpeed, zSpeed));
+    }
+
+    private static Screen createConfigScreen(ModContainer container, Screen parent) {
+        var provider = ConfigScreenProviders.get(Lodged.MOD_ID);
+        if (provider == null) {
+            throw new IllegalStateException("Missing owo config screen provider for " + Lodged.MOD_ID);
+        }
+        return provider.apply(parent);
     }
 }

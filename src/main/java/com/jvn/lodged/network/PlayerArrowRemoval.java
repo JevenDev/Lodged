@@ -52,15 +52,12 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public final class PlayerArrowRemoval {
     private static final int REQUEST_COOLDOWN_TICKS = 2;
-    private static final int SHIELD_ARROW_REMOVAL_MIN_TICKS = 40;
-    private static final int SHIELD_ARROW_REMOVAL_RANDOM_TICKS = 21;
     private static final int SHIELD_ARROW_BREAK_PARTICLES = 12;
     private static final int ARMOR_ARROW_BREAK_PARTICLES = 10;
     private static final int NO_INVENTORY_SLOT = -1;
     private static final double SHIELD_CENTER_HEIGHT_RATIO = 0.55D;
     private static final double SHIELD_CENTER_FORWARD_OFFSET = 0.35D;
     private static final double SHIELD_HAND_SIDE_OFFSET = 0.28D;
-    private static final double SHIELD_ARROW_REMOVAL_DURABILITY_CHANCE = 0.35D;
     private static final Map<UUID, Long> LAST_REQUEST_TICK = new HashMap<>();
     private static final Map<UUID, ShieldArrowRemovalAttempt> SHIELD_ARROW_REMOVALS = new HashMap<>();
     private static final Map<UUID, ArmorArrowRemovalAttempt> ARMOR_ARROW_REMOVALS = new HashMap<>();
@@ -385,7 +382,7 @@ public final class PlayerArrowRemoval {
 
         int arrowIndex = priorityShieldArrowIndex(arrows);
         long gameTime = player.level().getGameTime();
-        long completeTick = gameTime + SHIELD_ARROW_REMOVAL_MIN_TICKS + player.getRandom().nextInt(SHIELD_ARROW_REMOVAL_RANDOM_TICKS);
+        long completeTick = gameTime + shieldArrowRemovalTicks(player);
         SHIELD_ARROW_REMOVALS.put(player.getUUID(), new ShieldArrowRemovalAttempt(hand, arrowIndex, completeTick));
         syncShieldArrowRemoval(player, true, hand);
     }
@@ -468,7 +465,19 @@ public final class PlayerArrowRemoval {
             return LodgedConfig.armorArrowRemovalTicks();
         }
 
-        return SHIELD_ARROW_REMOVAL_MIN_TICKS + player.getRandom().nextInt(SHIELD_ARROW_REMOVAL_RANDOM_TICKS);
+        return inWorldBodyArrowRemovalTicks(player);
+    }
+
+    private static int inWorldBodyArrowRemovalTicks(ServerPlayer player) {
+        int minTicks = LodgedConfig.inWorldBodyArrowRemovalMinTicks();
+        int maxTicks = LodgedConfig.inWorldBodyArrowRemovalMaxTicks();
+        return minTicks + player.getRandom().nextInt(maxTicks - minTicks + 1);
+    }
+
+    private static int shieldArrowRemovalTicks(ServerPlayer player) {
+        int minTicks = LodgedConfig.shieldArrowRemovalMinTicks();
+        int maxTicks = LodgedConfig.shieldArrowRemovalMaxTicks();
+        return minTicks + player.getRandom().nextInt(maxTicks - minTicks + 1);
     }
 
     private static void stopShieldArrowRemoval(ServerPlayer player) {
@@ -690,7 +699,7 @@ public final class PlayerArrowRemoval {
     }
 
     private static double removalSuccessChance(LodgedShieldArrowData arrow) {
-        double successChance = LodgedConfig.playerArrowRemovalSuccessChance(LodgedArrowBodyPart.LEFT_ARM);
+        double successChance = LodgedConfig.shieldArrowRemovalSuccessChance();
         return removalSuccessChance(arrow.infinityGenerated(), successChance);
     }
 
@@ -766,7 +775,7 @@ public final class PlayerArrowRemoval {
     private static void maybeDamageShieldFromArrowRemoval(ServerPlayer player, ItemStack shield, EquipmentSlot slot) {
         if (shield.isEmpty()
                 || player.getAbilities().instabuild
-                || player.getRandom().nextDouble() >= SHIELD_ARROW_REMOVAL_DURABILITY_CHANCE) {
+                || player.getRandom().nextDouble() >= LodgedConfig.shieldArrowDurabilityDamageChance()) {
             return;
         }
 

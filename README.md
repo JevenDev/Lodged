@@ -89,7 +89,7 @@ Body arrows can land as shallow hits, normal lodged hits, or deep lodged hits. D
 
 Shield arrows use the same inventory removal flow. Mob-fired arrows lodged in shields are recoverable by default and can be disabled separately from body arrow recovery.
 
-By default, carrying 4 or more lodged arrows, or reaching 50% of the configured tracked-arrow limit, applies Lodged's custom Dizziness effect. It uses a subtle border vignette, slight red tint, and first-person screen wobble that grows stronger as more arrows lodge. Removing arrows drops you below that threshold and lets the effect fade.
+By default, carrying 4 or more lodged arrows, or reaching 50% of the configured body-arrow capacity, applies Lodged's custom Dizziness effect. It uses a subtle border vignette, slight red tint, and first-person screen wobble that grows stronger as more arrows lodge. Removing arrows drops you below that threshold and lets the effect fade.
 
 By default, arrows that hit a player's legs apply vanilla Slowness I for 40 ticks. Leg shot Slowness can be disabled, and both its duration and level are configurable.
 
@@ -183,7 +183,7 @@ Major systems can be tuned or disabled:
 - Arrow breakage on entities and blocks
 - Player arrow removal
 - Arrow removal animation enablement and speed
-- Shield arrow lodging and mob-fired shield arrow recovery
+- Shield arrow lodging, removal timing, durability chance, and mob-fired shield arrow recovery
 - Removal success chances by body part
 - Arrow depth chances, Power/crit/velocity/armor modifiers, and shallow/deep removal and bleeding multipliers
 - Removal failure damage

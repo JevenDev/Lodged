@@ -56,7 +56,6 @@ public final class LodgedArrowEvents {
     private static final long BLOCK_ARROW_BREAK_DELAY_TICKS = 4L;
     private static final long BLOCK_ARROW_BREAK_EXPIRY_TICKS = 40L;
     private static final int MAX_DIZZINESS_AMPLIFIER = 4;
-    private static final double SHIELD_ARROW_REMOVAL_DURABILITY_CHANCE = 0.35D;
     private static final Map<UUID, BrokenArrowImpact> BROKEN_ARROW_IMPACTS = new HashMap<>();
     private static final Map<UUID, ShieldArrowImpact> SHIELD_ARROW_IMPACTS = new HashMap<>();
     private static final Map<UUID, ArmorArrowImpact> ARMOR_ARROW_IMPACTS = new HashMap<>();
@@ -984,7 +983,7 @@ public final class LodgedArrowEvents {
 
     private static void maybeDamageShieldFromArrowRemoval(LivingEntity holder, ItemStack shield, EquipmentSlot slot) {
         if (shield.isEmpty()
-                || holder.level().random.nextDouble() >= SHIELD_ARROW_REMOVAL_DURABILITY_CHANCE
+                || holder.level().random.nextDouble() >= LodgedConfig.shieldArrowDurabilityDamageChance()
                 || holder instanceof Player player && player.getAbilities().instabuild) {
             return;
         }
