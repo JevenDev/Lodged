@@ -886,7 +886,7 @@ public final class LodgedArrowEvents {
     }
 
     private static int playerDizzinessAmplifier(ServerPlayer player) {
-        int maxTrackedArrows = LodgedConfig.maxTrackedArrowsPerEntity();
+        int maxTrackedArrows = LodgedConfig.maxTrackedBodyArrowsPerEntity();
         if (maxTrackedArrows <= 0) {
             return -1;
         }

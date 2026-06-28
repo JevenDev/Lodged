@@ -43,7 +43,7 @@ It is meant to make ranged combat a little grittier without replacing Minecraft'
 
 When supported arrows hit living entities, Lodged can remember the arrow and where it landed. Non-player entities can show synced lodged arrows to nearby players, while players can keep arrow data for removal and recovery.
 
-By default, the mod tracks up to 8 arrows per entity. Player-fired arrows can be recovered from killed targets with a 35% chance per tracked arrow.
+By default, the mod tracks up to 8 arrows per body part. Player-fired arrows can be recovered from killed targets with a 35% chance per tracked arrow.
 
 Supported arrow types:
 
@@ -99,7 +99,7 @@ Infinity-generated arrows have their removal success chance halved by default wh
 Default dizziness behaviour:
 
 * Lodged arrow dizziness is enabled
-* Dizziness starts at 4 lodged arrows or 50% of max tracked arrows
+* Dizziness starts at 4 lodged arrows or 50% of max body arrow capacity
 * Each additional lodged arrow increases the effect strength, up to a capped maximum
 * Dizziness refreshes once per second with a short 80-tick custom effect duration
 
@@ -167,7 +167,7 @@ Major systems can be tuned or disabled:
 
 * Arrow recovery
 * Recovery chance
-* Maximum tracked arrows per entity
+* Maximum tracked arrows per body part
 * Player, mob, Infinity, and creative arrow recovery
 * Arrow item stack preservation
 * Stuck-arrow despawn prevention

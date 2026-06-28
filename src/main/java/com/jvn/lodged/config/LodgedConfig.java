@@ -11,6 +11,7 @@ import net.minecraft.util.Mth;
 
 public final class LodgedConfig {
     private static final int CURRENT_CONFIG_VERSION = 1;
+    private static final int MAX_SYNCED_BODY_ARROW_VISUALS = 64;
     private static final String CONFIG_VERSION_KEY = "configVersion";
     private static final LodgedConfigWrapper CONFIG = loadConfig();
 
@@ -74,6 +75,13 @@ public final class LodgedConfig {
 
     public static int maxTrackedArrowsPerEntity() {
         return arrowRecovery().maxTrackedArrowsPerEntity();
+    }
+
+    public static int maxTrackedBodyArrowsPerEntity() {
+        int maxTrackedArrowsPerBodyPart = maxTrackedArrowsPerEntity();
+        return maxTrackedArrowsPerBodyPart > 0
+                ? maxTrackedArrowsPerBodyPart * LodgedArrowBodyPart.values().length
+                : 0;
     }
 
     public static boolean recoverPlayerArrowsOnly() {
@@ -179,7 +187,9 @@ public final class LodgedConfig {
 
     public static int maxRemovablePlayerArrows() {
         int configuredMax = playerArrowRemoval().maxRemovablePlayerArrows();
-        return configuredMax > 0 ? configuredMax : maxTrackedArrowsPerEntity();
+        return configuredMax > 0
+                ? configuredMax
+                : Math.min(maxTrackedBodyArrowsPerEntity(), MAX_SYNCED_BODY_ARROW_VISUALS);
     }
 
     public static boolean enableArrowDepthTiers() {

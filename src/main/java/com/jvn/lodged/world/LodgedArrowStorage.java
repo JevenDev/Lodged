@@ -18,10 +18,14 @@ public final class LodgedArrowStorage {
 
     public static void add(LivingEntity entity, LodgedArrowData arrowData) {
         ListTag arrows = getOrCreateArrowList(entity);
-        int maxTrackedArrows = LodgedConfig.maxTrackedArrowsPerEntity();
+        int maxTrackedArrowsPerBodyPart = LodgedConfig.maxTrackedArrowsPerEntity();
+        if (maxTrackedArrowsPerBodyPart <= 0) {
+            return;
+        }
 
-        while (arrows.size() >= maxTrackedArrows) {
-            arrows.remove(0);
+        LodgedArrowBodyPart bodyPart = arrowData.visual().bodyPart();
+        while (arrowCount(arrows, bodyPart) >= maxTrackedArrowsPerBodyPart) {
+            removeOldestArrow(arrows, bodyPart);
         }
 
         arrows.add(arrowData.save(entity));
@@ -100,6 +104,29 @@ public final class LodgedArrowStorage {
             return persistentData.getList(STORAGE_KEY, Tag.TAG_COMPOUND);
         }
         return new ListTag();
+    }
+
+    private static int arrowCount(ListTag arrows, LodgedArrowBodyPart bodyPart) {
+        int count = 0;
+        for (int index = 0; index < arrows.size(); index++) {
+            if (bodyPart(arrows.getCompound(index)) == bodyPart) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static void removeOldestArrow(ListTag arrows, LodgedArrowBodyPart bodyPart) {
+        for (int index = 0; index < arrows.size(); index++) {
+            if (bodyPart(arrows.getCompound(index)) == bodyPart) {
+                arrows.remove(index);
+                return;
+            }
+        }
+    }
+
+    private static LodgedArrowBodyPart bodyPart(CompoundTag arrow) {
+        return LodgedArrowVisual.load(arrow).bodyPart();
     }
 
     private static int storedArrowCount(LivingEntity entity) {
