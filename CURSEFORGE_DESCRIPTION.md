@@ -7,31 +7,27 @@
 
 ![Warden being struck by multiple arrows](https://i.imgur.com/HaMHMQS.png)
 
-Lodged is a small Vanilla+ NeoForge mod that improves upon arrow rendering and impact.
+Arrows can lodge in bodies, shields, and armor, preserve their item data, drop from slain targets, break on impact, and be pulled out through inventory or in-world removal. The mod also adds optional bleeding, dizziness, leg-shot Slowness, and data-driven projectile support.
 
-Arrows can stay lodged in living entities, carry their original item data, drop from slain targets, break on impact, and even be pulled out of your own player model from the inventory screen. The mod also adds an optional bleeding system, so sharp hits and risky arrow removal can become more than a one-time damage number.
+The goal is simple: arrows actually have some impact and are a bit more immersive.
 
-It is meant to make ranged combat a little grittier without replacing Minecraft's core combat loop.
-
-* Arrows can be tracked after hitting living entities
-* Modded arrow entity types can opt into tracking, recovery, bleeding, or non-lodging behavior with datapack tags
-* Tracked arrows can drop when the target dies
-* Player, mob, Infinity, and creative arrows can each be controlled separately
-* Spectral and tipped arrow data can be preserved for recovery
-* Arrows can break on entity or block impact (configurable)
-* Players can remove lodged arrows from their own inventory preview
-* Shield-blocked arrows can lodge into shields and be removed from the inventory preview
-* Removal success can vary by body part
-* Body arrows can be shallow, lodged, or deep lodged based on hit force, hit location, critical shots, and armour
-* Having too many lodged arrows can cause mild dizziness until some are removed
-* Arrows that hit player legs can briefly apply Slowness
-* Failed removal can break the arrow, hurt the player, and apply bleeding
-* Bleeding can come from arrow removal, broken arrow impacts, or tagged/enchantment-based weapons
-* Bleeding supports configurable blood particles, data-driven blood colors, stacked duration, and stronger late-stage damage
-* Optional Simple Blood compatibility can add matching ground decals when Lodged blood drops land
-* Armour, undead mobs, skeletons, and immune entities can all be configured
-* Slimes, magma cubes, and armour stands are denied by default
-* Skeletons, golems, slimes, magma cubes, blazes, breezes, guardians, and armour stands are bleeding-immune by default
+* Track arrows after they hit living entities and render them on their model
+* Preserve original arrow item stacks for tipped, spectral, and supported modded arrows
+* Recover tracked arrows from killed targets, player bodies, shields, and armor
+* Tune player, mob, Infinity, and creative arrow recovery separately
+* Let arrows break on entity or block impact
+* Pull body arrows from the inventory player preview or with in-world removal keybind
+* Lodge blocked arrows into shields, render them on the shield, and remove them later
+* Lodge stopped arrows into armor pieces, with armor penetration and durability penalties
+* Classify body arrows as shallow, lodged, or deep lodged based on shot force, body part, crits, Power enchantment, crossbows, and armor coverage
+* Make removal difficulty, animation time, bleeding risk, and bleeding duration respond to arrow depth
+* Show hover details for body part, armor piece, depth, removal chance, and bleeding risk
+* Apply mild dizziness when too many arrows are lodged
+* Apply brief Slowness window from leg shots
+* Apply bleeding from risky removal, broken arrow impacts, or tagged/enchantment-based weapons
+* Configure blood particles, data-driven blood colors, stacked duration, late-stage damage, and Simple Blood ground decals
+* Support modded `AbstractArrow` entity types through datapack projectile tags
+* Configure armor, undead mobs, skeletons, denied entities, and bleeding-immune entities
 
 ![features](https://cdn.modrinth.com/data/cached_images/ec0e4dc78ec1a652eb11b233dd2926f7461fe770.png)
 
@@ -41,25 +37,25 @@ It is meant to make ranged combat a little grittier without replacing Minecraft'
 
 ### Lodged Arrows
 
-When supported arrows hit living entities, Lodged can remember the arrow and where it landed. Non-player entities can show synced lodged arrows to nearby players, while players can keep arrow data for removal and recovery.
+When supported arrows hit living entities, Lodged can remember the arrow, where it landed, what item it came from, whether it can be recovered, and whether it can cause bleeding. Non-player entities show synced lodged arrows to nearby players, while player arrows are kept for removal, recovery, dizziness, and bleeding logic.
 
-By default, the mod tracks up to 8 arrows per body part. Player-fired arrows can be recovered from killed targets with a 35% chance per tracked arrow.
+By default, the mod tracks up to 8 body arrows per body part. Player-fired arrows can be recovered from killed targets with a 35% chance per tracked arrow.
 
 Supported arrow types:
 
-| Arrow type       | Notes                                                          |
-| ---------------- | -------------------------------------------------------------- |
-| Regular arrows   | Supported for tracking, recovery, breakage, and player removal |
-| Spectral arrows  | Supported and recoverable as spectral arrows                   |
-| Tipped arrows    | Preserved when original item stack recovery is enabled         |
-| Modded arrows    | Supported when their `AbstractArrow` entity type is added to Lodged's projectile tags |
-| Infinity arrows  | Disabled for recovery by default, configurable                 |
-| Mob-fired arrows | Enabled for recovery by default, configurable                  |
-| Creative arrows  | Disabled for recovery by default, configurable                 |
+| Arrow type | Notes |
+| --- | --- |
+| Regular arrows | Supported for tracking, recovery, breakage, rendering, and removal |
+| Spectral arrows | Supported and recoverable as spectral arrows |
+| Tipped arrows | Preserved when original item stack recovery is enabled |
+| Modded arrows | Supported when their `AbstractArrow` entity type is added to Lodged's projectile tags |
+| Infinity arrows | Disabled for recovery by default, configurable |
+| Mob-fired arrows | Enabled for recovery by default, configurable |
+| Creative arrows | Disabled for recovery by default, configurable |
 
 ### Arrow Recovery
 
-If arrow recovery is enabled, tracked arrows can drop when the living entity they are lodged in dies. The mod can preserve the original arrow item stack, allowing recovered tipped and spectral arrows to retain their data rather than becoming normal arrows.
+If arrow recovery is enabled, tracked body arrows can drop when the living entity they are lodged in dies. It preserves the original arrow item stack, allowing recovered tipped, spectral, and supported modded arrows to retain their data rather than becoming normal arrows.
 
 Default recovery behaviour:
 
@@ -70,31 +66,54 @@ Default recovery behaviour:
 * Infinity arrows are not recovered unless enabled
 * Creative arrows are not recovered unless enabled
 * Original arrow item data is preserved
+* Mob shield arrows and mob armor arrows are recoverable by default
 
-### Player Arrow Removal
+### Arrow Removal
 
-Players can remove arrows stuck in their own body from the inventory player preview.
+Players can remove lodged arrows from their own body, shields, and armor.
 
-Open your inventory, rotate the player preview if needed, and click a lodged arrow. A successful removal gives the arrow back when that arrow type is recoverable. A failed removal breaks the arrow, can deal damage, and can apply bleeding.
+Open your inventory, rotate the player preview if needed, and click a lodged body, shield, or armor arrow. A successful removal gives the arrow back when that arrow type is recoverable. A failed body removal can break the arrow, deal damage, and apply bleeding. Shield and armor removals can also break arrows and damage the item they were stuck in.
 
-Body arrows can land as shallow hits, normal lodged hits, or deep lodged hits. Deep lodged arrows are more likely from fast, critical, high-damage shots to the head or chest, especially when that body area is unarmoured. They are harder to remove, take longer to pull, and carry higher bleeding risk.
+Removal can also happen in world. Body and armor removal chooses a priority arrow and takes time to complete. Shield removal works from the held shield and syncs to nearby players while the removal is in progress.
 
-Shield arrows use the same inventory removal flow. Mob-fired arrows lodged in shields are recoverable by default and can be disabled separately from body arrow recovery.
+The removal UI shows useful risk information before you click: hit body part, armor piece, arrow depth, removal chance, and bleeding risk. Result feedback distinguishes successful recovery, broken arrows, full inventories, unsafe removals, and blocked removal attempts.
 
-By default, carrying 4 or more lodged arrows, or reaching 50% of the configured body-arrow capacity, applies Lodged's custom Dizziness effect. It uses a subtle border vignette, slight red tint, and gentle first-person screen wobble that grows stronger as more arrows lodge. Removing arrows drops you below that threshold and lets the effect fade.
+By default, carrying 4 or more lodged arrows, or reaching 50% of the configured body-arrow capacity, applies Lodged's custom Dizziness effect. It uses a subtle border vignette, slight red tint, and first-person screen wobble that grows stronger as more arrows lodge. Removing arrows drops you below that threshold and lets the effect fade.
 
 By default, arrows that hit a player's legs apply vanilla Slowness I for 40 ticks. Leg shot Slowness can be disabled, and both its duration and level are configurable.
 
 Default removal chances:
 
 | Body part | Default success chance |
-| --------- | ---------------------: |
-| Head      |                    35% |
-| Chest     |                    65% |
-| Arm       |                    85% |
-| Leg       |                    85% |
+| --- | ---: |
+| Head | 35% |
+| Chest | 65% |
+| Arm | 85% |
+| Leg | 85% |
 
 Infinity-generated arrows have their removal success chance halved by default when Infinity recovery is enabled.
+
+### Arrow Depth
+
+Body arrows can land as shallow hits, normal lodged hits, or deep lodged hits.
+
+Deep lodged arrows are more likely from fast, critical, high-damage shots to the head or chest, especially when that body area is unarmored. Power enchantment level, crossbow shots, arrow velocity, modified damage, body part, and armor coverage can all affect the final depth roll.
+
+Depth changes how removal feels:
+
+| Depth | Default effect |
+| --- | --- |
+| Shallow | Easier to remove, lower bleeding risk, shorter animation |
+| Lodged | Standard removal behavior |
+| Deep lodged | Harder to remove, higher bleeding risk, longer animation |
+
+Depth tiers can be disabled if you prefer every body arrow to behave like a normal lodged arrow.
+
+### Shields and Armor
+
+Shield-blocked arrows can lodge into the shield item instead of disappearing. Lodged shield arrows render on the shield, including first-person shields, and can be removed from the inventory preview or through in-world shield removal. Removing shield arrows can damage the shield, and mob-fired shield arrows are recoverable by default.
+
+Armor can also catch arrows. When an arrow hits an armored body part, Lodged can roll armor penetration. Arrows that fail to penetrate may lodge into the armor piece instead of the body. Armor arrows can render on equipped armor, be removed later, break during removal, and add extra durability loss while left in the armor.
 
 Default dizziness behaviour:
 
@@ -130,11 +149,11 @@ Default bleeding behaviour:
 * Pulling lodged arrows can cause bleeding
 * Enchantment-tagged weapons can cause bleeding
 * Weapon-item-tag bleeding is disabled by default
-* Full armour prevents normal bleeding by default
-* Partial armour reduces bleeding chance by default
+* Full armor prevents normal bleeding by default
+* Partial armor reduces bleeding chance by default
 * Undead can bleed only if included in Lodged's undead bleeding tag
 * Skeletons do not bleed by default
-* Skeletons, golems, slimes, magma cubes, blazes, breezes, guardians, and armour stands are in the bleeding immune tag by default
+* Skeletons, golems, slimes, magma cubes, blazes, breezes, guardians, and armor stands are in the bleeding immune tag by default
 * Lodged blood particles are enabled by default in world and on the inventory player preview
 * Simple Blood compat ground decals are enabled by default when Simple Blood is installed
 * Endermen, endermites, shulkers, and the Ender Dragon have purple blood by default
@@ -145,14 +164,14 @@ When Simple Blood is installed, Lodged can spawn Simple Blood ground decals from
 
 Default bleeding damage:
 
-| Setting                                  |                  Default |
-| ---------------------------------------- | -----------------------: |
-| Weapon or broken-arrow bleeding duration |                120 ticks |
-| Arrow-removal bleeding duration          |                200 ticks |
-| Maximum bleeding duration                |               1200 ticks |
-| Strong bleeding threshold                |                600 ticks |
-| Normal bleed pulse                       | 1 damage every 100 ticks |
-| Strong bleed pulse                       |  2 damage every 80 ticks |
+| Setting | Default |
+| --- | ---: |
+| Weapon or broken-arrow bleeding duration | 120 ticks |
+| Arrow-removal bleeding duration | 200 ticks |
+| Maximum bleeding duration | 1200 ticks |
+| Strong bleeding threshold | 600 ticks |
+| Normal bleed pulse | 1 damage every 100 ticks |
+| Strong bleed pulse | 2 damage every 80 ticks |
 
 ## Configuration
 
@@ -173,16 +192,18 @@ Major systems can be tuned or disabled:
 * Stuck-arrow despawn prevention
 * Entity denylist
 * Arrow breakage on entities and blocks
-* Player arrow removal
+* Body, shield, and armor arrow removal
+* Inventory and in-world removal timing
 * Arrow removal animation enablement and speed
-* Shield arrow lodging, removal timing, durability chance, and mob-fired shield arrow recovery
+* Shield arrow lodging, removal timing, durability chance, first-person rendering, and mob-fired shield arrow recovery
+* Armor arrow lodging, armor penetration, rendering, removal, break chance, durability penalties, and mob-fired armor arrow recovery
 * Removal success chances by body part
 * Arrow depth chances, Power/crit/velocity/armor modifiers, and shallow/deep removal and bleeding multipliers
 * Removal failure damage
 * Lodged arrow dizziness thresholds and duration
 * Leg shot Slowness duration, level, and enablement
 * Bleeding rules
-* Bleeding duration, damage, Lodged particles, Simple Blood compat particles, Simple Blood decal chance and scale, data-driven blood colors, and armour behaviour
+* Bleeding duration, damage, Lodged particles, Simple Blood compat particles, Simple Blood decal chance and scale, data-driven blood colors, and armor behavior
 
 ## Tags and Pack Support
 
@@ -193,12 +214,15 @@ Entity tags:
 * `lodged:bleeding_immune`
 * `lodged:bleeding_skeletons`
 * `lodged:bleeding_undead`
+
+Projectile entity type tags:
+
 * `lodged:trackable_projectiles`
 * `lodged:recoverable_projectiles`
 * `lodged:bleeding_projectiles`
 * `lodged:non_lodging_projectiles`
 
-The default `lodged:bleeding_immune` tag includes entities like skeletons, golems, slimes, magma cubes, blazes, breezes, guardians, and armour stands. Datapacks can add to it or replace it like any normal Minecraft entity type tag.
+The default `lodged:bleeding_immune` tag includes entities like skeletons, golems, slimes, magma cubes, blazes, breezes, guardians, and armor stands. Datapacks can add to it or replace it like any normal Minecraft entity type tag.
 
 The projectile tags apply to `AbstractArrow` entity types. `lodged:trackable_projectiles` opts an arrow entity into Lodged's impact handling, `lodged:recoverable_projectiles` allows its pickup item stack to be stored and returned, `lodged:bleeding_projectiles` allows broken impacts and arrow removal to apply bleeding, and `lodged:non_lodging_projectiles` prevents body and shield lodging while still letting the projectile remain trackable for other impact behavior. Vanilla arrows and spectral arrows are included in the first three projectile tags by default.
 
@@ -235,7 +259,7 @@ Lodged is designed to work with vanilla-style combat and projectile behaviour in
 
 * Supports vanilla arrows and spectral arrows by default
 * Supports modded `AbstractArrow` entity types through datapack projectile tags
-* Uses synced arrow data for client visuals and player removal
+* Uses synced arrow data for client visuals and arrow removal
 * Integrates with Simple Blood when installed by spawning matching ground decals from Lodged blood drops
 * Does not replace Minecraft's living entity classes
 
