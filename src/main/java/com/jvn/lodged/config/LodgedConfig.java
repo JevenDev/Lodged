@@ -1,18 +1,67 @@
 package com.jvn.lodged.config;
 
+import com.jvn.lodged.Lodged;
 import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowDepth;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.List;
 import net.minecraft.util.Mth;
 
 public final class LodgedConfig {
-    private static final LodgedConfigWrapper CONFIG = LodgedConfigWrapper.createAndLoad();
+    private static final int CURRENT_CONFIG_VERSION = 1;
+    private static final String CONFIG_VERSION_KEY = "configVersion";
+    private static final LodgedConfigWrapper CONFIG = loadConfig();
 
     private LodgedConfig() {
     }
 
     public static void load() {
         CONFIG.getClass();
+    }
+
+    private static LodgedConfigWrapper loadConfig() {
+        LodgedConfigWrapper config = LodgedConfigWrapper.createAndLoad();
+        migrateConfig(config);
+        return config;
+    }
+
+    private static void migrateConfig(LodgedConfigWrapper config) {
+        boolean save = false;
+
+        if (isLegacyUnversionedConfig(config)) {
+            if (!config.arrowRecovery.recoverMobArrows()) {
+                config.arrowRecovery.recoverMobArrows(true);
+                Lodged.LOGGER.info("Updated legacy Lodged config: enabled mob arrow recovery to match current defaults");
+            }
+            save = true;
+        }
+
+        if (config.configVersion() < CURRENT_CONFIG_VERSION) {
+            save = true;
+        }
+
+        if (config.configVersion() != CURRENT_CONFIG_VERSION) {
+            config.configVersion(CURRENT_CONFIG_VERSION);
+        }
+
+        if (save) {
+            config.save();
+        }
+    }
+
+    private static boolean isLegacyUnversionedConfig(LodgedConfigWrapper config) {
+        if (!Files.exists(config.fileLocation())) {
+            return false;
+        }
+
+        try {
+            return !Files.readString(config.fileLocation(), StandardCharsets.UTF_8).contains(CONFIG_VERSION_KEY);
+        } catch (IOException exception) {
+            Lodged.LOGGER.warn("Could not inspect Lodged config for migration", exception);
+            return false;
+        }
     }
 
     public static boolean enableArrowRecovery() {

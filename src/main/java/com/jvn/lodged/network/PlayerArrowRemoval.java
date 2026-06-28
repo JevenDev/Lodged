@@ -188,7 +188,7 @@ public final class PlayerArrowRemoval {
             return;
         }
 
-        boolean recovered = removedArrow.recoverable()
+        boolean recovered = canRecoverArrow(removedArrow)
                 && (successChance >= 1.0D || (successChance > 0.0D && player.getRandom().nextDouble() < successChance));
         if (recovered) {
             ArrowRecoveryResult recoveryResult = recoverArrow(player, removedArrow.stack());
@@ -236,7 +236,7 @@ public final class PlayerArrowRemoval {
             return;
         }
 
-        boolean recovered = removedArrow.recoverable()
+        boolean recovered = canRecoverArrow(removedArrow)
                 && (successChance >= 1.0D || (successChance > 0.0D && player.getRandom().nextDouble() < successChance));
         if (recovered) {
             ArrowRecoveryResult recoveryResult = recoverArrow(player, removedArrow.stack());
@@ -289,7 +289,7 @@ public final class PlayerArrowRemoval {
 
         boolean broke = player.getRandom().nextDouble() < LodgedConfig.armorArrowRemovalBreakChance();
         boolean recovered = !broke
-                && removedArrow.recoverable()
+                && canRecoverArrow(removedArrow)
                 && (successChance >= 1.0D || (successChance > 0.0D && player.getRandom().nextDouble() < successChance));
         if (recovered) {
             ArrowRecoveryResult recoveryResult = recoverArrow(player, removedArrow.stack());
@@ -686,87 +686,67 @@ public final class PlayerArrowRemoval {
     private static double removalSuccessChance(LodgedArrowData arrow) {
         double baseSuccessChance = LodgedConfig.playerArrowRemovalSuccessChance(arrow.visual().bodyPart())
                 * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.visual().depth());
-        if (!arrow.recoverable()) {
-            return baseSuccessChance;
-        }
-
-        return removalSuccessChance(
-                arrow.fromPlayer(),
-                arrow.infinityGenerated(),
-                arrow.creativeGenerated(),
-                baseSuccessChance);
+        return removalSuccessChance(arrow.infinityGenerated(), baseSuccessChance);
     }
 
     private static double removalSuccessChance(LodgedShieldArrowData arrow) {
         double successChance = LodgedConfig.playerArrowRemovalSuccessChance(LodgedArrowBodyPart.ARM);
-        if (!arrow.recoverable()) {
-            return successChance;
-        }
-
-        if (!arrow.fromPlayer() && !LodgedConfig.recoverMobShieldArrows()) {
-            return 0.0D;
-        }
-
-        if (arrow.infinityGenerated() && !LodgedConfig.recoverInfinityArrows()) {
-            return 0.0D;
-        }
-
-        if (arrow.creativeGenerated() && !LodgedConfig.recoverCreativeArrows()) {
-            return 0.0D;
-        }
-
-        if (arrow.infinityGenerated()) {
-            successChance *= LodgedConfig.playerArrowRemovalInfinitySuccessMultiplier();
-        }
-        return successChance;
+        return removalSuccessChance(arrow.infinityGenerated(), successChance);
     }
 
     private static double removalSuccessChance(LodgedArmorArrowData arrow) {
         double successChance = LodgedConfig.armorArrowRemovalSuccessChance();
-        if (!arrow.recoverable()) {
-            return successChance;
-        }
-
-        if (!arrow.fromPlayer() && !LodgedConfig.recoverMobArmorArrows()) {
-            return 0.0D;
-        }
-
-        if (arrow.infinityGenerated() && !LodgedConfig.recoverInfinityArrows()) {
-            return 0.0D;
-        }
-
-        if (arrow.creativeGenerated() && !LodgedConfig.recoverCreativeArrows()) {
-            return 0.0D;
-        }
-
-        if (arrow.infinityGenerated()) {
-            successChance *= LodgedConfig.playerArrowRemovalInfinitySuccessMultiplier();
-        }
-        return successChance;
+        return removalSuccessChance(arrow.infinityGenerated(), successChance);
     }
 
-    private static double removalSuccessChance(
+    private static double removalSuccessChance(boolean infinityGenerated, double baseSuccessChance) {
+        if (infinityGenerated && LodgedConfig.recoverInfinityArrows()) {
+            return baseSuccessChance * LodgedConfig.playerArrowRemovalInfinitySuccessMultiplier();
+        }
+        return baseSuccessChance;
+    }
+
+    private static boolean canRecoverArrow(LodgedArrowData arrow) {
+        return arrow.recoverable()
+                && canRecoverArrow(
+                        arrow.fromPlayer(),
+                        arrow.infinityGenerated(),
+                        arrow.creativeGenerated(),
+                        LodgedConfig.recoverMobArrows());
+    }
+
+    private static boolean canRecoverArrow(LodgedShieldArrowData arrow) {
+        return arrow.recoverable()
+                && canRecoverArrow(
+                        arrow.fromPlayer(),
+                        arrow.infinityGenerated(),
+                        arrow.creativeGenerated(),
+                        LodgedConfig.recoverMobShieldArrows());
+    }
+
+    private static boolean canRecoverArrow(LodgedArmorArrowData arrow) {
+        return arrow.recoverable()
+                && canRecoverArrow(
+                        arrow.fromPlayer(),
+                        arrow.infinityGenerated(),
+                        arrow.creativeGenerated(),
+                        LodgedConfig.recoverMobArmorArrows());
+    }
+
+    private static boolean canRecoverArrow(
             boolean fromPlayer,
             boolean infinityGenerated,
             boolean creativeGenerated,
-            double baseSuccessChance) {
-        if (!fromPlayer && !LodgedConfig.recoverMobArrows()) {
-            return 0.0D;
+            boolean recoverMobArrows) {
+        if (!fromPlayer && !recoverMobArrows) {
+            return false;
         }
 
         if (infinityGenerated && !LodgedConfig.recoverInfinityArrows()) {
-            return 0.0D;
+            return false;
         }
 
-        if (creativeGenerated && !LodgedConfig.recoverCreativeArrows()) {
-            return 0.0D;
-        }
-
-        double successChance = baseSuccessChance;
-        if (infinityGenerated) {
-            successChance *= LodgedConfig.playerArrowRemovalInfinitySuccessMultiplier();
-        }
-        return successChance;
+        return !creativeGenerated || LodgedConfig.recoverCreativeArrows();
     }
 
     private static void damageForBrokenArrow(ServerPlayer player) {

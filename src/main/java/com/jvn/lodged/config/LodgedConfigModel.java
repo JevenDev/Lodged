@@ -13,6 +13,9 @@ import net.minecraft.resources.ResourceLocation;
 @Config(name = "lodged", wrapperName = "LodgedConfigWrapper")
 @Modmenu(modId = "lodged")
 public class LodgedConfigModel {
+    @RangeConstraint(min = 1, max = 1)
+    public int configVersion = 1;
+
     @Nest
     @Expanded
     public ArrowRecovery arrowRecovery = new ArrowRecovery();
