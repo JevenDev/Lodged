@@ -310,6 +310,12 @@
   "tooltip.lodged.body_part.right_arm": "Right arm",
   "tooltip.lodged.body_part.left_leg": "Left leg",
   "tooltip.lodged.body_part.right_leg": "Right leg",
+  "tooltip.lodged.body_part_with_armor": "%s (%s)",
+  "tooltip.lodged.armor_piece.helmet": "Helmet",
+  "tooltip.lodged.armor_piece.chestplate": "Chestplate",
+  "tooltip.lodged.armor_piece.leggings": "Leggings",
+  "tooltip.lodged.armor_piece.boots": "Boots",
+  "tooltip.lodged.armor_piece.armor": "Armor",
   "tooltip.lodged.arrow_depth.shallow": "Shallow hit",
   "tooltip.lodged.arrow_depth.lodged": "Lodged",
   "tooltip.lodged.arrow_depth.deep_lodged": "Deep lodged",
@@ -320,7 +326,8 @@
   "subtitle.lodged.arrow_removal.too_risky": "Too risky",
   "subtitle.lodged.arrow_removal.inventory_full": "Inventory full",
   "subtitle.lodged.arrow_removal.cant_remove_now": "Can't remove now",
-  "tooltip.lodged.inventory_turn.rotate": "Drag the player preview to rotate",
-  "tooltip.lodged.inventory_turn.reset": "Middle-click the preview to reset",
-  "tooltip.lodged.inventory_turn.remove_arrows": "Click lodged arrows to remove them"
+  "tooltip.lodged.inventory_turn.title": "Preview controls",
+  "tooltip.lodged.inventory_turn.rotate": "Drag or scroll to rotate",
+  "tooltip.lodged.inventory_turn.reset": "Middle-click to reset",
+  "tooltip.lodged.inventory_turn.remove_arrows": "Click arrows to remove"
 }

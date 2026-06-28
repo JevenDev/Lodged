@@ -23,6 +23,6 @@ public final class LodgedArmorArrowTooltip {
         }
 
         event.getToolTip().add(Component.translatable("tooltip.lodged.armor_arrows", arrowCount)
-                .withStyle(ChatFormatting.GRAY));
+                .withStyle(ChatFormatting.YELLOW));
     }
 }

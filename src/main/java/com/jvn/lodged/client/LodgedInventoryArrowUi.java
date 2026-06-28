@@ -70,6 +70,7 @@ public final class LodgedInventoryArrowUi {
     private static final int INVENTORY_TURN_Z = 350;
     private static final int HIT_ZONE_RADIUS = 12;
     private static final int PLAYER_MODEL_HIT_MARGIN = 3;
+    private static final float PREVIEW_SCROLL_YAW_DEGREES = 12.0F;
     private static final float PREVIEW_SCALE = 30.0F;
     private static final float PREVIEW_Y_OFFSET = 0.0625F;
     private static final float PLAYER_RENDER_SCALE = 0.9375F;
@@ -118,6 +119,7 @@ public final class LodgedInventoryArrowUi {
     private static final int RISK_EASY_COLOR = 0x89F2A0;
     private static final int RISK_MODERATE_COLOR = 0xFFD86A;
     private static final int RISK_DANGEROUS_COLOR = 0xFF6A5E;
+    private static final int ARMOR_ARROW_OUTLINE_COLOR = 0x8DDCFF;
     private static final int RISK_OUTLINE_ALPHA = 255;
     private static final String TOOLTIP_ICON_SPACER = "     ";
     private static final int TOOLTIP_ICON_WIDTH = 16;
@@ -161,6 +163,7 @@ public final class LodgedInventoryArrowUi {
     private static final int REMOVAL_SUBTITLE_FADE_MS = 350;
     private static final int REMOVAL_SUBTITLE_COLOR = 0xFFD8D8D8;
     private static final List<Component> INVENTORY_TURN_TOOLTIP = List.of(
+            Component.translatable("tooltip.lodged.inventory_turn.title").withStyle(ChatFormatting.YELLOW),
             Component.translatable("tooltip.lodged.inventory_turn.rotate"),
             Component.translatable("tooltip.lodged.inventory_turn.reset"),
             Component.translatable("tooltip.lodged.inventory_turn.remove_arrows"));
@@ -352,6 +355,29 @@ public final class LodgedInventoryArrowUi {
     }
 
     @SubscribeEvent
+    public static void onMouseScrolled(ScreenEvent.MouseScrolled.Pre event) {
+        if (!LodgedConfig.enablePlayerArrowRemoval() || !(event.getScreen() instanceof InventoryScreen screen)) {
+            return;
+        }
+
+        if (isMouseOverScreenWidget(screen, event.getMouseX(), event.getMouseY())
+                || !isInPlayerPreviewArea(screen, event.getMouseX(), event.getMouseY())) {
+            return;
+        }
+
+        double scrollDelta = Math.abs(event.getScrollDeltaX()) > Math.abs(event.getScrollDeltaY())
+                ? event.getScrollDeltaX()
+                : event.getScrollDeltaY();
+        if (scrollDelta == 0.0D) {
+            return;
+        }
+
+        yawDegrees -= (float) scrollDelta * PREVIEW_SCROLL_YAW_DEGREES;
+        customYawActive = true;
+        event.setCanceled(true);
+    }
+
+    @SubscribeEvent
     public static void onMouseReleased(ScreenEvent.MouseButtonReleased.Pre event) {
         if (event.getButton() == 0 && draggingPreview) {
             draggingPreview = false;
@@ -383,12 +409,24 @@ public final class LodgedInventoryArrowUi {
         return hoveredShieldArrowIndex;
     }
 
+    public static int hoveredArmorArrowIndex() {
+        return hoveredArmorArrowIndex;
+    }
+
+    public static EquipmentSlot hoveredArmorSlot() {
+        return hoveredArmorSlot;
+    }
+
     public static OutlineColor riskOutlineColor(LodgedArrowVisual arrow) {
         return outlineColorFor(removalChance(arrow));
     }
 
     public static OutlineColor shieldRiskOutlineColor() {
         return outlineColorFor(removalChance(LodgedArrowBodyPart.LEFT_ARM));
+    }
+
+    public static OutlineColor armorArrowOutlineColor() {
+        return OutlineColor.fromRgb(ARMOR_ARROW_OUTLINE_COLOR);
     }
 
     public static void handleRemovalResult(ArrowRemovalResultPayload payload) {
@@ -521,7 +559,7 @@ public final class LodgedInventoryArrowUi {
         List<Component> lines = new ArrayList<>();
         lines.add(paddedTooltipLine(hoveredArrow.arrow().stack().getHoverName()));
         if (hoveredArrow.target() != Target.SHIELD) {
-            lines.add(paddedTooltipLine(bodyPartTooltip(hoveredArrow.arrow().bodyPart())));
+            lines.add(paddedTooltipLine(hitLocationTooltip(hoveredArrow)));
         }
         lines.add(coloredTooltipLine(depthTooltip(removalDepth(hoveredArrow)), outlineColor.rgb()));
         lines.add(coloredTooltipLine(
@@ -593,10 +631,9 @@ public final class LodgedInventoryArrowUi {
             int y,
             LodgedArrowBodyPart bodyPart,
             int highlightColor) {
-        int base = 0xFF6F6860;
         int dim = 0xFF37312D;
         guiGraphics.fill(x + 4, y, x + 12, y + 8, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.HEAD ? highlightColor : dim);
-        guiGraphics.fill(x + 4, y + 8, x + 12, y + 20, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.CHEST ? highlightColor : base);
+        guiGraphics.fill(x + 4, y + 8, x + 12, y + 20, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.CHEST ? highlightColor : dim);
         guiGraphics.fill(x, y + 8, x + 4, y + 20, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.RIGHT_ARM ? highlightColor : dim);
         guiGraphics.fill(x + 12, y + 8, x + TOOLTIP_ICON_WIDTH, y + 20, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.LEFT_ARM ? highlightColor : dim);
         guiGraphics.fill(x + 4, y + 20, x + 8, y + 32, TOOLTIP_ICON_Z, bodyPart == LodgedArrowBodyPart.RIGHT_LEG ? highlightColor : dim);
@@ -1269,6 +1306,15 @@ public final class LodgedInventoryArrowUi {
         return false;
     }
 
+    private static boolean isInPlayerPreviewArea(InventoryScreen screen, double mouseX, double mouseY) {
+        int left = screen.getGuiLeft();
+        int top = screen.getGuiTop();
+        return mouseX >= left + MODEL_LEFT
+                && mouseX < left + MODEL_RIGHT
+                && mouseY >= top + MODEL_TOP
+                && mouseY < top + MODEL_BOTTOM;
+    }
+
     private static boolean isMouseOverScreenWidget(InventoryScreen screen, double mouseX, double mouseY) {
         for (GuiEventListener child : screen.children()) {
             if (child.isMouseOver(mouseX, mouseY)) {
@@ -1373,6 +1419,28 @@ public final class LodgedInventoryArrowUi {
 
     private static Component bodyPartTooltip(LodgedArrowBodyPart bodyPart) {
         return Component.translatable("tooltip.lodged.body_part." + bodyPart.serializedName()).withStyle(ChatFormatting.GRAY);
+    }
+
+    private static Component hitLocationTooltip(HoveredArrow hoveredArrow) {
+        if (hoveredArrow.target() == Target.ARMOR) {
+            return Component.translatable(
+                    "tooltip.lodged.body_part_with_armor",
+                    Component.translatable("tooltip.lodged.body_part." + hoveredArrow.arrow().bodyPart().serializedName()),
+                    armorPieceTooltip(hoveredArrow.armorSlot()))
+                    .withStyle(ChatFormatting.GRAY);
+        }
+        return bodyPartTooltip(hoveredArrow.arrow().bodyPart());
+    }
+
+    private static Component armorPieceTooltip(EquipmentSlot slot) {
+        String piece = switch (slot) {
+            case HEAD -> "helmet";
+            case CHEST -> "chestplate";
+            case LEGS -> "leggings";
+            case FEET -> "boots";
+            default -> "armor";
+        };
+        return Component.translatable("tooltip.lodged.armor_piece." + piece);
     }
 
     private static int removalAnimationMs(ArrowRemovalResultPayload payload) {

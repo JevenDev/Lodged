@@ -20,6 +20,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.OutlineBufferSource;
 import net.minecraft.client.renderer.entity.layers.ArrowLayer;
 import net.minecraft.client.renderer.entity.layers.StuckInBodyLayer;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import org.spongepowered.asm.mixin.Mixin;
@@ -49,8 +50,9 @@ public abstract class StuckInBodyLayerMixin {
         }
 
         boolean isLocalPlayer = livingEntity == Minecraft.getInstance().player;
-        List<LodgedArrowVisual> arrows = arrowsFor(livingEntity, isLocalPlayer);
-        int arrowCount = arrowCountFor(livingEntity, arrows, isLocalPlayer);
+        ArrowRenderList arrowList = arrowsFor(livingEntity, isLocalPlayer);
+        List<LodgedArrowVisual> arrows = arrowList.arrows();
+        int arrowCount = arrows.size();
         if (arrowCount <= 0) {
             if (isLocalPlayer && ClientArrowState.hasSynced()) {
                 callbackInfo.cancel();
@@ -60,22 +62,24 @@ public abstract class StuckInBodyLayerMixin {
 
         callbackInfo.cancel();
         int hoveredArrowIndex = LodgedInventoryArrowUi.hoveredArrowIndex();
+        int hoveredArmorCombinedIndex = hoveredArmorCombinedIndex(livingEntity, isLocalPlayer, arrowList.bodyArrowCount());
         for (int index = 0; index < arrowCount; index++) {
             LodgedArrowVisual arrow = arrows.get(index);
-            boolean highlighted = index == hoveredArrowIndex;
+            boolean highlightedArmor = index == hoveredArmorCombinedIndex;
+            boolean highlighted = index == hoveredArrowIndex || highlightedArmor;
             poseStack.pushPose();
             ArrowAnchor anchor = anchorFor(lodged$getParentModel(), arrow);
             anchor.part().translateAndRotate(poseStack);
             poseStack.translate(anchor.localX(), anchor.localY(), anchor.localZ());
             renderArrow(poseStack, buffer, packedLight, livingEntity, arrow, partialTicks);
             if (highlighted) {
-                renderHoverOutline(poseStack, packedLight, livingEntity, arrow, partialTicks);
+                renderHoverOutline(poseStack, packedLight, livingEntity, arrow, highlightedArmor, partialTicks);
             }
             poseStack.popPose();
         }
     }
 
-    private static List<LodgedArrowVisual> arrowsFor(LivingEntity livingEntity, boolean isLocalPlayer) {
+    private static ArrowRenderList arrowsFor(LivingEntity livingEntity, boolean isLocalPlayer) {
         List<LodgedArrowVisual> armorArrows = LodgedConfig.renderArmorArrows()
                 ? LodgedArmorArrowStorage.readAllEquipped(livingEntity)
                 : List.of();
@@ -83,16 +87,12 @@ public abstract class StuckInBodyLayerMixin {
             List<LodgedArrowVisual> bodyArrows = ClientArrowState.removableArrows();
             int bodyArrowCount = Math.min(bodyArrows.size(), ClientArrowState.syncedArrowCount());
             bodyArrowCount = Math.min(bodyArrowCount, LodgedConfig.maxRemovablePlayerArrows());
-            return combinedArrows(bodyArrows, bodyArrowCount, armorArrows);
+            return new ArrowRenderList(combinedArrows(bodyArrows, bodyArrowCount, armorArrows), bodyArrowCount);
         }
 
         EntityArrows entityArrows = ClientArrowState.entityArrows(livingEntity);
         int bodyArrowCount = Math.min(entityArrows.arrows().size(), entityArrows.arrowCount());
-        return combinedArrows(entityArrows.arrows(), bodyArrowCount, armorArrows);
-    }
-
-    private static int arrowCountFor(LivingEntity livingEntity, List<LodgedArrowVisual> arrows, boolean isLocalPlayer) {
-        return arrows.size();
+        return new ArrowRenderList(combinedArrows(entityArrows.arrows(), bodyArrowCount, armorArrows), bodyArrowCount);
     }
 
     private static List<LodgedArrowVisual> combinedArrows(
@@ -114,11 +114,31 @@ public abstract class StuckInBodyLayerMixin {
         return arrows;
     }
 
+    private static int hoveredArmorCombinedIndex(LivingEntity livingEntity, boolean isLocalPlayer, int bodyArrowCount) {
+        int hoveredArmorArrowIndex = LodgedInventoryArrowUi.hoveredArmorArrowIndex();
+        if (!isLocalPlayer || hoveredArmorArrowIndex < 0 || !LodgedConfig.renderArmorArrows()) {
+            return -1;
+        }
+
+        EquipmentSlot hoveredArmorSlot = LodgedInventoryArrowUi.hoveredArmorSlot();
+        int combinedIndex = bodyArrowCount;
+        for (EquipmentSlot slot : LodgedArmorArrowStorage.armorSlots()) {
+            List<LodgedArrowVisual> arrows = LodgedArmorArrowStorage.readAll(livingEntity.getItemBySlot(slot));
+            int arrowCount = Math.min(arrows.size(), LodgedConfig.maxTrackedArrowsPerArmorPiece());
+            if (slot == hoveredArmorSlot) {
+                return hoveredArmorArrowIndex < arrowCount ? combinedIndex + hoveredArmorArrowIndex : -1;
+            }
+            combinedIndex += arrowCount;
+        }
+        return -1;
+    }
+
     private void renderHoverOutline(
             PoseStack poseStack,
             int packedLight,
             LivingEntity livingEntity,
             LodgedArrowVisual arrow,
+            boolean armorArrow,
             float partialTicks) {
         if (!LodgedInventoryArrowUi.prepareArrowOutlineTarget()) {
             return;
@@ -126,7 +146,9 @@ public abstract class StuckInBodyLayerMixin {
 
         MultiBufferSource.BufferSource delegate = MultiBufferSource.immediate(new ByteBufferBuilder(HOVER_OUTLINE_BUFFER_SIZE));
         OutlineBufferSource outlineBuffer = new OutlineBufferSource(delegate);
-        LodgedInventoryArrowUi.OutlineColor outlineColor = LodgedInventoryArrowUi.riskOutlineColor(arrow);
+        LodgedInventoryArrowUi.OutlineColor outlineColor = armorArrow
+                ? LodgedInventoryArrowUi.armorArrowOutlineColor()
+                : LodgedInventoryArrowUi.riskOutlineColor(arrow);
         outlineBuffer.setColor(outlineColor.red(), outlineColor.green(), outlineColor.blue(), outlineColor.alpha());
         try {
             renderArrow(poseStack, outlineBuffer, packedLight, livingEntity, arrow, partialTicks);
@@ -191,5 +213,8 @@ public abstract class StuckInBodyLayerMixin {
     }
 
     private record ArrowAnchor(ModelPart part, float localX, float localY, float localZ) {
+    }
+
+    private record ArrowRenderList(List<LodgedArrowVisual> arrows, int bodyArrowCount) {
     }
 }
