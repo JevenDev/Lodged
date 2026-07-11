@@ -22,7 +22,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.MobEffectEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 public final class BleedingEvents {
@@ -94,6 +96,20 @@ public final class BleedingEvents {
         }
 
         spawnBleedingParticles(target, wounds, bleeding.getAmplifier() > 0 ? 2 : 1);
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onMobEffectRemoved(MobEffectEvent.Remove event) {
+        if (!event.isCanceled() && event.getEffect().value() == LodgedEffects.BLEEDING.value()) {
+            clearWounds(event.getEntity());
+        }
+    }
+
+    @SubscribeEvent
+    public static void onMobEffectExpired(MobEffectEvent.Expired event) {
+        if (event.getEffectInstance().getEffect().value() == LodgedEffects.BLEEDING.value()) {
+            clearWounds(event.getEntity());
+        }
     }
 
     public static boolean tryApplyFromArrowRemoval(LivingEntity target, LodgedArrowVisual arrowVisual, boolean failedRemoval) {
@@ -263,6 +279,12 @@ public final class BleedingEvents {
 
         target.getPersistentData().put(WOUNDS_KEY, woundList);
         target.getPersistentData().remove(WOUND_KEY);
+    }
+
+    private static void clearWounds(LivingEntity target) {
+        CompoundTag persistentData = target.getPersistentData();
+        persistentData.remove(WOUNDS_KEY);
+        persistentData.remove(WOUND_KEY);
     }
 
     private static CompoundTag saveWound(Wound wound) {

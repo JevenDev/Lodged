@@ -130,10 +130,6 @@ public final class LodgedArrowStorage {
     }
 
     private static int storedArrowCount(LivingEntity entity) {
-        CompoundTag persistentData = entity.getPersistentData();
-        if (!persistentData.contains(STORAGE_KEY, Tag.TAG_LIST)) {
-            return 0;
-        }
-        return persistentData.getList(STORAGE_KEY, Tag.TAG_COMPOUND).size();
+        return readAll(entity).size();
     }
 }

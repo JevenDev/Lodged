@@ -73,6 +73,23 @@ public record LodgedArrowVisual(
             LodgedArrowVisual::decode);
 
     public LodgedArrowVisual {
+        modelX = finiteOrDefault(modelX, 0.0F);
+        modelY = finiteOrDefault(modelY, (MODEL_HEAD_BOTTOM + MODEL_LEG_TOP) * 0.5F);
+        modelZ = finiteOrDefault(modelZ, -MODEL_LIMB_HALF_DEPTH);
+        directionX = finiteOrDefault(directionX, 0.0F);
+        directionY = finiteOrDefault(directionY, 0.0F);
+        directionZ = finiteOrDefault(directionZ, 1.0F);
+        float directionLength = Mth.sqrt(
+                directionX * directionX + directionY * directionY + directionZ * directionZ);
+        if (directionLength < MIN_DIRECTION_LENGTH) {
+            directionX = 0.0F;
+            directionY = 0.0F;
+            directionZ = 1.0F;
+        } else {
+            directionX /= directionLength;
+            directionY /= directionLength;
+            directionZ /= directionLength;
+        }
         depth = depth == null ? LodgedArrowDepth.LODGED : depth;
         stack = renderStack(stack);
     }
@@ -93,6 +110,18 @@ public record LodgedArrowVisual(
 
     public LodgedArrowVisual withDepth(LodgedArrowDepth depth) {
         return new LodgedArrowVisual(modelX, modelY, modelZ, directionX, directionY, directionZ, depth, stack);
+    }
+
+    public boolean matches(LodgedArrowVisual other) {
+        return other != null
+                && Float.compare(modelX, other.modelX) == 0
+                && Float.compare(modelY, other.modelY) == 0
+                && Float.compare(modelZ, other.modelZ) == 0
+                && Float.compare(directionX, other.directionX) == 0
+                && Float.compare(directionY, other.directionY) == 0
+                && Float.compare(directionZ, other.directionZ) == 0
+                && depth == other.depth
+                && ItemStack.isSameItemSameComponents(stack, other.stack);
     }
 
     public static LodgedArrowVisual fromImpact(LivingEntity target, AbstractArrow arrow, EntityHitResult hitResult) {
@@ -246,6 +275,10 @@ public record LodgedArrowVisual(
         }
 
         return stack.copyWithCount(1);
+    }
+
+    private static float finiteOrDefault(float value, float fallback) {
+        return Float.isFinite(value) ? value : fallback;
     }
 
     private static Vec3 impactMotion(AbstractArrow arrow) {

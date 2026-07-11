@@ -48,6 +48,7 @@ import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingShieldBlockEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 
 public final class LodgedArrowEvents {
     private static final long BROKEN_ARROW_IMPACT_EXPIRY_TICKS = 20L;
@@ -386,12 +387,23 @@ public final class LodgedArrowEvents {
 
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        clearPlayerTransientState(event.getEntity());
         syncPlayer(event.getEntity());
     }
 
     @SubscribeEvent
     public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        clearPlayerTransientState(event.getEntity());
         syncPlayer(event.getEntity());
+    }
+
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        BROKEN_ARROW_IMPACTS.clear();
+        SHIELD_ARROW_IMPACTS.clear();
+        ARMOR_ARROW_IMPACTS.clear();
+        PENDING_ARROW_COUNT_REMOVALS.clear();
+        PENDING_BLOCK_ARROW_BREAKS.clear();
     }
 
     @SubscribeEvent
@@ -917,6 +929,12 @@ public final class LodgedArrowEvents {
     private static void syncPlayer(Player player) {
         if (player instanceof ServerPlayer serverPlayer) {
             LodgedNetwork.syncPlayerArrows(serverPlayer);
+        }
+    }
+
+    private static void clearPlayerTransientState(Player player) {
+        if (player instanceof ServerPlayer serverPlayer) {
+            LodgedNetwork.clearPlayerArrowRemovalCooldown(serverPlayer);
         }
     }
 

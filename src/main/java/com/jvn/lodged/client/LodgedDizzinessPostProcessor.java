@@ -22,6 +22,7 @@ public final class LodgedDizzinessPostProcessor {
     private float time;
     private PostChain postChain;
     private boolean active;
+    private boolean loadFailed;
     private int cachedWidth = -1;
     private int cachedHeight = -1;
 
@@ -36,6 +37,7 @@ public final class LodgedDizzinessPostProcessor {
     public void reload() {
         close();
         time = 0.0F;
+        loadFailed = false;
     }
 
     public void updateState(float blend) {
@@ -85,7 +87,7 @@ public final class LodgedDizzinessPostProcessor {
     }
 
     private void ensurePostChain(Minecraft minecraft) {
-        if (postChain != null) {
+        if (postChain != null || loadFailed) {
             return;
         }
 
@@ -101,6 +103,7 @@ public final class LodgedDizzinessPostProcessor {
         } catch (IOException | JsonParseException exception) {
             Lodged.LOGGER.error("Failed to load Lodged dizziness post-processing shader", exception);
             close();
+            loadFailed = true;
         }
     }
 

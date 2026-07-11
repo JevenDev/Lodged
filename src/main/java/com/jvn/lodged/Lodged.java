@@ -27,6 +27,7 @@ public final class Lodged {
         modEventBus.addListener(LodgedNetwork::registerPayloads);
         NeoForge.EVENT_BUS.addListener(BloodColors::onAddReloadListeners);
         NeoForge.EVENT_BUS.addListener(PlayerArrowRemoval::onEntityTick);
+        NeoForge.EVENT_BUS.addListener(PlayerArrowRemoval::onServerStopped);
         NeoForge.EVENT_BUS.register(BleedingEvents.class);
         NeoForge.EVENT_BUS.register(LodgedArrowEvents.class);
     }

@@ -46,6 +46,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -130,6 +131,12 @@ public final class PlayerArrowRemoval {
 
         tickShieldArrowRemoval(player);
         tickArmorArrowRemoval(player);
+    }
+
+    public static void onServerStopped(ServerStoppedEvent event) {
+        LAST_REQUEST_TICK.clear();
+        SHIELD_ARROW_REMOVALS.clear();
+        ARMOR_ARROW_REMOVALS.clear();
     }
 
     static void clearCooldown(ServerPlayer player) {
@@ -382,7 +389,9 @@ public final class PlayerArrowRemoval {
         int arrowIndex = priorityShieldArrowIndex(arrows);
         long gameTime = player.level().getGameTime();
         long completeTick = gameTime + shieldArrowRemovalTicks(player);
-        SHIELD_ARROW_REMOVALS.put(player.getUUID(), new ShieldArrowRemovalAttempt(hand, arrowIndex, completeTick));
+        SHIELD_ARROW_REMOVALS.put(
+                player.getUUID(),
+                new ShieldArrowRemovalAttempt(hand, arrowIndex, completeTick, arrows.get(arrowIndex).visual()));
         syncShieldArrowRemoval(player, true, hand);
     }
 
@@ -421,7 +430,7 @@ public final class PlayerArrowRemoval {
         }
 
         ItemStack shield = player.getItemInHand(attempt.hand());
-        if (!canAttemptHeldShieldRemoval(player, shield, attempt.arrowIndex())
+        if (!canAttemptHeldShieldRemoval(player, shield, attempt.arrowIndex(), attempt.visual())
                 || !player.isUsingItem()
                 || player.getUsedItemHand() != attempt.hand()) {
             stopShieldArrowRemoval(player);
@@ -555,10 +564,10 @@ public final class PlayerArrowRemoval {
 
     private static boolean canAttemptInWorldRemoval(ServerPlayer player, ArmorArrowRemovalAttempt attempt) {
         if (attempt.target() == Target.BODY) {
-            return canAttemptBodyRemoval(player, attempt.arrowIndex());
+            return canAttemptBodyRemoval(player, attempt.arrowIndex(), attempt.visual());
         }
 
-        return canAttemptArmorRemoval(player, attempt.slot(), attempt.arrowIndex());
+        return canAttemptArmorRemoval(player, attempt.slot(), attempt.arrowIndex(), attempt.visual());
     }
 
     private static boolean canAttemptBodyRemoval(ServerPlayer player, int arrowIndex) {
@@ -572,6 +581,47 @@ public final class PlayerArrowRemoval {
 
         return arrowIndex < LodgedConfig.maxRemovablePlayerArrows()
                 && arrowIndex < LodgedArrowStorage.readAll(player).size();
+    }
+
+    private static boolean canAttemptBodyRemoval(
+            ServerPlayer player,
+            int arrowIndex,
+            LodgedArrowVisual expectedVisual) {
+        if (!canAttemptBodyRemoval(player, arrowIndex)) {
+            return false;
+        }
+
+        return LodgedArrowStorage.readAll(player).get(arrowIndex).visual().matches(expectedVisual);
+    }
+
+    private static boolean canAttemptHeldShieldRemoval(
+            ServerPlayer player,
+            ItemStack shield,
+            int arrowIndex,
+            LodgedArrowVisual expectedVisual) {
+        if (!canAttemptHeldShieldRemoval(player, shield, arrowIndex)) {
+            return false;
+        }
+
+        return LodgedShieldArrowStorage.readData(shield, player.registryAccess())
+                .get(arrowIndex)
+                .visual()
+                .matches(expectedVisual);
+    }
+
+    private static boolean canAttemptArmorRemoval(
+            ServerPlayer player,
+            EquipmentSlot slot,
+            int arrowIndex,
+            LodgedArrowVisual expectedVisual) {
+        if (!canAttemptArmorRemoval(player, slot, arrowIndex)) {
+            return false;
+        }
+
+        return LodgedArmorArrowStorage.readData(player.getItemBySlot(slot), player.registryAccess())
+                .get(arrowIndex)
+                .visual()
+                .matches(expectedVisual);
     }
 
     private static int priorityShieldArrowIndex(List<LodgedShieldArrowData> arrows) {
@@ -841,7 +891,11 @@ public final class PlayerArrowRemoval {
         PacketDistributor.sendToPlayer(player, new ArrowRemovalResultPayload(result, target, hand, arrow, inventorySlot));
     }
 
-    private record ShieldArrowRemovalAttempt(InteractionHand hand, int arrowIndex, long completeTick) {
+    private record ShieldArrowRemovalAttempt(
+            InteractionHand hand,
+            int arrowIndex,
+            long completeTick,
+            LodgedArrowVisual visual) {
     }
 
     private record ArmorArrowRemovalAttempt(

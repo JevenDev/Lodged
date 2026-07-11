@@ -24,6 +24,8 @@ public final class LodgedClient {
         NeoForge.EVENT_BUS.addListener(LodgedDizzinessClientEffects::onRenderGui);
         NeoForge.EVENT_BUS.addListener(LodgedDizzinessClientEffects::onComputeCameraAngles);
         NeoForge.EVENT_BUS.addListener(LodgedDizzinessPostProcessor::onRenderLevelStage);
+        NeoForge.EVENT_BUS.addListener(LodgedClientStateEvents::onLoggingOut);
+        NeoForge.EVENT_BUS.addListener(LodgedClientStateEvents::onEntityLeaveLevel);
         modContainer.registerExtensionPoint(IConfigScreenFactory.class, (IConfigScreenFactory) LodgedClient::createConfigScreen);
     }
 

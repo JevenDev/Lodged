@@ -72,6 +72,21 @@ public final class ClientArrowState {
         setArmorArrowRemoval(entityId, active, target, slot, arrow);
     }
 
+    public static void removeEntity(int entityId) {
+        ENTITY_ARROWS.remove(entityId);
+        SHIELD_ARROW_REMOVALS.remove(entityId);
+        ARMOR_ARROW_REMOVALS.remove(entityId);
+    }
+
+    public static void reset() {
+        removableArrows = List.of();
+        ENTITY_ARROWS.clear();
+        SHIELD_ARROW_REMOVALS.clear();
+        ARMOR_ARROW_REMOVALS.clear();
+        syncedArrowCount = 0;
+        synced = false;
+    }
+
     static void handleSync(SyncPlayerArrowsPayload payload, IPayloadContext context) {
         removableArrows = payload.arrows();
         syncedArrowCount = payload.arrowCount();
