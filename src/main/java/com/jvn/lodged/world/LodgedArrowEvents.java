@@ -60,6 +60,7 @@ public final class LodgedArrowEvents {
     private static final long BLOCK_ARROW_BREAK_DELAY_TICKS = 4L;
     private static final long BLOCK_ARROW_BREAK_EXPIRY_TICKS = 40L;
     private static final int MAX_DIZZINESS_AMPLIFIER = 4;
+    private static final int ARROWS_PER_DIZZINESS_LEVEL = 2;
     private static final Map<UUID, BrokenArrowImpact> BROKEN_ARROW_IMPACTS = new HashMap<>();
     private static final Map<UUID, ShieldArrowImpact> SHIELD_ARROW_IMPACTS = new HashMap<>();
     private static final Map<UUID, ArmorArrowImpact> ARMOR_ARROW_IMPACTS = new HashMap<>();
@@ -922,7 +923,7 @@ public final class LodgedArrowEvents {
             return -1;
         }
 
-        return Math.min(MAX_DIZZINESS_AMPLIFIER, arrowCount - threshold);
+        return Math.min(MAX_DIZZINESS_AMPLIFIER, (arrowCount - threshold) / ARROWS_PER_DIZZINESS_LEVEL);
     }
 
     private static int playerDizzinessThreshold(int maxTrackedArrows) {

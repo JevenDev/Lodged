@@ -15,7 +15,7 @@ import net.minecraft.resources.ResourceLocation;
 @Modmenu(modId = "lodged")
 public class LodgedConfigModel {
     @ExcludeFromScreen
-    public int configVersion = 1;
+    public int configVersion = 2;
 
     @Nest
     @SectionHeader("arrowRecovery")
@@ -57,7 +57,7 @@ public class LodgedConfigModel {
         public boolean enableArrowRecovery = true;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double recoveryChance = 0.35D;
+        public double recoveryChance = 0.50D;
 
         @RangeConstraint(min = 0, max = 64)
         public int maxTrackedArrowsPerEntity = 8;
@@ -107,22 +107,22 @@ public class LodgedConfigModel {
         public double arrowRemovalAnimationSpeedMultiplier = 1.0D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double playerArrowRemovalHeadSuccessChance = 0.35D;
+        public double playerArrowRemovalHeadSuccessChance = 0.50D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double playerArrowRemovalChestSuccessChance = 0.65D;
+        public double playerArrowRemovalChestSuccessChance = 0.72D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double playerArrowRemovalArmSuccessChance = 0.85D;
+        public double playerArrowRemovalArmSuccessChance = 0.90D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double playerArrowRemovalLegSuccessChance = 0.85D;
+        public double playerArrowRemovalLegSuccessChance = 0.90D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
         public double playerArrowRemovalInfinitySuccessMultiplier = 0.5D;
 
         @RangeConstraint(min = 0.0D, max = 20.0D)
-        public double playerArrowRemovalBreakDamage = 2.0D;
+        public double playerArrowRemovalBreakDamage = 1.0D;
 
         public boolean arrowRemovalAppliesKnockback = false;
         public boolean allowArrowRemovalInCreative = true;
@@ -198,13 +198,13 @@ public class LodgedConfigModel {
         public double criticalShallowPenalty = 0.08D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double weaponDamageDeepLodgedBonusPerDamage = 0.08D;
+        public double weaponDamageDeepLodgedBonusPerDamage = 0.06D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double weaponDamageDeepLodgedMaxBonus = 0.30D;
+        public double weaponDamageDeepLodgedMaxBonus = 0.20D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double powerDeepLodgedBonusPerLevel = 0.06D;
+        public double powerDeepLodgedBonusPerLevel = 0.04D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
         public double crossbowDeepLodgedBonus = 0.03D;
@@ -213,10 +213,10 @@ public class LodgedConfigModel {
         public double armoredDeepLodgedMultiplier = 0.35D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double unarmoredHeadChestDeepLodgedBonus = 0.08D;
+        public double unarmoredHeadChestDeepLodgedBonus = 0.06D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double unarmoredLimbDeepLodgedBonus = 0.04D;
+        public double unarmoredLimbDeepLodgedBonus = 0.03D;
 
         @RangeConstraint(min = 0, max = 10)
         public int strongHeadChestPowerLevelThreshold = 4;
@@ -225,25 +225,25 @@ public class LodgedConfigModel {
         public double strongHeadChestDamageThreshold = 4.0D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double strongHeadChestDeepLodgedChance = 0.80D;
+        public double strongHeadChestDeepLodgedChance = 0.65D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double powerHeadChestDeepLodgedChanceBonusPerLevel = 0.03D;
+        public double powerHeadChestDeepLodgedChanceBonusPerLevel = 0.025D;
 
         @RangeConstraint(min = 0.0D, max = 10.0D)
         public double fastCriticalVelocityThreshold = 2.75D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double fastCriticalHeadChestDeepLodgedChance = 0.65D;
+        public double fastCriticalHeadChestDeepLodgedChance = 0.55D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double powerAnyBodyPartDeepLodgedChancePerLevel = 0.11D;
+        public double powerAnyBodyPartDeepLodgedChancePerLevel = 0.08D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double deepLodgedMaxChance = 0.85D;
+        public double deepLodgedMaxChance = 0.80D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double powerDeepLodgedMaxChanceBonusPerLevel = 0.026D;
+        public double powerDeepLodgedMaxChanceBonusPerLevel = 0.02D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
         public double shallowMinChance = 0.10D;
@@ -258,7 +258,7 @@ public class LodgedConfigModel {
         public double lodgedRemovalSuccessMultiplier = 1.0D;
 
         @RangeConstraint(min = 0.0D, max = 10.0D)
-        public double deepLodgedRemovalSuccessMultiplier = 0.55D;
+        public double deepLodgedRemovalSuccessMultiplier = 0.70D;
 
         @RangeConstraint(min = 0.0D, max = 10.0D)
         public double shallowBleedingChanceMultiplier = 0.55D;
@@ -267,7 +267,7 @@ public class LodgedConfigModel {
         public double lodgedBleedingChanceMultiplier = 1.0D;
 
         @RangeConstraint(min = 0.0D, max = 10.0D)
-        public double deepLodgedBleedingChanceMultiplier = 1.75D;
+        public double deepLodgedBleedingChanceMultiplier = 1.40D;
 
         @RangeConstraint(min = 0.0D, max = 10.0D)
         public double shallowBleedingDurationMultiplier = 0.75D;
@@ -276,7 +276,7 @@ public class LodgedConfigModel {
         public double lodgedBleedingDurationMultiplier = 1.0D;
 
         @RangeConstraint(min = 0.0D, max = 10.0D)
-        public double deepLodgedBleedingDurationMultiplier = 1.5D;
+        public double deepLodgedBleedingDurationMultiplier = 1.25D;
 
         @RangeConstraint(min = 1, max = 5000)
         public int shallowRemovalAnimationMs = 480;
@@ -296,7 +296,7 @@ public class LodgedConfigModel {
         public int maxTrackedArrowsPerShield = 0;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double shieldArrowRemovalSuccessChance = 0.85D;
+        public double shieldArrowRemovalSuccessChance = 0.90D;
 
         @RangeConstraint(min = 1, max = 1200)
         public int shieldArrowRemovalMinTicks = 40;
@@ -305,7 +305,7 @@ public class LodgedConfigModel {
         public int shieldArrowRemovalMaxTicks = 60;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double shieldArrowDurabilityDamageChance = 0.35D;
+        public double shieldArrowDurabilityDamageChance = 0.25D;
 
         public boolean renderOwnShieldArrowsInFirstPerson = true;
     }
@@ -332,28 +332,28 @@ public class LodgedConfigModel {
         public double armorArrowMaxPenetrationChance = 0.95D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double armorArrowRemovalSuccessChance = 0.92D;
+        public double armorArrowRemovalSuccessChance = 0.95D;
 
         @RangeConstraint(min = 1, max = 1200)
         public int armorArrowRemovalTicks = 45;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double armorArrowRemovalDurabilityDamageChance = 0.35D;
+        public double armorArrowRemovalDurabilityDamageChance = 0.25D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double armorArrowRemovalBreakChance = 0.05D;
+        public double armorArrowRemovalBreakChance = 0.03D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double armorArrowBreakDurabilityDamageChance = 1.0D;
+        public double armorArrowBreakDurabilityDamageChance = 0.75D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double armorArrowExtraDurabilityLossChance = 0.10D;
+        public double armorArrowExtraDurabilityLossChance = 0.08D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double armorArrowExtraDurabilityLossChancePerAdditionalArrow = 0.05D;
+        public double armorArrowExtraDurabilityLossChancePerAdditionalArrow = 0.04D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double armorArrowExtraDurabilityLossMaxChance = 0.50D;
+        public double armorArrowExtraDurabilityLossMaxChance = 0.32D;
 
         @RangeConstraint(min = 0, max = 64)
         public int armorArrowExtraDurabilityLossAmount = 1;
@@ -383,19 +383,19 @@ public class LodgedConfigModel {
         public double fullArmorBleedingChance = 0.15D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double partialArmorBleedingChance = 0.65D;
+        public double partialArmorBleedingChance = 0.50D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double noArmorBleedingChance = 1.0D;
+        public double noArmorBleedingChance = 0.85D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double failedArrowRemovalFullArmorBleedingChance = 0.25D;
+        public double failedArrowRemovalFullArmorBleedingChance = 0.15D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double failedArrowRemovalPartialArmorBleedingChance = 0.75D;
+        public double failedArrowRemovalPartialArmorBleedingChance = 0.60D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
-        public double failedArrowRemovalNoArmorBleedingChance = 1.0D;
+        public double failedArrowRemovalNoArmorBleedingChance = 0.85D;
     }
 
     public static class BleedingEffect {
@@ -403,7 +403,7 @@ public class LodgedConfigModel {
         public int bleedingDamageDuration = 120;
 
         @RangeConstraint(min = 0, max = 12000)
-        public int bleedingArrowRemovalDuration = 200;
+        public int bleedingArrowRemovalDuration = 160;
 
         @RangeConstraint(min = 20, max = 12000)
         public int bleedingMaxDuration = 1200;

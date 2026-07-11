@@ -43,7 +43,8 @@ public record ArrowRemovalResultPayload(
         FAILED(1),
         TOO_RISKY(2),
         INVENTORY_FULL(3),
-        CANT_REMOVE_NOW(4);
+        CANT_REMOVE_NOW(4),
+        REMOVED(5);
 
         private final int id;
 

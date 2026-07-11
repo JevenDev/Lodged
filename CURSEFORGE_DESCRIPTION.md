@@ -39,7 +39,7 @@ The goal is simple: arrows actually have some impact and are a bit more immersiv
 
 When supported arrows hit living entities, Lodged can remember the arrow, where it landed, what item it came from, whether it can be recovered, and whether it can cause bleeding. Non-player entities show synced lodged arrows to nearby players, while player arrows are kept for removal, recovery, dizziness, and bleeding logic.
 
-By default, the mod tracks up to 8 body arrows per body part. Player-fired arrows can be recovered from killed targets with a 35% chance per tracked arrow.
+By default, the mod tracks up to 8 body arrows per body part. Player-fired arrows can be recovered from killed targets with a 50% chance per tracked arrow.
 
 Supported arrow types:
 
@@ -61,7 +61,7 @@ Default recovery behaviour:
 
 * Arrow recovery is enabled
 * Player arrows can be recovered from entity death drops
-* Each tracked arrow has a 35% recovery chance
+* Each tracked arrow has a 50% recovery chance
 * Mob arrows can be recovered by default
 * Infinity arrows are not recovered unless enabled
 * Creative arrows are not recovered unless enabled
@@ -72,13 +72,13 @@ Default recovery behaviour:
 
 Players can remove lodged arrows from their own body, shields, and armor.
 
-Open your inventory, rotate the player preview if needed, and click a lodged body, shield, or armor arrow. A successful removal gives the arrow back when that arrow type is recoverable. A failed body removal can break the arrow, deal damage, and apply bleeding. Shield and armor removals can also break arrows and damage the item they were stuck in.
+Open your inventory, rotate the player preview if needed, and click a lodged body, shield, or armor arrow. A safe removal gives the arrow back when that arrow type is recoverable; non-recoverable arrows can still be pulled safely without creating an item. A failed body removal can break the arrow, deal damage, and apply bleeding. Shield and armor removals can also break arrows and damage the item they were stuck in.
 
 Removal can also happen in world. Body and armor removal chooses a priority arrow and takes time to complete. Shield removal works from the held shield and syncs to nearby players while the removal is in progress.
 
 The removal UI shows useful risk information before you click: hit body part, armor piece, arrow depth, removal chance, and bleeding risk. Result feedback distinguishes successful recovery, broken arrows, full inventories, unsafe removals, and blocked removal attempts.
 
-By default, carrying 4 or more lodged arrows, or reaching 50% of the configured body-arrow capacity, applies Lodged's custom Dizziness effect. It uses a subtle border vignette, slight red tint, and first-person screen wobble that grows stronger as more arrows lodge. Removing arrows drops you below that threshold and lets the effect fade.
+By default, carrying 4 or more lodged arrows, or reaching 50% of the configured body-arrow capacity, applies Lodged's custom Dizziness effect. It uses a subtle border vignette, slight red tint, and first-person screen wobble that gains one strength level for every two additional arrows. Removing arrows drops you below that threshold and lets the effect fade.
 
 By default, arrows that hit a player's legs apply vanilla Slowness I for 40 ticks. Leg shot Slowness can be disabled, and both its duration and level are configurable.
 
@@ -86,10 +86,10 @@ Default removal chances:
 
 | Body part | Default success chance |
 | --- | ---: |
-| Head | 35% |
-| Chest | 65% |
-| Arm | 85% |
-| Leg | 85% |
+| Head | 50% |
+| Chest | 72% |
+| Arm | 90% |
+| Leg | 90% |
 
 Infinity-generated arrows have their removal success chance halved by default when Infinity recovery is enabled.
 
@@ -167,7 +167,7 @@ Default bleeding damage:
 | Setting | Default |
 | --- | ---: |
 | Weapon or broken-arrow bleeding duration | 120 ticks |
-| Arrow-removal bleeding duration | 200 ticks |
+| Arrow-removal bleeding duration | 160 ticks |
 | Maximum bleeding duration | 1200 ticks |
 | Strong bleeding threshold | 600 ticks |
 | Normal bleed pulse | 1 damage every 100 ticks |

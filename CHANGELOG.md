@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Rebalanced default recovery, body removal, deep-lodged, bleeding, shield, and armor risks to reduce stacked bad-luck penalties while keeping meaningful choices
+- Made Dizziness gain strength every two arrows beyond its threshold instead of every arrow
+- Made non-recoverable arrows removable without forcing an automatic failed-removal penalty
+- Added a config v2 migration that updates unchanged old defaults while preserving customized values
+
 ## 2.0.0 - 2026-06-28
 
 ## Added

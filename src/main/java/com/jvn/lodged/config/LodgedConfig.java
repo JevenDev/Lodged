@@ -7,10 +7,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.function.DoubleConsumer;
+import java.util.function.DoubleSupplier;
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 import net.minecraft.util.Mth;
 
 public final class LodgedConfig {
-    private static final int CURRENT_CONFIG_VERSION = 1;
+    private static final int CURRENT_CONFIG_VERSION = 2;
     private static final int MAX_SYNCED_BODY_ARROW_VISUALS = 64;
     private static final String CONFIG_VERSION_KEY = "configVersion";
     private static final LodgedConfigWrapper CONFIG = loadConfig();
@@ -30,8 +34,10 @@ public final class LodgedConfig {
 
     private static void migrateConfig(LodgedConfigWrapper config) {
         boolean save = false;
+        int loadedVersion = config.configVersion();
+        boolean legacyUnversioned = isLegacyUnversionedConfig(config);
 
-        if (isLegacyUnversionedConfig(config)) {
+        if (legacyUnversioned) {
             if (!config.arrowRecovery.recoverMobArrows()) {
                 config.arrowRecovery.recoverMobArrows(true);
                 Lodged.LOGGER.info("Updated legacy Lodged config: enabled mob arrow recovery to match current defaults");
@@ -39,7 +45,13 @@ public final class LodgedConfig {
             save = true;
         }
 
-        if (config.configVersion() < CURRENT_CONFIG_VERSION) {
+        if (legacyUnversioned || loadedVersion < 2) {
+            migrateBalancedDefaults(config);
+            Lodged.LOGGER.info("Updated Lodged's unchanged defaults to the balanced v2 values");
+            save = true;
+        }
+
+        if (loadedVersion < CURRENT_CONFIG_VERSION) {
             save = true;
         }
 
@@ -49,6 +61,103 @@ public final class LodgedConfig {
 
         if (save) {
             config.save();
+        }
+    }
+
+    private static void migrateBalancedDefaults(LodgedConfigWrapper config) {
+        migrateDefault(config.arrowRecovery::recoveryChance, config.arrowRecovery::recoveryChance, 0.35D, 0.50D);
+
+        migrateDefault(config.playerArrowRemoval::playerArrowRemovalHeadSuccessChance,
+                config.playerArrowRemoval::playerArrowRemovalHeadSuccessChance, 0.35D, 0.50D);
+        migrateDefault(config.playerArrowRemoval::playerArrowRemovalChestSuccessChance,
+                config.playerArrowRemoval::playerArrowRemovalChestSuccessChance, 0.65D, 0.72D);
+        migrateDefault(config.playerArrowRemoval::playerArrowRemovalArmSuccessChance,
+                config.playerArrowRemoval::playerArrowRemovalArmSuccessChance, 0.85D, 0.90D);
+        migrateDefault(config.playerArrowRemoval::playerArrowRemovalLegSuccessChance,
+                config.playerArrowRemoval::playerArrowRemovalLegSuccessChance, 0.85D, 0.90D);
+        migrateDefault(config.playerArrowRemoval::playerArrowRemovalBreakDamage,
+                config.playerArrowRemoval::playerArrowRemovalBreakDamage, 2.0D, 1.0D);
+
+        migrateDefault(config.arrowDepth::weaponDamageDeepLodgedBonusPerDamage,
+                config.arrowDepth::weaponDamageDeepLodgedBonusPerDamage, 0.08D, 0.06D);
+        migrateDefault(config.arrowDepth::weaponDamageDeepLodgedMaxBonus,
+                config.arrowDepth::weaponDamageDeepLodgedMaxBonus, 0.30D, 0.20D);
+        migrateDefault(config.arrowDepth::powerDeepLodgedBonusPerLevel,
+                config.arrowDepth::powerDeepLodgedBonusPerLevel, 0.06D, 0.04D);
+        migrateDefault(config.arrowDepth::unarmoredHeadChestDeepLodgedBonus,
+                config.arrowDepth::unarmoredHeadChestDeepLodgedBonus, 0.08D, 0.06D);
+        migrateDefault(config.arrowDepth::unarmoredLimbDeepLodgedBonus,
+                config.arrowDepth::unarmoredLimbDeepLodgedBonus, 0.04D, 0.03D);
+        migrateDefault(config.arrowDepth::strongHeadChestDeepLodgedChance,
+                config.arrowDepth::strongHeadChestDeepLodgedChance, 0.80D, 0.65D);
+        migrateDefault(config.arrowDepth::powerHeadChestDeepLodgedChanceBonusPerLevel,
+                config.arrowDepth::powerHeadChestDeepLodgedChanceBonusPerLevel, 0.03D, 0.025D);
+        migrateDefault(config.arrowDepth::fastCriticalHeadChestDeepLodgedChance,
+                config.arrowDepth::fastCriticalHeadChestDeepLodgedChance, 0.65D, 0.55D);
+        migrateDefault(config.arrowDepth::powerAnyBodyPartDeepLodgedChancePerLevel,
+                config.arrowDepth::powerAnyBodyPartDeepLodgedChancePerLevel, 0.11D, 0.08D);
+        migrateDefault(config.arrowDepth::deepLodgedMaxChance,
+                config.arrowDepth::deepLodgedMaxChance, 0.85D, 0.80D);
+        migrateDefault(config.arrowDepth::powerDeepLodgedMaxChanceBonusPerLevel,
+                config.arrowDepth::powerDeepLodgedMaxChanceBonusPerLevel, 0.026D, 0.02D);
+        migrateDefault(config.arrowDepth::deepLodgedRemovalSuccessMultiplier,
+                config.arrowDepth::deepLodgedRemovalSuccessMultiplier, 0.55D, 0.70D);
+        migrateDefault(config.arrowDepth::deepLodgedBleedingChanceMultiplier,
+                config.arrowDepth::deepLodgedBleedingChanceMultiplier, 1.75D, 1.40D);
+        migrateDefault(config.arrowDepth::deepLodgedBleedingDurationMultiplier,
+                config.arrowDepth::deepLodgedBleedingDurationMultiplier, 1.50D, 1.25D);
+
+        migrateDefault(config.shieldArrows::shieldArrowRemovalSuccessChance,
+                config.shieldArrows::shieldArrowRemovalSuccessChance, 0.85D, 0.90D);
+        migrateDefault(config.shieldArrows::shieldArrowDurabilityDamageChance,
+                config.shieldArrows::shieldArrowDurabilityDamageChance, 0.35D, 0.25D);
+
+        migrateDefault(config.armorArrows::armorArrowRemovalSuccessChance,
+                config.armorArrows::armorArrowRemovalSuccessChance, 0.92D, 0.95D);
+        migrateDefault(config.armorArrows::armorArrowRemovalDurabilityDamageChance,
+                config.armorArrows::armorArrowRemovalDurabilityDamageChance, 0.35D, 0.25D);
+        migrateDefault(config.armorArrows::armorArrowRemovalBreakChance,
+                config.armorArrows::armorArrowRemovalBreakChance, 0.05D, 0.03D);
+        migrateDefault(config.armorArrows::armorArrowBreakDurabilityDamageChance,
+                config.armorArrows::armorArrowBreakDurabilityDamageChance, 1.0D, 0.75D);
+        migrateDefault(config.armorArrows::armorArrowExtraDurabilityLossChance,
+                config.armorArrows::armorArrowExtraDurabilityLossChance, 0.10D, 0.08D);
+        migrateDefault(config.armorArrows::armorArrowExtraDurabilityLossChancePerAdditionalArrow,
+                config.armorArrows::armorArrowExtraDurabilityLossChancePerAdditionalArrow, 0.05D, 0.04D);
+        migrateDefault(config.armorArrows::armorArrowExtraDurabilityLossMaxChance,
+                config.armorArrows::armorArrowExtraDurabilityLossMaxChance, 0.50D, 0.32D);
+
+        migrateDefault(config.bleedingRules::partialArmorBleedingChance,
+                config.bleedingRules::partialArmorBleedingChance, 0.65D, 0.50D);
+        migrateDefault(config.bleedingRules::noArmorBleedingChance,
+                config.bleedingRules::noArmorBleedingChance, 1.0D, 0.85D);
+        migrateDefault(config.bleedingRules::failedArrowRemovalFullArmorBleedingChance,
+                config.bleedingRules::failedArrowRemovalFullArmorBleedingChance, 0.25D, 0.15D);
+        migrateDefault(config.bleedingRules::failedArrowRemovalPartialArmorBleedingChance,
+                config.bleedingRules::failedArrowRemovalPartialArmorBleedingChance, 0.75D, 0.60D);
+        migrateDefault(config.bleedingRules::failedArrowRemovalNoArmorBleedingChance,
+                config.bleedingRules::failedArrowRemovalNoArmorBleedingChance, 1.0D, 0.85D);
+        migrateIntDefault(config.bleedingEffect::bleedingArrowRemovalDuration,
+                config.bleedingEffect::bleedingArrowRemovalDuration, 200, 160);
+    }
+
+    private static void migrateDefault(
+            DoubleSupplier getter,
+            DoubleConsumer setter,
+            double oldDefault,
+            double newDefault) {
+        if (Double.compare(getter.getAsDouble(), oldDefault) == 0) {
+            setter.accept(newDefault);
+        }
+    }
+
+    private static void migrateIntDefault(
+            IntSupplier getter,
+            IntConsumer setter,
+            int oldDefault,
+            int newDefault) {
+        if (getter.getAsInt() == oldDefault) {
+            setter.accept(newDefault);
         }
     }
 

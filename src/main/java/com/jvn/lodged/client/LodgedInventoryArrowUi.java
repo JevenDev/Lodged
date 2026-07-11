@@ -422,7 +422,7 @@ public final class LodgedInventoryArrowUi {
     }
 
     public static OutlineColor shieldRiskOutlineColor() {
-        return outlineColorFor(removalChance(LodgedArrowBodyPart.LEFT_ARM));
+        return outlineColorFor(shieldRemovalChance());
     }
 
     public static OutlineColor armorArrowOutlineColor() {
@@ -1393,10 +1393,10 @@ public final class LodgedInventoryArrowUi {
 
     private static double removalChance(HoveredArrow hoveredArrow) {
         if (hoveredArrow.target() == Target.SHIELD) {
-            return removalChance(LodgedArrowBodyPart.LEFT_ARM);
+            return shieldRemovalChance();
         }
         if (hoveredArrow.target() == Target.ARMOR) {
-            return Mth.clamp(LodgedConfig.armorArrowRemovalSuccessChance(), 0.0D, 1.0D);
+            return armorRemovalChance();
         }
         return removalChance(hoveredArrow.arrow());
     }
@@ -1411,6 +1411,16 @@ public final class LodgedInventoryArrowUi {
 
     private static double removalChance(LodgedArrowBodyPart bodyPart) {
         return Mth.clamp(LodgedConfig.playerArrowRemovalSuccessChance(bodyPart), 0.0D, 1.0D);
+    }
+
+    private static double shieldRemovalChance() {
+        return Mth.clamp(LodgedConfig.shieldArrowRemovalSuccessChance(), 0.0D, 1.0D);
+    }
+
+    private static double armorRemovalChance() {
+        double successChance = Mth.clamp(LodgedConfig.armorArrowRemovalSuccessChance(), 0.0D, 1.0D);
+        double breakChance = Mth.clamp(LodgedConfig.armorArrowRemovalBreakChance(), 0.0D, 1.0D);
+        return successChance * (1.0D - breakChance);
     }
 
     private static Component depthTooltip(LodgedArrowDepth depth) {
