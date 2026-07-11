@@ -24,6 +24,7 @@ public record LodgedArrowVisual(
         float directionX,
         float directionY,
         float directionZ,
+        LodgedArrowBodyPart bodyPart,
         LodgedArrowDepth depth,
         ItemStack stack) {
     private static final String MODEL_X_KEY = "visual_model_x";
@@ -32,6 +33,7 @@ public record LodgedArrowVisual(
     private static final String DIRECTION_X_KEY = "visual_direction_x";
     private static final String DIRECTION_Y_KEY = "visual_direction_y";
     private static final String DIRECTION_Z_KEY = "visual_direction_z";
+    private static final String BODY_PART_KEY = "visual_body_part";
     private static final String DEPTH_KEY = "visual_depth";
     private static final float MODEL_HEAD_TOP = -8.0F / 16.0F;
     private static final float MODEL_HEAD_BOTTOM = 0.0F;
@@ -49,15 +51,28 @@ public record LodgedArrowVisual(
     private static final double SHIELD_HALF_WIDTH = 6.0D / 16.0D;
     private static final double SHIELD_HALF_HEIGHT = 11.0D / 16.0D;
     private static final double SHIELD_FRONT_Z = -2.0D / 16.0D;
-    private static final ModelBox[] HUMANOID_MODEL_BOXES = {
-            new ModelBox(-MODEL_HEAD_HALF_WIDTH, MODEL_HEAD_TOP, -MODEL_HEAD_HALF_WIDTH, MODEL_HEAD_HALF_WIDTH, MODEL_HEAD_BOTTOM, MODEL_HEAD_HALF_WIDTH),
-            new ModelBox(-MODEL_BODY_HALF_WIDTH, MODEL_HEAD_BOTTOM, -MODEL_LIMB_HALF_DEPTH, MODEL_BODY_HALF_WIDTH, MODEL_LEG_TOP, MODEL_LIMB_HALF_DEPTH),
-            new ModelBox(-MODEL_ARM_OUTER_X, MODEL_HEAD_BOTTOM, -MODEL_LIMB_HALF_DEPTH, -MODEL_BODY_HALF_WIDTH, MODEL_LEG_TOP, MODEL_LIMB_HALF_DEPTH),
-            new ModelBox(MODEL_BODY_HALF_WIDTH, MODEL_HEAD_BOTTOM, -MODEL_LIMB_HALF_DEPTH, MODEL_ARM_OUTER_X, MODEL_LEG_TOP, MODEL_LIMB_HALF_DEPTH),
-            new ModelBox((-1.9F - 2.0F) / 16.0F, MODEL_LEG_TOP, -MODEL_LIMB_HALF_DEPTH, (-1.9F + 2.0F) / 16.0F, MODEL_FEET_Y, MODEL_LIMB_HALF_DEPTH),
-            new ModelBox((1.9F - 2.0F) / 16.0F, MODEL_LEG_TOP, -MODEL_LIMB_HALF_DEPTH, (1.9F + 2.0F) / 16.0F, MODEL_FEET_Y, MODEL_LIMB_HALF_DEPTH)
+    private static final BodyPartBox[] HUMANOID_MODEL_BOXES = {
+            new BodyPartBox(LodgedArrowBodyPart.HEAD,
+                    new ModelBox(-MODEL_HEAD_HALF_WIDTH, MODEL_HEAD_TOP, -MODEL_HEAD_HALF_WIDTH,
+                            MODEL_HEAD_HALF_WIDTH, MODEL_HEAD_BOTTOM, MODEL_HEAD_HALF_WIDTH)),
+            new BodyPartBox(LodgedArrowBodyPart.CHEST,
+                    new ModelBox(-MODEL_BODY_HALF_WIDTH, MODEL_HEAD_BOTTOM, -MODEL_LIMB_HALF_DEPTH,
+                            MODEL_BODY_HALF_WIDTH, MODEL_LEG_TOP, MODEL_LIMB_HALF_DEPTH)),
+            new BodyPartBox(LodgedArrowBodyPart.RIGHT_ARM,
+                    new ModelBox(-MODEL_ARM_OUTER_X, MODEL_HEAD_BOTTOM, -MODEL_LIMB_HALF_DEPTH,
+                            -MODEL_BODY_HALF_WIDTH, MODEL_LEG_TOP, MODEL_LIMB_HALF_DEPTH)),
+            new BodyPartBox(LodgedArrowBodyPart.LEFT_ARM,
+                    new ModelBox(MODEL_BODY_HALF_WIDTH, MODEL_HEAD_BOTTOM, -MODEL_LIMB_HALF_DEPTH,
+                            MODEL_ARM_OUTER_X, MODEL_LEG_TOP, MODEL_LIMB_HALF_DEPTH)),
+            new BodyPartBox(LodgedArrowBodyPart.RIGHT_LEG,
+                    new ModelBox((-1.9F - 2.0F) / 16.0F, MODEL_LEG_TOP, -MODEL_LIMB_HALF_DEPTH,
+                            (-1.9F + 2.0F) / 16.0F, MODEL_FEET_Y, MODEL_LIMB_HALF_DEPTH)),
+            new BodyPartBox(LodgedArrowBodyPart.LEFT_LEG,
+                    new ModelBox((1.9F - 2.0F) / 16.0F, MODEL_LEG_TOP, -MODEL_LIMB_HALF_DEPTH,
+                            (1.9F + 2.0F) / 16.0F, MODEL_FEET_Y, MODEL_LIMB_HALF_DEPTH))
     };
     private static final float MIN_DIRECTION_LENGTH = 1.0E-4F;
+    private static final double MODEL_HIT_TIE_EPSILON = 1.0E-7D;
     private static final double VANILLA_ENTITY_PICK_MARGIN = 0.3D;
 
     public static final LodgedArrowVisual DEFAULT = new LodgedArrowVisual(
@@ -90,6 +105,7 @@ public record LodgedArrowVisual(
             directionY /= directionLength;
             directionZ /= directionLength;
         }
+        bodyPart = bodyPart == null ? classifyBodyPart(modelX, modelY) : bodyPart;
         depth = depth == null ? LodgedArrowDepth.LODGED : depth;
         stack = renderStack(stack);
     }
@@ -101,15 +117,30 @@ public record LodgedArrowVisual(
             float directionX,
             float directionY,
             float directionZ) {
-        this(modelX, modelY, modelZ, directionX, directionY, directionZ, LodgedArrowDepth.LODGED, new ItemStack(Items.ARROW));
+        this(modelX, modelY, modelZ, directionX, directionY, directionZ, null,
+                LodgedArrowDepth.LODGED, new ItemStack(Items.ARROW));
+    }
+
+    public LodgedArrowVisual(
+            float modelX,
+            float modelY,
+            float modelZ,
+            float directionX,
+            float directionY,
+            float directionZ,
+            LodgedArrowDepth depth,
+            ItemStack stack) {
+        this(modelX, modelY, modelZ, directionX, directionY, directionZ, null, depth, stack);
     }
 
     public LodgedArrowVisual withStack(ItemStack stack) {
-        return new LodgedArrowVisual(modelX, modelY, modelZ, directionX, directionY, directionZ, depth, stack);
+        return new LodgedArrowVisual(
+                modelX, modelY, modelZ, directionX, directionY, directionZ, bodyPart, depth, stack);
     }
 
     public LodgedArrowVisual withDepth(LodgedArrowDepth depth) {
-        return new LodgedArrowVisual(modelX, modelY, modelZ, directionX, directionY, directionZ, depth, stack);
+        return new LodgedArrowVisual(
+                modelX, modelY, modelZ, directionX, directionY, directionZ, bodyPart, depth, stack);
     }
 
     public boolean matches(LodgedArrowVisual other) {
@@ -120,6 +151,7 @@ public record LodgedArrowVisual(
                 && Float.compare(directionX, other.directionX) == 0
                 && Float.compare(directionY, other.directionY) == 0
                 && Float.compare(directionZ, other.directionZ) == 0
+                && bodyPart == other.bodyPart
                 && depth == other.depth
                 && ItemStack.isSameItemSameComponents(stack, other.stack);
     }
@@ -147,7 +179,10 @@ public record LodgedArrowVisual(
         float directionZ = (float) modelDirection.z;
         float directionLength = Mth.sqrt(directionX * directionX + directionY * directionY + directionZ * directionZ);
         if (directionLength < MIN_DIRECTION_LENGTH) {
-            return new LodgedArrowVisual(modelX, modelY, modelZ, DEFAULT.directionX, DEFAULT.directionY, DEFAULT.directionZ);
+            return new LodgedArrowVisual(
+                    modelX, modelY, modelZ,
+                    DEFAULT.directionX, DEFAULT.directionY, DEFAULT.directionZ,
+                    modelHit.bodyPart(), LodgedArrowDepth.LODGED, new ItemStack(Items.ARROW));
         }
 
         return new LodgedArrowVisual(
@@ -156,7 +191,10 @@ public record LodgedArrowVisual(
                 modelZ,
                 directionX / directionLength,
                 directionY / directionLength,
-                directionZ / directionLength);
+                directionZ / directionLength,
+                modelHit.bodyPart(),
+                LodgedArrowDepth.LODGED,
+                new ItemStack(Items.ARROW));
     }
 
     public static LodgedArrowVisual fromShieldImpact(LivingEntity target, AbstractArrow arrow, EntityHitResult hitResult) {
@@ -178,23 +216,10 @@ public record LodgedArrowVisual(
                 (float) SHIELD_FRONT_Z,
                 (float) modelDirection.x,
                 (float) modelDirection.y,
-                (float) modelDirection.z);
-    }
-
-    public LodgedArrowBodyPart bodyPart() {
-        if (modelY < MODEL_HEAD_BOTTOM) {
-            return LodgedArrowBodyPart.HEAD;
-        }
-
-        if (modelY >= MODEL_LEG_TOP) {
-            return modelX < 0.0F ? LodgedArrowBodyPart.RIGHT_LEG : LodgedArrowBodyPart.LEFT_LEG;
-        }
-
-        if (Math.abs(modelX) > MODEL_BODY_HALF_WIDTH) {
-            return modelX < 0.0F ? LodgedArrowBodyPart.RIGHT_ARM : LodgedArrowBodyPart.LEFT_ARM;
-        }
-
-        return LodgedArrowBodyPart.CHEST;
+                (float) modelDirection.z,
+                LodgedArrowBodyPart.CHEST,
+                LodgedArrowDepth.LODGED,
+                new ItemStack(Items.ARROW));
     }
 
     public EquipmentSlot armorSlot() {
@@ -220,6 +245,7 @@ public record LodgedArrowVisual(
         tag.putFloat(DIRECTION_X_KEY, directionX);
         tag.putFloat(DIRECTION_Y_KEY, directionY);
         tag.putFloat(DIRECTION_Z_KEY, directionZ);
+        tag.putString(BODY_PART_KEY, bodyPart.serializedName());
         tag.putString(DEPTH_KEY, depth.serializedName());
     }
 
@@ -240,6 +266,9 @@ public record LodgedArrowVisual(
                 tag.getFloat(DIRECTION_X_KEY),
                 tag.getFloat(DIRECTION_Y_KEY),
                 tag.getFloat(DIRECTION_Z_KEY),
+                tag.contains(BODY_PART_KEY, Tag.TAG_STRING)
+                        ? LodgedArrowBodyPart.bySerializedName(tag.getString(BODY_PART_KEY))
+                        : null,
                 tag.contains(DEPTH_KEY, Tag.TAG_STRING)
                         ? LodgedArrowDepth.bySerializedName(tag.getString(DEPTH_KEY))
                         : LodgedArrowDepth.LODGED,
@@ -253,6 +282,7 @@ public record LodgedArrowVisual(
         buffer.writeFloat(directionX);
         buffer.writeFloat(directionY);
         buffer.writeFloat(directionZ);
+        ByteBufCodecs.idMapper(LodgedArrowBodyPart::byId, LodgedArrowBodyPart::id).encode(buffer, bodyPart);
         ByteBufCodecs.idMapper(LodgedArrowDepth::byId, LodgedArrowDepth::id).encode(buffer, depth);
         ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, stack);
     }
@@ -265,6 +295,7 @@ public record LodgedArrowVisual(
                 buffer.readFloat(),
                 buffer.readFloat(),
                 buffer.readFloat(),
+                ByteBufCodecs.idMapper(LodgedArrowBodyPart::byId, LodgedArrowBodyPart::id).decode(buffer),
                 ByteBufCodecs.idMapper(LodgedArrowDepth::byId, LodgedArrowDepth::id).decode(buffer),
                 ItemStack.OPTIONAL_STREAM_CODEC.decode(buffer));
     }
@@ -279,6 +310,19 @@ public record LodgedArrowVisual(
 
     private static float finiteOrDefault(float value, float fallback) {
         return Float.isFinite(value) ? value : fallback;
+    }
+
+    private static LodgedArrowBodyPart classifyBodyPart(float modelX, float modelY) {
+        if (modelY < MODEL_HEAD_BOTTOM) {
+            return LodgedArrowBodyPart.HEAD;
+        }
+        if (modelY >= MODEL_LEG_TOP) {
+            return modelX < 0.0F ? LodgedArrowBodyPart.RIGHT_LEG : LodgedArrowBodyPart.LEFT_LEG;
+        }
+        if (Math.abs(modelX) > MODEL_BODY_HALF_WIDTH) {
+            return modelX < 0.0F ? LodgedArrowBodyPart.RIGHT_ARM : LodgedArrowBodyPart.LEFT_ARM;
+        }
+        return LodgedArrowBodyPart.CHEST;
     }
 
     private static Vec3 impactMotion(AbstractArrow arrow) {
@@ -348,15 +392,30 @@ public record LodgedArrowVisual(
         Vec3 modelDirection = normalizedOrDefault(modelDelta);
         ModelHit closestHit = null;
         double closestT = Double.MAX_VALUE;
-        for (ModelBox box : HUMANOID_MODEL_BOXES) {
+        double closestCenterDistance = Double.MAX_VALUE;
+        for (BodyPartBox candidate : HUMANOID_MODEL_BOXES) {
+            ModelBox box = candidate.box();
             Optional<Double> hitT = box.inflate(inflate).intersect(modelStart, modelDelta);
-            if (hitT.isPresent() && hitT.get() < closestT) {
+            if (hitT.isEmpty()) {
+                continue;
+            }
+
+            Vec3 hitPosition = modelStart.add(modelDelta.scale(hitT.get()));
+            if (inflate > 0.0D) {
+                hitPosition = box.clampToSurface(hitPosition, modelDirection);
+            }
+            double centerDistance = box.centerDistanceToSqr(hitPosition);
+            if (hitT.get() < closestT - MODEL_HIT_TIE_EPSILON
+                    || Math.abs(hitT.get() - closestT) <= MODEL_HIT_TIE_EPSILON
+                            && preferBodyPart(
+                                    candidate.bodyPart(),
+                                    closestHit != null ? closestHit.bodyPart() : null,
+                                    hitPosition,
+                                    centerDistance,
+                                    closestCenterDistance)) {
                 closestT = hitT.get();
-                Vec3 hitPosition = modelStart.add(modelDelta.scale(hitT.get()));
-                if (inflate > 0.0D) {
-                    hitPosition = box.clampToSurface(hitPosition, modelDirection);
-                }
-                closestHit = new ModelHit(hitPosition, modelDirection);
+                closestCenterDistance = centerDistance;
+                closestHit = new ModelHit(hitPosition, modelDirection, candidate.bodyPart());
             }
         }
 
@@ -375,8 +434,9 @@ public record LodgedArrowVisual(
             Vec3 modelEnd) {
         Vec3 hitLocation = resolveImpactLocation(target, arrow, hitResult, motion);
         Vec3 modelDirection = normalizedOrDefault(modelEnd.subtract(modelStart));
-        Vec3 modelPosition = snapToHumanoidSurface(toModelSpace(target, boundingBox, axes, hitLocation, modelScale), modelDirection);
-        return new ModelHit(modelPosition, modelDirection);
+        return snapToHumanoidSurface(
+                toModelSpace(target, boundingBox, axes, hitLocation, modelScale),
+                modelDirection);
     }
 
     private static Vec3 normalizedOrDefault(Vec3 vector) {
@@ -422,19 +482,49 @@ public record LodgedArrowVisual(
                 Mth.clamp(point.z, boundingBox.minZ, boundingBox.maxZ));
     }
 
-    private static Vec3 snapToHumanoidSurface(Vec3 modelPosition, Vec3 modelDirection) {
-        ModelBox closestBox = HUMANOID_MODEL_BOXES[0];
-        double closestDistance = closestBox.distanceToSqr(modelPosition);
+    private static ModelHit snapToHumanoidSurface(Vec3 modelPosition, Vec3 modelDirection) {
+        BodyPartBox closest = HUMANOID_MODEL_BOXES[0];
+        double closestDistance = closest.box().distanceToSqr(modelPosition);
+        double closestCenterDistance = closest.box().centerDistanceToSqr(modelPosition);
         for (int index = 1; index < HUMANOID_MODEL_BOXES.length; index++) {
-            ModelBox box = HUMANOID_MODEL_BOXES[index];
+            BodyPartBox candidate = HUMANOID_MODEL_BOXES[index];
+            ModelBox box = candidate.box();
             double distance = box.distanceToSqr(modelPosition);
-            if (distance < closestDistance) {
-                closestBox = box;
+            double centerDistance = box.centerDistanceToSqr(modelPosition);
+            if (distance < closestDistance - MODEL_HIT_TIE_EPSILON
+                    || Math.abs(distance - closestDistance) <= MODEL_HIT_TIE_EPSILON
+                            && preferBodyPart(
+                                    candidate.bodyPart(),
+                                    closest.bodyPart(),
+                                    modelPosition,
+                                    centerDistance,
+                                    closestCenterDistance)) {
+                closest = candidate;
                 closestDistance = distance;
+                closestCenterDistance = centerDistance;
             }
         }
 
-        return closestBox.clampToSurface(modelPosition, modelDirection);
+        return new ModelHit(
+                closest.box().clampToSurface(modelPosition, modelDirection),
+                modelDirection,
+                closest.bodyPart());
+    }
+
+    private static boolean preferBodyPart(
+            LodgedArrowBodyPart candidate,
+            LodgedArrowBodyPart current,
+            Vec3 position,
+            double candidateCenterDistance,
+            double currentCenterDistance) {
+        LodgedArrowBodyPart expected = classifyBodyPart((float) position.x, (float) position.y);
+        if (candidate == expected && current != expected) {
+            return true;
+        }
+        if (current == expected && candidate != expected) {
+            return false;
+        }
+        return candidateCenterDistance < currentCenterDistance;
     }
 
     private record BodyAxes(Vec3 right, Vec3 forward) {
@@ -490,6 +580,13 @@ public record LodgedArrowVisual(
             double dx = point.x - x;
             double dy = point.y - y;
             double dz = point.z - z;
+            return dx * dx + dy * dy + dz * dz;
+        }
+
+        double centerDistanceToSqr(Vec3 point) {
+            double dx = point.x - centerX();
+            double dy = point.y - centerY();
+            double dz = point.z - centerZ();
             return dx * dx + dy * dy + dz * dz;
         }
 
@@ -584,7 +681,10 @@ public record LodgedArrowVisual(
     private record TraceSegment(Vec3 start, Vec3 end) {
     }
 
-    private record ModelHit(Vec3 position, Vec3 direction) {
+    private record BodyPartBox(LodgedArrowBodyPart bodyPart, ModelBox box) {
+    }
+
+    private record ModelHit(Vec3 position, Vec3 direction, LodgedArrowBodyPart bodyPart) {
     }
 
     private record AxisIntersection(boolean intersects, double tMin, double tMax) {

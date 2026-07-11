@@ -14,6 +14,7 @@ import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.AbstractArrow;
+import org.joml.Vector3f;
 
 public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends EntityModel<T>> extends RenderLayer<T, M> {
     private final EntityRenderDispatcher dispatcher;
@@ -80,8 +81,8 @@ public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends Enti
             HumanoidModel<?> model,
             LodgedArrowVisual arrow,
             float partialTicks) {
-        LodgedArrowRenderHelper.translateToHumanoidPart(poseStack, model, arrow);
-        renderArrow(poseStack, buffer, packedLight, livingEntity, arrow, partialTicks);
+        Vector3f partLocalDirection = LodgedArrowRenderHelper.translateToHumanoidPart(poseStack, model, arrow);
+        renderArrow(poseStack, buffer, packedLight, livingEntity, arrow, partLocalDirection, partialTicks);
     }
 
     private void renderRootArrow(
@@ -108,6 +109,24 @@ public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends Enti
                 livingEntity.getY(),
                 livingEntity.getZ(),
                 arrow);
+        this.dispatcher.render(renderedArrow, 0.0D, 0.0D, 0.0D, 0.0F, partialTicks, poseStack, buffer, packedLight);
+    }
+
+    private void renderArrow(
+            PoseStack poseStack,
+            MultiBufferSource buffer,
+            int packedLight,
+            LivingEntity livingEntity,
+            LodgedArrowVisual arrow,
+            Vector3f direction,
+            float partialTicks) {
+        AbstractArrow renderedArrow = LodgedArrowRenderHelper.createRenderedArrow(
+                livingEntity.level(),
+                livingEntity.getX(),
+                livingEntity.getY(),
+                livingEntity.getZ(),
+                arrow,
+                direction);
         this.dispatcher.render(renderedArrow, 0.0D, 0.0D, 0.0D, 0.0F, partialTicks, poseStack, buffer, packedLight);
     }
 

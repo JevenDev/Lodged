@@ -20,6 +20,7 @@ import net.minecraft.client.renderer.entity.layers.StuckInBodyLayer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.AbstractArrow;
+import org.joml.Vector3f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -65,10 +66,20 @@ public abstract class StuckInBodyLayerMixin {
             boolean highlightedArmor = index == hoveredArmorCombinedIndex;
             boolean highlighted = index == hoveredArrowIndex || highlightedArmor;
             poseStack.pushPose();
-            LodgedArrowRenderHelper.translateToHumanoidPart(poseStack, lodged$getParentModel(), arrow);
-            renderArrow(poseStack, buffer, packedLight, livingEntity, arrow, partialTicks);
+            Vector3f partLocalDirection = LodgedArrowRenderHelper.translateToHumanoidPart(
+                    poseStack,
+                    lodged$getParentModel(),
+                    arrow);
+            renderArrow(poseStack, buffer, packedLight, livingEntity, arrow, partLocalDirection, partialTicks);
             if (highlighted) {
-                renderHoverOutline(poseStack, packedLight, livingEntity, arrow, highlightedArmor, partialTicks);
+                renderHoverOutline(
+                        poseStack,
+                        packedLight,
+                        livingEntity,
+                        arrow,
+                        partLocalDirection,
+                        highlightedArmor,
+                        partialTicks);
             }
             poseStack.popPose();
         }
@@ -133,6 +144,7 @@ public abstract class StuckInBodyLayerMixin {
             int packedLight,
             LivingEntity livingEntity,
             LodgedArrowVisual arrow,
+            Vector3f direction,
             boolean armorArrow,
             float partialTicks) {
         if (!LodgedInventoryArrowUi.prepareArrowOutlineTarget()) {
@@ -146,7 +158,7 @@ public abstract class StuckInBodyLayerMixin {
                 : LodgedInventoryArrowUi.riskOutlineColor(arrow);
         outlineBuffer.setColor(outlineColor.red(), outlineColor.green(), outlineColor.blue(), outlineColor.alpha());
         try {
-            renderArrow(poseStack, outlineBuffer, packedLight, livingEntity, arrow, partialTicks);
+            renderArrow(poseStack, outlineBuffer, packedLight, livingEntity, arrow, direction, partialTicks);
             outlineBuffer.endOutlineBatch();
         } finally {
             LodgedInventoryArrowUi.restoreVanillaEntityTarget();
@@ -161,13 +173,15 @@ public abstract class StuckInBodyLayerMixin {
             int packedLight,
             LivingEntity livingEntity,
             LodgedArrowVisual arrow,
+            Vector3f direction,
             float partialTicks) {
         AbstractArrow renderedArrow = LodgedArrowRenderHelper.createRenderedArrow(
                 livingEntity.level(),
                 livingEntity.getX(),
                 livingEntity.getY(),
                 livingEntity.getZ(),
-                arrow);
+                arrow,
+                direction);
         Minecraft.getInstance().getEntityRenderDispatcher().render(
                 renderedArrow,
                 0.0D,

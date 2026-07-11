@@ -8,6 +8,8 @@
 - Made Dizziness gain strength every two arrows beyond its threshold instead of every arrow
 - Made non-recoverable arrows removable without forcing an automatic failed-removal penalty
 - Added a config v2 migration that updates unchanged old defaults while preserving customized values
+- Stored the traced humanoid model part with each arrow so shoulder, hip, and overlapping limb hits remain stable
+- Snapped humanoid arrow anchors to the client model's real cubes and aligned inventory hit-testing with animated parts, including slim arms
 
 ## 2.0.0 - 2026-06-28
 

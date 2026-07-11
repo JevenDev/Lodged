@@ -35,6 +35,7 @@ import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.PostChain;
+import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
@@ -1031,7 +1032,7 @@ public final class LodgedInventoryArrowUi {
         int top = screen.getGuiTop();
         float centerX = left + ((MODEL_LEFT + MODEL_RIGHT) / 2.0F);
         float centerY = top + ((MODEL_TOP + MODEL_BOTTOM) / 2.0F);
-        Vector3f modelPosition = renderModelPosition(arrow, centerX, centerY, mouseX, mouseY);
+        Vector3f modelPosition = renderModelPosition(player, arrow, centerX, centerY, mouseX, mouseY);
         return projectModelToScreen(player, modelPosition, centerX, centerY, mouseX, mouseY);
     }
 
@@ -1163,7 +1164,7 @@ public final class LodgedInventoryArrowUi {
             LodgedArrowVisual arrow = arrows.get(index);
             Vector3f projected = projectModelToScreen(
                     player,
-                    renderModelPosition(arrow, centerX, centerY, mouseX, mouseY),
+                    renderModelPosition(player, arrow, centerX, centerY, mouseX, mouseY),
                     centerX,
                     centerY,
                     mouseX,
@@ -1188,7 +1189,7 @@ public final class LodgedInventoryArrowUi {
             LodgedArrowVisual wound = FALLBACK_BLEEDING_WOUNDS[index];
             Vector3f projected = projectModelToScreen(
                     player,
-                    renderModelPosition(wound, centerX, centerY, mouseX, mouseY),
+                    renderModelPosition(player, wound, centerX, centerY, mouseX, mouseY),
                     centerX,
                     centerY,
                     mouseX,
@@ -1253,11 +1254,16 @@ public final class LodgedInventoryArrowUi {
     }
 
     private static Vector3f renderModelPosition(
+            LocalPlayer player,
             LodgedArrowVisual arrow,
             float centerX,
             float centerY,
             double mouseX,
             double mouseY) {
+        if (Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(player) instanceof PlayerRenderer renderer) {
+            return LodgedArrowRenderHelper.humanoidModelPosition(renderer.getModel(), arrow);
+        }
+
         if (arrow.bodyPart() != LodgedArrowBodyPart.HEAD) {
             return new Vector3f(arrow.modelX(), arrow.modelY(), arrow.modelZ());
         }
