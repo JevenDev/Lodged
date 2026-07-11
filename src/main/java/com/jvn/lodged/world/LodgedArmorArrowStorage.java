@@ -11,6 +11,11 @@ import net.minecraft.world.item.ItemStack;
 
 public final class LodgedArmorArrowStorage {
     private static final String STORAGE_KEY = Lodged.MOD_ID + ":armor_arrows";
+    private static final List<EquipmentSlot> ARMOR_SLOTS = List.of(
+            EquipmentSlot.HEAD,
+            EquipmentSlot.CHEST,
+            EquipmentSlot.LEGS,
+            EquipmentSlot.FEET);
 
     private LodgedArmorArrowStorage() {
     }
@@ -29,7 +34,7 @@ public final class LodgedArmorArrowStorage {
             arrows.remove(0);
         }
 
-        arrows.add(arrowData.withSingleStack());
+        arrows.add(arrowData);
         writeAll(armor, arrows, registries);
         return true;
     }
@@ -40,8 +45,14 @@ public final class LodgedArmorArrowStorage {
 
     public static List<LodgedArrowVisual> readAllEquipped(LivingEntity entity) {
         List<LodgedArrowVisual> arrows = new ArrayList<>();
-        for (EquipmentSlot slot : armorSlots()) {
-            arrows.addAll(readAll(entity.getItemBySlot(slot)));
+        int maxTrackedArrows = LodgedConfig.maxTrackedArrowsPerArmorPiece();
+        if (maxTrackedArrows <= 0) {
+            return List.of();
+        }
+
+        for (EquipmentSlot slot : ARMOR_SLOTS) {
+            List<LodgedArrowVisual> slotArrows = readAll(entity.getItemBySlot(slot));
+            arrows.addAll(slotArrows.subList(0, Math.min(slotArrows.size(), maxTrackedArrows)));
         }
         return arrows;
     }
@@ -64,8 +75,8 @@ public final class LodgedArmorArrowStorage {
         return LodgedItemArrowStorage.readData(armor, registries, STORAGE_KEY, LodgedArmorArrowData::new);
     }
 
-    public static EquipmentSlot[] armorSlots() {
-        return new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
+    public static List<EquipmentSlot> armorSlots() {
+        return ARMOR_SLOTS;
     }
 
     private static void writeAll(ItemStack armor, List<LodgedArmorArrowData> arrows, HolderLookup.Provider registries) {
@@ -82,16 +93,6 @@ public final class LodgedArmorArrowStorage {
         public LodgedArmorArrowData {
             stack = stack.copyWithCount(1);
             visual = visual.withStack(stack);
-        }
-
-        LodgedArmorArrowData withSingleStack() {
-            return new LodgedArmorArrowData(
-                    stack.copyWithCount(1),
-                    recoverable,
-                    fromPlayer,
-                    infinityGenerated,
-                    creativeGenerated,
-                    visual);
         }
     }
 }

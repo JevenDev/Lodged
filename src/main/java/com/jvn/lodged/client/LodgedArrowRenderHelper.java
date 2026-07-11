@@ -1,6 +1,10 @@
 package com.jvn.lodged.client;
 
 import com.jvn.lodged.world.LodgedArrowVisual;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.model.HumanoidModel;
+import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.Arrow;
@@ -28,6 +32,26 @@ public final class LodgedArrowRenderHelper {
         renderedArrow.yRotO = renderedArrow.getYRot();
         renderedArrow.xRotO = renderedArrow.getXRot();
         return renderedArrow;
+    }
+
+    public static void translateToHumanoidPart(
+            PoseStack poseStack,
+            HumanoidModel<?> model,
+            LodgedArrowVisual arrow) {
+        ModelPart part = switch (arrow.bodyPart()) {
+            case HEAD -> model.head;
+            case CHEST -> model.body;
+            case LEFT_ARM -> model.leftArm;
+            case RIGHT_ARM -> model.rightArm;
+            case LEFT_LEG -> model.leftLeg;
+            case RIGHT_LEG -> model.rightLeg;
+        };
+        PartPose initialPose = part.getInitialPose();
+        part.translateAndRotate(poseStack);
+        poseStack.translate(
+                arrow.modelX() - (initialPose.x / 16.0F),
+                arrow.modelY() - (initialPose.y / 16.0F),
+                arrow.modelZ() - (initialPose.z / 16.0F));
     }
 
     private static ItemStack renderStack(LodgedArrowVisual arrow) {

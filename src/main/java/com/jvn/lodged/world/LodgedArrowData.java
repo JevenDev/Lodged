@@ -11,7 +11,6 @@ public record LodgedArrowData(
         boolean fromPlayer,
         boolean infinityGenerated,
         boolean creativeGenerated,
-        long gameTime,
         LodgedArrowVisual visual) {
     private static final String STACK_KEY = "stack";
     private static final String RECOVERABLE_KEY = "recoverable";
@@ -19,7 +18,6 @@ public record LodgedArrowData(
     private static final String FROM_PLAYER_KEY = "from_player";
     private static final String INFINITY_GENERATED_KEY = "infinity_generated";
     private static final String CREATIVE_GENERATED_KEY = "creative_generated";
-    private static final String GAME_TIME_KEY = "game_time";
 
     public LodgedArrowData {
         stack = stack.copyWithCount(1);
@@ -34,7 +32,6 @@ public record LodgedArrowData(
         tag.putBoolean(FROM_PLAYER_KEY, fromPlayer);
         tag.putBoolean(INFINITY_GENERATED_KEY, infinityGenerated);
         tag.putBoolean(CREATIVE_GENERATED_KEY, creativeGenerated);
-        tag.putLong(GAME_TIME_KEY, gameTime);
         visual.save(tag);
         return tag;
     }
@@ -51,7 +48,6 @@ public record LodgedArrowData(
                 tag.getBoolean(FROM_PLAYER_KEY),
                 tag.getBoolean(INFINITY_GENERATED_KEY),
                 tag.getBoolean(CREATIVE_GENERATED_KEY),
-                tag.getLong(GAME_TIME_KEY),
                 LodgedArrowVisual.load(tag));
     }
 }

@@ -6,7 +6,6 @@ import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.network.ClientArrowState;
 import com.jvn.lodged.network.ClientArrowState.EntityArrows;
 import com.jvn.lodged.world.LodgedArmorArrowStorage;
-import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -14,8 +13,6 @@ import java.util.List;
 import java.util.ArrayList;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
-import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.OutlineBufferSource;
 import net.minecraft.client.renderer.entity.layers.ArrowLayer;
@@ -68,9 +65,7 @@ public abstract class StuckInBodyLayerMixin {
             boolean highlightedArmor = index == hoveredArmorCombinedIndex;
             boolean highlighted = index == hoveredArrowIndex || highlightedArmor;
             poseStack.pushPose();
-            ArrowAnchor anchor = anchorFor(lodged$getParentModel(), arrow);
-            anchor.part().translateAndRotate(poseStack);
-            poseStack.translate(anchor.localX(), anchor.localY(), anchor.localZ());
+            LodgedArrowRenderHelper.translateToHumanoidPart(poseStack, lodged$getParentModel(), arrow);
             renderArrow(poseStack, buffer, packedLight, livingEntity, arrow, partialTicks);
             if (highlighted) {
                 renderHoverOutline(poseStack, packedLight, livingEntity, arrow, highlightedArmor, partialTicks);
@@ -188,31 +183,6 @@ public abstract class StuckInBodyLayerMixin {
     @SuppressWarnings("unchecked")
     private PlayerModel<LivingEntity> lodged$getParentModel() {
         return ((StuckInBodyLayer<LivingEntity, PlayerModel<LivingEntity>>) (Object) this).getParentModel();
-    }
-
-    private static ArrowAnchor anchorFor(PlayerModel<LivingEntity> model, LodgedArrowVisual arrow) {
-        ModelPart part = partFor(model, arrow);
-        PartPose initialPose = part.getInitialPose();
-        return new ArrowAnchor(
-                part,
-                arrow.modelX() - (initialPose.x / 16.0F),
-                arrow.modelY() - (initialPose.y / 16.0F),
-                arrow.modelZ() - (initialPose.z / 16.0F));
-    }
-
-    private static ModelPart partFor(PlayerModel<LivingEntity> model, LodgedArrowVisual arrow) {
-        LodgedArrowBodyPart bodyPart = arrow.bodyPart();
-        return switch (bodyPart) {
-            case HEAD -> model.head;
-            case RIGHT_LEG -> model.rightLeg;
-            case LEFT_LEG -> model.leftLeg;
-            case RIGHT_ARM -> model.rightArm;
-            case LEFT_ARM -> model.leftArm;
-            case CHEST -> model.body;
-        };
-    }
-
-    private record ArrowAnchor(ModelPart part, float localX, float localY, float localZ) {
     }
 
     private record ArrowRenderList(List<LodgedArrowVisual> arrows, int bodyArrowCount) {

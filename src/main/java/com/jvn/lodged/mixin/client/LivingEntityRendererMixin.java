@@ -2,6 +2,7 @@ package com.jvn.lodged.mixin.client;
 
 import com.jvn.lodged.client.LodgedEntityArrowLayer;
 import net.minecraft.client.model.EntityModel;
+import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,6 +20,9 @@ public abstract class LivingEntityRendererMixin {
             float shadowRadius,
             CallbackInfo callbackInfo) {
         LivingEntityRenderer renderer = (LivingEntityRenderer) (Object) this;
+        if (model instanceof PlayerModel<?>) {
+            return;
+        }
         renderer.addLayer(new LodgedEntityArrowLayer<>(
                 renderer,
                 context.getEntityRenderDispatcher()));

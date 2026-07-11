@@ -17,7 +17,6 @@ public final class LodgedDizzinessPostProcessor {
 
     private float blend;
     private float tintStrength;
-    private float desaturationStrength;
     private float pulseStrength;
     private float time;
     private PostChain postChain;
@@ -43,7 +42,6 @@ public final class LodgedDizzinessPostProcessor {
     public void updateState(float blend) {
         this.blend = blend;
         this.tintStrength = blend * (0.24F + blend * 0.18F);
-        this.desaturationStrength = 0.0F;
         this.pulseStrength = blend * 0.018F;
         this.active = blend > 0.02F;
         if (!this.active) {
@@ -80,7 +78,6 @@ public final class LodgedDizzinessPostProcessor {
         postChain.setUniform("time", time);
         postChain.setUniform("Blend", blend);
         postChain.setUniform("TintStrength", tintStrength);
-        postChain.setUniform("DesaturationStrength", desaturationStrength);
         postChain.setUniform("PulseStrength", pulseStrength);
         postChain.process(partialTick);
         minecraft.getMainRenderTarget().bindWrite(false);

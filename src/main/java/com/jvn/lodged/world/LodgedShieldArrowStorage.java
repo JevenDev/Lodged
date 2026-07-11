@@ -27,7 +27,7 @@ public final class LodgedShieldArrowStorage {
             arrows.remove(0);
         }
 
-        arrows.add(arrowData.withSingleStack());
+        arrows.add(arrowData);
         writeAll(shield, arrows, registries);
         return true;
     }
@@ -65,16 +65,6 @@ public final class LodgedShieldArrowStorage {
         public LodgedShieldArrowData {
             stack = stack.copyWithCount(1);
             visual = visual.withStack(stack);
-        }
-
-        LodgedShieldArrowData withSingleStack() {
-            return new LodgedShieldArrowData(
-                    stack.copyWithCount(1),
-                    recoverable,
-                    fromPlayer,
-                    infinityGenerated,
-                    creativeGenerated,
-                    visual);
         }
     }
 }

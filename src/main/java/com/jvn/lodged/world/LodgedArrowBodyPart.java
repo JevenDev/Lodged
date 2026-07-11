@@ -25,8 +25,4 @@ public enum LodgedArrowBodyPart {
     public boolean isLeg() {
         return this == LEFT_LEG || this == RIGHT_LEG;
     }
-
-    public boolean isLimb() {
-        return isArm() || isLeg();
-    }
 }

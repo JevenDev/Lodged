@@ -47,12 +47,6 @@
       "values": [0.0]
     },
     {
-      "name": "DesaturationStrength",
-      "type": "float",
-      "count": 1,
-      "values": [0.0]
-    },
-    {
       "name": "PulseStrength",
       "type": "float",
       "count": 1,

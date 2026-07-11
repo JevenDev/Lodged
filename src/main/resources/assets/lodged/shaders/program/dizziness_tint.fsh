@@ -5,7 +5,6 @@ uniform sampler2D DiffuseSampler;
 uniform float time;
 uniform float Blend;
 uniform float TintStrength;
-uniform float DesaturationStrength;
 uniform float PulseStrength;
 
 in vec2 texCoord;

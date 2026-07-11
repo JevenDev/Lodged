@@ -520,10 +520,18 @@ public final class PlayerArrowRemoval {
     }
 
     private static boolean canAttemptHeldShieldRemoval(ServerPlayer player, ItemStack shield) {
-        return canAttemptHeldShieldRemoval(player, shield, 0);
+        return canAttemptHeldShieldRemoval(player, shield, 0, null);
     }
 
     private static boolean canAttemptHeldShieldRemoval(ServerPlayer player, ItemStack shield, int arrowIndex) {
+        return canAttemptHeldShieldRemoval(player, shield, arrowIndex, null);
+    }
+
+    private static boolean canAttemptHeldShieldRemoval(
+            ServerPlayer player,
+            ItemStack shield,
+            int arrowIndex,
+            LodgedArrowVisual expectedVisual) {
         if (!LodgedConfig.enablePlayerArrowRemoval()
                 || !player.isAlive()
                 || shield.isEmpty()
@@ -536,10 +544,21 @@ public final class PlayerArrowRemoval {
             return false;
         }
 
-        return LodgedShieldArrowStorage.readData(shield, player.registryAccess()).size() > arrowIndex;
+        List<LodgedShieldArrowData> arrows = LodgedShieldArrowStorage.readData(shield, player.registryAccess());
+        return arrowIndex >= 0
+                && arrowIndex < arrows.size()
+                && (expectedVisual == null || arrows.get(arrowIndex).visual().matches(expectedVisual));
     }
 
     private static boolean canAttemptArmorRemoval(ServerPlayer player, EquipmentSlot slot, int arrowIndex) {
+        return canAttemptArmorRemoval(player, slot, arrowIndex, null);
+    }
+
+    private static boolean canAttemptArmorRemoval(
+            ServerPlayer player,
+            EquipmentSlot slot,
+            int arrowIndex,
+            LodgedArrowVisual expectedVisual) {
         if (!LodgedConfig.enablePlayerArrowRemoval()
                 || !LodgedConfig.enableArmorArrowLodging()
                 || !player.isAlive()
@@ -552,7 +571,10 @@ public final class PlayerArrowRemoval {
         }
 
         ItemStack armor = player.getItemBySlot(slot);
-        return LodgedArmorArrowStorage.readData(armor, player.registryAccess()).size() > arrowIndex;
+        List<LodgedArmorArrowData> arrows = LodgedArmorArrowStorage.readData(armor, player.registryAccess());
+        return arrowIndex >= 0
+                && arrowIndex < arrows.size()
+                && (expectedVisual == null || arrows.get(arrowIndex).visual().matches(expectedVisual));
     }
 
     private static boolean isArmorSlot(EquipmentSlot slot) {
@@ -571,6 +593,13 @@ public final class PlayerArrowRemoval {
     }
 
     private static boolean canAttemptBodyRemoval(ServerPlayer player, int arrowIndex) {
+        return canAttemptBodyRemoval(player, arrowIndex, null);
+    }
+
+    private static boolean canAttemptBodyRemoval(
+            ServerPlayer player,
+            int arrowIndex,
+            LodgedArrowVisual expectedVisual) {
         if (!LodgedConfig.enablePlayerArrowRemoval() || !player.isAlive() || arrowIndex < 0) {
             return false;
         }
@@ -579,49 +608,10 @@ public final class PlayerArrowRemoval {
             return false;
         }
 
+        List<LodgedArrowData> arrows = LodgedArrowStorage.readAll(player);
         return arrowIndex < LodgedConfig.maxRemovablePlayerArrows()
-                && arrowIndex < LodgedArrowStorage.readAll(player).size();
-    }
-
-    private static boolean canAttemptBodyRemoval(
-            ServerPlayer player,
-            int arrowIndex,
-            LodgedArrowVisual expectedVisual) {
-        if (!canAttemptBodyRemoval(player, arrowIndex)) {
-            return false;
-        }
-
-        return LodgedArrowStorage.readAll(player).get(arrowIndex).visual().matches(expectedVisual);
-    }
-
-    private static boolean canAttemptHeldShieldRemoval(
-            ServerPlayer player,
-            ItemStack shield,
-            int arrowIndex,
-            LodgedArrowVisual expectedVisual) {
-        if (!canAttemptHeldShieldRemoval(player, shield, arrowIndex)) {
-            return false;
-        }
-
-        return LodgedShieldArrowStorage.readData(shield, player.registryAccess())
-                .get(arrowIndex)
-                .visual()
-                .matches(expectedVisual);
-    }
-
-    private static boolean canAttemptArmorRemoval(
-            ServerPlayer player,
-            EquipmentSlot slot,
-            int arrowIndex,
-            LodgedArrowVisual expectedVisual) {
-        if (!canAttemptArmorRemoval(player, slot, arrowIndex)) {
-            return false;
-        }
-
-        return LodgedArmorArrowStorage.readData(player.getItemBySlot(slot), player.registryAccess())
-                .get(arrowIndex)
-                .visual()
-                .matches(expectedVisual);
+                && arrowIndex < arrows.size()
+                && (expectedVisual == null || arrows.get(arrowIndex).visual().matches(expectedVisual));
     }
 
     private static int priorityShieldArrowIndex(List<LodgedShieldArrowData> arrows) {

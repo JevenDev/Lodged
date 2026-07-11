@@ -3,20 +3,16 @@ package com.jvn.lodged.client;
 import com.jvn.lodged.network.ClientArrowState;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.world.LodgedArmorArrowStorage;
-import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.List;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.HumanoidModel;
-import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 
 public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends EntityModel<T>> extends RenderLayer<T, M> {
@@ -39,10 +35,6 @@ public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends Enti
             float ageInTicks,
             float netHeadYaw,
             float headPitch) {
-        if (livingEntity instanceof Player) {
-            return;
-        }
-
         List<LodgedArrowVisual> arrows = arrowsFor(livingEntity);
         int arrowCount = arrows.size();
         if (arrowCount <= 0) {
@@ -88,9 +80,7 @@ public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends Enti
             HumanoidModel<?> model,
             LodgedArrowVisual arrow,
             float partialTicks) {
-        ArrowAnchor anchor = anchorFor(model, arrow);
-        anchor.part().translateAndRotate(poseStack);
-        poseStack.translate(anchor.localX(), anchor.localY(), anchor.localZ());
+        LodgedArrowRenderHelper.translateToHumanoidPart(poseStack, model, arrow);
         renderArrow(poseStack, buffer, packedLight, livingEntity, arrow, partialTicks);
     }
 
@@ -111,7 +101,7 @@ public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends Enti
             int packedLight,
             LivingEntity livingEntity,
             LodgedArrowVisual arrow,
-        float partialTicks) {
+            float partialTicks) {
         AbstractArrow renderedArrow = LodgedArrowRenderHelper.createRenderedArrow(
                 livingEntity.level(),
                 livingEntity.getX(),
@@ -121,28 +111,4 @@ public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends Enti
         this.dispatcher.render(renderedArrow, 0.0D, 0.0D, 0.0D, 0.0F, partialTicks, poseStack, buffer, packedLight);
     }
 
-    private static ArrowAnchor anchorFor(HumanoidModel<?> model, LodgedArrowVisual arrow) {
-        ModelPart part = partFor(model, arrow);
-        PartPose initialPose = part.getInitialPose();
-        return new ArrowAnchor(
-                part,
-                arrow.modelX() - (initialPose.x / 16.0F),
-                arrow.modelY() - (initialPose.y / 16.0F),
-                arrow.modelZ() - (initialPose.z / 16.0F));
-    }
-
-    private static ModelPart partFor(HumanoidModel<?> model, LodgedArrowVisual arrow) {
-        LodgedArrowBodyPart bodyPart = arrow.bodyPart();
-        return switch (bodyPart) {
-            case HEAD -> model.head;
-            case RIGHT_LEG -> model.rightLeg;
-            case LEFT_LEG -> model.leftLeg;
-            case RIGHT_ARM -> model.rightArm;
-            case LEFT_ARM -> model.leftArm;
-            case CHEST -> model.body;
-        };
-    }
-
-    private record ArrowAnchor(ModelPart part, float localX, float localY, float localZ) {
-    }
 }
