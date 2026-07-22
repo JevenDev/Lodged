@@ -5,6 +5,7 @@ import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.network.payload.ArmorArrowRemovalActionPayload;
 import com.jvn.lodged.network.payload.ArrowRemovalResultPayload;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
+import com.jvn.lodged.network.payload.RemoveHorseArmorArrowPayload;
 import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload;
 import com.jvn.lodged.network.payload.SyncEntityArrowsPayload;
 import com.jvn.lodged.network.payload.SyncArmorArrowRemovalPayload;
@@ -23,7 +24,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class LodgedNetwork {
-    private static final String NETWORK_VERSION = "14";
+    private static final String NETWORK_VERSION = "15";
 
     private LodgedNetwork() {
     }
@@ -34,6 +35,10 @@ public final class LodgedNetwork {
                 RemovePlayerArrowPayload.TYPE,
                 RemovePlayerArrowPayload.STREAM_CODEC,
                 PlayerArrowRemoval::handleRequest);
+        registrar.playToServer(
+                RemoveHorseArmorArrowPayload.TYPE,
+                RemoveHorseArmorArrowPayload.STREAM_CODEC,
+                PlayerArrowRemoval::handleHorseArmorRequest);
         registrar.playToServer(
                 ShieldArrowRemovalActionPayload.TYPE,
                 ShieldArrowRemovalActionPayload.STREAM_CODEC,

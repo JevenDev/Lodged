@@ -157,6 +157,20 @@ public final class LodgedInventoryArrowUi {
             {6, 10},
             {7, 9}
     };
+    private static final int[][] HORSE_ARMOR_ICON_SPANS = {
+            {3, 11, 12},
+            {4, 11, 14},
+            {5, 10, 12},
+            {5, 13, 15},
+            {6, 9, 15},
+            {7, 9, 15},
+            {8, 2, 12},
+            {9, 1, 12},
+            {10, 1, 13},
+            {11, 1, 13},
+            {12, 1, 13},
+            {13, 1, 13}
+    };
     private static final int REMOVAL_SUBTITLE_Z = 450;
     private static final int REMOVAL_ANIMATION_Z = 420;
     private static final int MAX_REMOVAL_ANIMATIONS = 6;
@@ -430,6 +444,18 @@ public final class LodgedInventoryArrowUi {
         return OutlineColor.fromRgb(ARMOR_ARROW_OUTLINE_COLOR);
     }
 
+    public static void renderHorseArmorRemovalTooltip(
+            GuiGraphics guiGraphics,
+            LodgedArrowVisual arrow,
+            int mouseX,
+            int mouseY) {
+        renderArrowRemovalTooltip(
+                guiGraphics,
+                new HoveredArrow(arrow, Target.ARMOR, InteractionHand.MAIN_HAND, EquipmentSlot.BODY),
+                mouseX,
+                mouseY);
+    }
+
     public static void handleRemovalResult(ArrowRemovalResultPayload payload) {
         Result result = payload.result();
         if (result == Result.TOO_RISKY || result == Result.CANT_REMOVE_NOW) {
@@ -623,6 +649,11 @@ public final class LodgedInventoryArrowUi {
             return;
         }
 
+        if (hoveredArrow.target() == Target.ARMOR && hoveredArrow.armorSlot() == EquipmentSlot.BODY) {
+            drawHorseArmorIcon(guiGraphics, x, y, highlightColor);
+            return;
+        }
+
         drawBodyPartIcon(guiGraphics, x, y, hoveredArrow.arrow().bodyPart(), highlightColor);
     }
 
@@ -660,6 +691,20 @@ public final class LodgedInventoryArrowUi {
                     x + SHIELD_ICON_INNER_SPANS[row][0],
                     rowY,
                     x + SHIELD_ICON_INNER_SPANS[row][1],
+                    rowY + 1,
+                    TOOLTIP_ICON_Z,
+                    highlightColor);
+        }
+    }
+
+    private static void drawHorseArmorIcon(GuiGraphics guiGraphics, int x, int y, int highlightColor) {
+        int top = y + 8;
+        for (int[] span : HORSE_ARMOR_ICON_SPANS) {
+            int rowY = top + span[0];
+            guiGraphics.fill(
+                    x + span[1],
+                    rowY,
+                    x + span[2],
                     rowY + 1,
                     TOOLTIP_ICON_Z,
                     highlightColor);
@@ -1439,6 +1484,9 @@ public final class LodgedInventoryArrowUi {
 
     private static Component hitLocationTooltip(HoveredArrow hoveredArrow) {
         if (hoveredArrow.target() == Target.ARMOR) {
+            if (hoveredArrow.armorSlot() == EquipmentSlot.BODY) {
+                return armorPieceTooltip(EquipmentSlot.BODY).copy().withStyle(ChatFormatting.GRAY);
+            }
             return Component.translatable(
                     "tooltip.lodged.body_part_with_armor",
                     Component.translatable("tooltip.lodged.body_part." + hoveredArrow.arrow().bodyPart().serializedName()),
@@ -1454,6 +1502,7 @@ public final class LodgedInventoryArrowUi {
             case CHEST -> "chestplate";
             case LEGS -> "leggings";
             case FEET -> "boots";
+            case BODY -> "horse_armor";
             default -> "armor";
         };
         return Component.translatable("tooltip.lodged.armor_piece." + piece);

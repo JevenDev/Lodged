@@ -4,11 +4,13 @@
   "package": "com.jvn.lodged.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "HorseInventoryMenuAccessor",
     "LivingEntityMixin"
   ],
   "client": [
     "client.BlockEntityWithoutLevelRendererMixin",
     "client.HumanoidModelMixin",
+    "client.HorseInventoryScreenAccessor",
     "client.InventoryScreenMixin",
     "client.ItemInHandRendererMixin",
     "client.LevelRendererAccessor",

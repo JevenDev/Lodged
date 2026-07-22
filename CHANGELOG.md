@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Added
+
+- Added horse armor arrow lodging, rendering, inventory-preview tooltips, and removal
+- Added optional Ride On load-order compatibility
+
 ### Changed
 
 - Rebalanced default recovery, body removal, deep-lodged, bleeding, shield, and armor risks to reduce stacked bad-luck penalties while keeping meaningful choices

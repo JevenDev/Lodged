@@ -4,19 +4,24 @@ import com.jvn.lodged.network.ClientArrowState;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.world.LodgedArmorArrowStorage;
 import com.jvn.lodged.world.LodgedArrowVisual;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.List;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.OutlineBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import org.joml.Vector3f;
 
 public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends EntityModel<T>> extends RenderLayer<T, M> {
+    private static final int HOVER_OUTLINE_BUFFER_SIZE = 1536;
     private final EntityRenderDispatcher dispatcher;
 
     public LodgedEntityArrowLayer(RenderLayerParent<T, M> renderer, EntityRenderDispatcher dispatcher) {
@@ -50,6 +55,15 @@ public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends Enti
                 renderHumanoidArrow(poseStack, buffer, packedLight, livingEntity, humanoidModel, arrow, partialTicks);
             } else {
                 renderRootArrow(poseStack, buffer, packedLight, livingEntity, arrow, partialTicks);
+                if (livingEntity instanceof AbstractHorse horse
+                        && LodgedHorseArmorArrowUi.isHovered(horse, arrow)) {
+                    renderHorseArmorHoverOutline(
+                            poseStack,
+                            packedLight,
+                            livingEntity,
+                            arrow,
+                            partialTicks);
+                }
             }
             poseStack.popPose();
         }
@@ -110,6 +124,31 @@ public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends Enti
                 livingEntity.getZ(),
                 arrow);
         this.dispatcher.render(renderedArrow, 0.0D, 0.0D, 0.0D, 0.0F, partialTicks, poseStack, buffer, packedLight);
+    }
+
+    private void renderHorseArmorHoverOutline(
+            PoseStack poseStack,
+            int packedLight,
+            LivingEntity livingEntity,
+            LodgedArrowVisual arrow,
+            float partialTicks) {
+        if (!LodgedInventoryArrowUi.prepareArrowOutlineTarget()) {
+            return;
+        }
+
+        MultiBufferSource.BufferSource delegate =
+                MultiBufferSource.immediate(new ByteBufferBuilder(HOVER_OUTLINE_BUFFER_SIZE));
+        OutlineBufferSource outlineBuffer = new OutlineBufferSource(delegate);
+        LodgedInventoryArrowUi.OutlineColor outlineColor = LodgedInventoryArrowUi.armorArrowOutlineColor();
+        outlineBuffer.setColor(outlineColor.red(), outlineColor.green(), outlineColor.blue(), outlineColor.alpha());
+        try {
+            renderArrow(poseStack, outlineBuffer, packedLight, livingEntity, arrow, partialTicks);
+            outlineBuffer.endOutlineBatch();
+        } finally {
+            LodgedInventoryArrowUi.restoreVanillaEntityTarget();
+        }
+        Minecraft.getInstance().getMainRenderTarget().bindWrite(false);
+        LodgedInventoryArrowUi.processArrowOutlineTarget();
     }
 
     private void renderArrow(

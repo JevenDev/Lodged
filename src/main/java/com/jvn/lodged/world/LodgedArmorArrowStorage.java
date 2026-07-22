@@ -7,6 +7,7 @@ import java.util.List;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.AnimalArmorItem;
 import net.minecraft.world.item.ItemStack;
 
 public final class LodgedArmorArrowStorage {
@@ -54,6 +55,12 @@ public final class LodgedArmorArrowStorage {
             List<LodgedArrowVisual> slotArrows = readAll(entity.getItemBySlot(slot));
             arrows.addAll(slotArrows.subList(0, Math.min(slotArrows.size(), maxTrackedArrows)));
         }
+
+        ItemStack bodyArmor = entity.getItemBySlot(EquipmentSlot.BODY);
+        if (isHorseArmor(bodyArmor)) {
+            List<LodgedArrowVisual> bodyArmorArrows = readAll(bodyArmor);
+            arrows.addAll(bodyArmorArrows.subList(0, Math.min(bodyArmorArrows.size(), maxTrackedArrows)));
+        }
         return arrows;
     }
 
@@ -77,6 +84,11 @@ public final class LodgedArmorArrowStorage {
 
     public static List<EquipmentSlot> armorSlots() {
         return ARMOR_SLOTS;
+    }
+
+    public static boolean isHorseArmor(ItemStack stack) {
+        return stack.getItem() instanceof AnimalArmorItem animalArmor
+                && animalArmor.getBodyType() == AnimalArmorItem.BodyType.EQUESTRIAN;
     }
 
     private static void writeAll(ItemStack armor, List<LodgedArmorArrowData> arrows, HolderLookup.Provider registries) {

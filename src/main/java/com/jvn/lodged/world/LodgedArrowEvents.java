@@ -607,6 +607,10 @@ public final class LodgedArrowEvents {
     }
 
     private static boolean hasArmorOnBodyPart(LivingEntity target, LodgedArrowBodyPart bodyPart) {
+        if (LodgedArmorArrowStorage.isHorseArmor(target.getItemBySlot(EquipmentSlot.BODY))) {
+            return true;
+        }
+
         return switch (bodyPart) {
             case HEAD -> isArmorInSlot(target, EquipmentSlot.HEAD);
             case CHEST, LEFT_ARM, RIGHT_ARM -> isArmorInSlot(target, EquipmentSlot.CHEST);
@@ -634,7 +638,9 @@ public final class LodgedArrowEvents {
             return false;
         }
 
-        EquipmentSlot slot = visual.armorSlot();
+        EquipmentSlot slot = LodgedArmorArrowStorage.isHorseArmor(target.getItemBySlot(EquipmentSlot.BODY))
+                ? EquipmentSlot.BODY
+                : visual.armorSlot();
         ItemStack armor = target.getItemBySlot(slot);
         if (!(armor.getItem() instanceof ArmorItem armorItem) || armorItem.getEquipmentSlot() != slot) {
             return false;

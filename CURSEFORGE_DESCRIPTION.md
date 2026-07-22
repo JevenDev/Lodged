@@ -7,7 +7,7 @@
 
 ![Warden being struck by multiple arrows](https://i.imgur.com/HaMHMQS.png)
 
-Arrows can lodge in bodies, shields, and armor, preserve their item data, drop from slain targets, break on impact, and be pulled out through inventory or in-world removal. The mod also adds optional bleeding, dizziness, leg-shot Slowness, and data-driven projectile support.
+Arrows can lodge in bodies, shields, player armor, and horse armor; preserve their item data; drop from slain targets; break on impact; and be pulled out through inventory or in-world removal. The mod also adds optional bleeding, dizziness, leg-shot Slowness, and data-driven projectile support.
 
 The goal is simple: arrows actually have some impact and are a bit more immersive.
 
@@ -18,7 +18,7 @@ The goal is simple: arrows actually have some impact and are a bit more immersiv
 * Let arrows break on entity or block impact
 * Pull body arrows from the inventory player preview or with in-world removal keybind
 * Lodge blocked arrows into shields, render them on the shield, and remove them later
-* Lodge stopped arrows into armor pieces, with armor penetration and durability penalties
+* Lodge stopped arrows into player or horse armor, with armor penetration and durability penalties
 * Classify body arrows as shallow, lodged, or deep lodged based on shot force, body part, crits, Power enchantment, crossbows, and armor coverage
 * Make removal difficulty, animation time, bleeding risk, and bleeding duration respond to arrow depth
 * Show hover details for body part, armor piece, depth, removal chance, and bleeding risk
@@ -70,13 +70,13 @@ Default recovery behaviour:
 
 ### Arrow Removal
 
-Players can remove lodged arrows from their own body, shields, and armor.
+Remove arrows in the place that makes sense:
 
-Open your inventory, rotate the player preview if needed, and click a lodged body, shield, or armor arrow. A safe removal gives the arrow back when that arrow type is recoverable; non-recoverable arrows can still be pulled safely without creating an item. A failed body removal can break the arrow, deal damage, and apply bleeding. Shield and armor removals can also break arrows and damage the item they were stuck in.
+* **Your body, shield, or equipped armor:** Open your inventory, rotate the player preview if needed, and click an arrow.
+* **In world:** Hold the **Remove lodged arrow** key (default: `G`). While actively using a shield, it removes an arrow from that shield; otherwise it removes a priority arrow from your equipped armor, then your body. These removals take time and cancel if interrupted.
+* **Horse armor:** Open that horse's inventory and click an arrow in the horse preview. Horse armor removal is inventory-only.
 
-Removal can also happen in world. Body and armor removal chooses a priority arrow and takes time to complete. Shield removal works from the held shield and syncs to nearby players while the removal is in progress.
-
-The removal UI shows useful risk information before you click: hit body part, armor piece, arrow depth, removal chance, and bleeding risk. Result feedback distinguishes successful recovery, broken arrows, full inventories, unsafe removals, and blocked removal attempts.
+Hovering an arrow shows its location, armor piece, depth, removal chance, and bleeding risk. A safe removal returns a recoverable arrow; non-recoverable arrows can still be removed without creating an item. Failed body removal can break the arrow, hurt you, and cause bleeding. Shield and armor removals can also break arrows and damage the item they were lodged in.
 
 By default, carrying 4 or more lodged arrows, or reaching 50% of the configured body-arrow capacity, applies Lodged's custom Dizziness effect. It uses a subtle border vignette, slight red tint, and first-person screen wobble that gains one strength level for every two additional arrows. Removing arrows drops you below that threshold and lets the effect fade.
 
@@ -113,7 +113,7 @@ Depth tiers can be disabled if you prefer every body arrow to behave like a norm
 
 Shield-blocked arrows can lodge into the shield item instead of disappearing. Lodged shield arrows render on the shield, including first-person shields, and can be removed from the inventory preview or through in-world shield removal. Removing shield arrows can damage the shield, and mob-fired shield arrows are recoverable by default.
 
-Armor can also catch arrows. When an arrow hits an armored body part, Lodged can roll armor penetration. Arrows that fail to penetrate may lodge into the armor piece instead of the body. Armor arrows can render on equipped armor, be removed later, break during removal, and add extra durability loss while left in the armor.
+Armor can also catch arrows. When an arrow hits an armored body part, Lodged can roll armor penetration. Arrows that fail to penetrate may lodge into the armor piece instead of the body. Armor arrows can render on equipped player armor or horse armor, be removed later, break during removal, and add extra durability loss while left in the armor. Horse armor arrows are removed from the horse inventory preview.
 
 Default dizziness behaviour:
 
@@ -196,7 +196,7 @@ Major systems can be tuned or disabled:
 * Inventory and in-world removal timing
 * Arrow removal animation enablement and speed
 * Shield arrow lodging, removal timing, durability chance, first-person rendering, and mob-fired shield arrow recovery
-* Armor arrow lodging, armor penetration, rendering, removal, break chance, durability penalties, and mob-fired armor arrow recovery
+* Player and horse armor arrow lodging, armor penetration, rendering, removal, break chance, durability penalties, and mob-fired armor arrow recovery
 * Removal success chances by body part
 * Arrow depth chances, Power/crit/velocity/armor modifiers, and shallow/deep removal and bleeding multipliers
 * Removal failure damage
@@ -262,8 +262,9 @@ Lodged is designed to work with vanilla-style combat and projectile behaviour in
 * Uses synced arrow data for client visuals and arrow removal
 * Integrates with Simple Blood when installed by spawning matching ground decals from Lodged blood drops
 * Does not replace Minecraft's living entity classes
+* Supports horse armor arrows in the vanilla horse inventory; optional compatibility is included for Ride On's load order
 
-Compatibility may vary with mods that heavily replace projectile impact handling, living-entity rendering, inventory screens, particles, or stuck-arrow behaviour.
+Compatibility may vary with mods that heavily replace projectile impact handling, living-entity rendering, horse inventory screens, particles, or stuck-arrow behaviour.
 
 ## Version and Loaders
 

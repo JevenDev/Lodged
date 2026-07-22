@@ -3,9 +3,11 @@ package com.jvn.lodged.network;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.effect.BleedingEvents;
 import com.jvn.lodged.effect.LodgedDamageTypes;
+import com.jvn.lodged.mixin.HorseInventoryMenuAccessor;
 import com.jvn.lodged.network.payload.ArmorArrowRemovalActionPayload;
 import com.jvn.lodged.network.payload.ArrowRemovalResultPayload;
 import com.jvn.lodged.network.payload.ArrowRemovalResultPayload.Result;
+import com.jvn.lodged.network.payload.RemoveHorseArmorArrowPayload;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload.Target;
 import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload;
@@ -39,7 +41,9 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.HorseInventoryMenu;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
@@ -95,6 +99,41 @@ public final class PlayerArrowRemoval {
         }
 
         removeBodyArrow(player, payload.arrowIndex());
+    }
+
+    static void handleHorseArmorRequest(RemoveHorseArmorArrowPayload payload, IPayloadContext context) {
+        if (!(context.player() instanceof ServerPlayer player)) {
+            return;
+        }
+
+        AbstractHorse horse = openHorse(player);
+        if (!canAttemptHorseArmorRemoval(player, horse, payload)) {
+            sendRemovalResult(
+                    player,
+                    Result.CANT_REMOVE_NOW,
+                    Target.ARMOR,
+                    InteractionHand.MAIN_HAND,
+                    LodgedArrowVisual.DEFAULT);
+            if (player.containerMenu instanceof HorseInventoryMenu) {
+                player.containerMenu.broadcastChanges();
+            }
+            return;
+        }
+
+        long gameTime = player.level().getGameTime();
+        Long lastRequestTick = LAST_REQUEST_TICK.get(player.getUUID());
+        if (lastRequestTick != null && gameTime - lastRequestTick < REQUEST_COOLDOWN_TICKS) {
+            sendRemovalResult(
+                    player,
+                    Result.CANT_REMOVE_NOW,
+                    Target.ARMOR,
+                    InteractionHand.MAIN_HAND,
+                    LodgedArrowVisual.DEFAULT);
+            return;
+        }
+        LAST_REQUEST_TICK.put(player.getUUID(), gameTime);
+
+        removeHorseArmorArrow(player, horse, payload.arrowIndex());
     }
 
     static void handleShieldAction(ShieldArrowRemovalActionPayload payload, IPayloadContext context) {
@@ -303,6 +342,65 @@ public final class PlayerArrowRemoval {
         player.containerMenu.broadcastChanges();
     }
 
+    private static void removeHorseArmorArrow(ServerPlayer player, AbstractHorse horse, int arrowIndex) {
+        ItemStack armor = horse.getItemBySlot(EquipmentSlot.BODY);
+        List<LodgedArmorArrowData> arrows = LodgedArmorArrowStorage.readData(armor, player.registryAccess());
+        if (arrowIndex < 0 || arrowIndex >= arrows.size()) {
+            sendRemovalResult(
+                    player,
+                    Result.CANT_REMOVE_NOW,
+                    Target.ARMOR,
+                    InteractionHand.MAIN_HAND,
+                    LodgedArrowVisual.DEFAULT);
+            player.containerMenu.broadcastChanges();
+            return;
+        }
+
+        LodgedArmorArrowData arrow = arrows.get(arrowIndex);
+        double successChance = removalSuccessChance(arrow);
+        if (successChance <= 0.0D) {
+            sendRemovalResult(player, Result.TOO_RISKY, Target.ARMOR, InteractionHand.MAIN_HAND, arrow.visual());
+            return;
+        }
+
+        LodgedArmorArrowData removedArrow =
+                LodgedArmorArrowStorage.removeAt(armor, arrowIndex, player.registryAccess());
+        if (removedArrow == null) {
+            sendRemovalResult(player, Result.CANT_REMOVE_NOW, Target.ARMOR, InteractionHand.MAIN_HAND, arrow.visual());
+            player.containerMenu.broadcastChanges();
+            return;
+        }
+
+        boolean broke = player.getRandom().nextDouble() < LodgedConfig.armorArrowRemovalBreakChance();
+        boolean safelyRemoved = !broke && succeeds(player, successChance);
+        if (safelyRemoved) {
+            sendSuccessfulRemoval(
+                    player,
+                    Target.ARMOR,
+                    InteractionHand.MAIN_HAND,
+                    removedArrow.visual(),
+                    canRecoverArrow(removedArrow) ? removedArrow.stack() : ItemStack.EMPTY);
+            playSound(player, SoundEvents.ITEM_PICKUP, 0.2F, 2.0F);
+            maybeDamageHorseArmor(
+                    horse,
+                    armor,
+                    LodgedConfig.armorArrowRemovalDurabilityDamageChance());
+        } else {
+            sendRemovalResult(player, Result.FAILED, Target.ARMOR, InteractionHand.MAIN_HAND, removedArrow.visual());
+            playSound(player, SoundEvents.ITEM_BREAK, 0.8F, 1.0F);
+            maybeDamageHorseArmor(
+                    horse,
+                    armor,
+                    broke
+                            ? LodgedConfig.armorArrowBreakDurabilityDamageChance()
+                            : LodgedConfig.armorArrowRemovalDurabilityDamageChance());
+        }
+
+        horse.setItemSlot(EquipmentSlot.BODY, armor);
+        player.containerMenu.broadcastChanges();
+        LodgedNetwork.syncEntityArrows(horse);
+    }
+
     private static boolean canAttemptRemoval(ServerPlayer player, RemovePlayerArrowPayload payload) {
         if (!LodgedConfig.enablePlayerArrowRemoval() || !player.isAlive()) {
             return false;
@@ -346,6 +444,39 @@ public final class PlayerArrowRemoval {
         }
 
         return true;
+    }
+
+    private static AbstractHorse openHorse(ServerPlayer player) {
+        if (!(player.containerMenu instanceof HorseInventoryMenu menu) || !menu.stillValid(player)) {
+            return null;
+        }
+        return ((HorseInventoryMenuAccessor) menu).lodged$getHorse();
+    }
+
+    private static boolean canAttemptHorseArmorRemoval(
+            ServerPlayer player,
+            AbstractHorse horse,
+            RemoveHorseArmorArrowPayload payload) {
+        if (!LodgedConfig.enablePlayerArrowRemoval()
+                || !LodgedConfig.enableArmorArrowLodging()
+                || LodgedConfig.maxTrackedArrowsPerArmorPiece() <= 0
+                || !player.isAlive()
+                || horse == null
+                || horse.getId() != payload.horseEntityId()
+                || !horse.isAlive()
+                || payload.arrowIndex() < 0
+                || payload.arrowIndex() >= LodgedConfig.maxTrackedArrowsPerArmorPiece()) {
+            return false;
+        }
+
+        if (player.isCreative() && !LodgedConfig.allowArrowRemovalInCreative()) {
+            return false;
+        }
+
+        ItemStack armor = horse.getItemBySlot(EquipmentSlot.BODY);
+        return LodgedArmorArrowStorage.isHorseArmor(armor)
+                && payload.arrowIndex()
+                        < LodgedArmorArrowStorage.readData(armor, player.registryAccess()).size();
     }
 
     private static void startShieldArrowRemoval(ServerPlayer player, InteractionHand hand) {
@@ -792,6 +923,16 @@ public final class PlayerArrowRemoval {
         }
 
         armor.hurtAndBreak(1, player, slot);
+    }
+
+    private static void maybeDamageHorseArmor(AbstractHorse horse, ItemStack armor, double chance) {
+        if (armor.isEmpty()
+                || chance <= 0.0D
+                || horse.getRandom().nextDouble() >= chance) {
+            return;
+        }
+
+        armor.hurtAndBreak(1, horse, EquipmentSlot.BODY);
     }
 
     private static void spawnShieldArrowBreakParticles(ServerPlayer player, InteractionHand hand, LodgedArrowVisual arrow) {
