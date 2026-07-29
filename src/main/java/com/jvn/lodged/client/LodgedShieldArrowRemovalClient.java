@@ -42,14 +42,16 @@ import org.lwjgl.glfw.GLFW;
 
 public final class LodgedShieldArrowRemovalClient {
     private static final int LOCAL_REMOVAL_GRACE_TICKS = 5;
-    private static final float PULL_EASE_TICKS = 16.0F;
     private static final float FIRST_PERSON_ITEM_DROP_TICKS = 8.0F;
+    private static final float FIRST_PERSON_REACH_TICKS = 7.0F;
+    private static final float FIRST_PERSON_GRIP_TICKS = 3.0F;
+    private static final float FIRST_PERSON_EXTRACTION_TICKS = 22.0F;
+    private static final float FIRST_PERSON_SHAKE_SCALE = 0.25F;
+    private static final float THIRD_PERSON_EXTRACTION_TICKS = 30.0F;
+    private static final float THIRD_PERSON_SHAKE_SCALE = 0.012F;
     private static final float ARM_X_ROT = -1.35F;
-    private static final float ARM_PULL_X_ROT = -0.25F;
     private static final float ARM_Y_ROT = -0.58F;
     private static final float ARM_Z_ROT = 0.18F;
-    private static final float ARM_PULSE_SPEED = 0.45F;
-    private static final float ARM_PULSE_AMOUNT = 0.08F;
     private static final KeyMapping REMOVE_SHIELD_ARROW_KEY = new KeyMapping(
             "key.lodged.remove_shield_arrow",
             InputConstants.Type.KEYSYM,
@@ -155,19 +157,32 @@ public final class LodgedShieldArrowRemovalClient {
 
         HumanoidArm pullingArm = handArm(player, hand);
         float side = pullingArm == HumanoidArm.RIGHT ? 1.0F : -1.0F;
-        float pull = firstPersonPullProgress(handAge);
+        float reach = firstPersonPullProgress(handAge);
         float rise = heldItemDropping ? firstPersonHandRiseProgress(handAge) : 1.0F;
-        float pulse = Mth.sin(age * ARM_PULSE_SPEED) * pull;
-        float grip = Mth.sin((age * ARM_PULSE_SPEED) + Mth.PI) * pull;
+        float gripAge = Math.max(handAge - FIRST_PERSON_REACH_TICKS, 0.0F);
+        float grip = smootherStep(Math.min(gripAge / FIRST_PERSON_GRIP_TICKS, 1.0F));
+        float pullAge = Math.max(gripAge - FIRST_PERSON_GRIP_TICKS, 0.0F);
+        float pull = smootherStep(Math.min(pullAge / FIRST_PERSON_EXTRACTION_TICKS, 1.0F));
+        float effort = firstPersonRemovalEffort(player);
+        float tension = Mth.sin(pull * Mth.PI);
+        float resistance = tension * effort;
+        float lateStrain = smootherStep(Mth.clamp((pull - 0.55F) / 0.45F, 0.0F, 1.0F));
+        float shakeAmount = lateStrain * effort * FIRST_PERSON_SHAKE_SCALE;
+        float strain = (Mth.sin(age * 2.2F) + (Mth.sin(age * 4.9F) * 0.35F)) * shakeAmount;
+        float lateralStrain = Mth.sin((age * 3.15F) + 1.1F) * shakeAmount;
 
         poseStack.pushPose();
         poseStack.translate(
-                side * 0.64000005F,
-                -0.6F + (equippedProgress * -0.6F) - ((1.0F - rise) * 0.82F),
-                -0.71999997F + (grip * 0.012F));
-        poseStack.mulPose(Axis.YP.rotationDegrees(side * Mth.lerp(pull, 45.0F, 128.0F)));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(side * ((-28.0F * pull) + (pulse * 4.0F))));
-        poseStack.mulPose(Axis.XP.rotationDegrees((-14.0F * pull) + (grip * 2.0F)));
+                side * (0.64000005F - (grip * 0.018F) - (resistance * 0.025F) + (pull * 0.105F) + (lateralStrain * 0.006F)),
+                -0.6F + (equippedProgress * -0.6F) - ((1.0F - rise) * 0.82F)
+                        + (grip * 0.015F) + (resistance * 0.02F) + (pull * 0.13F) + (strain * 0.005F),
+                -0.71999997F - (grip * 0.018F) - (resistance * 0.035F) + (pull * 0.29F) + (lateralStrain * 0.004F));
+        poseStack.mulPose(Axis.YP.rotationDegrees(
+                side * (Mth.lerp(reach, 45.0F, 128.0F) + (grip * 4.0F) + (resistance * 5.0F) - (pull * 16.0F) + (lateralStrain * 1.2F))));
+        poseStack.mulPose(Axis.ZP.rotationDegrees(
+                side * ((-28.0F * reach) - (grip * 2.0F) - (resistance * 3.0F) + (pull * 11.0F) + (strain * 1.5F))));
+        poseStack.mulPose(Axis.XP.rotationDegrees(
+                (-14.0F * reach) - (grip * 3.0F) - (resistance * 4.0F) + (pull * 12.0F) + (lateralStrain * 0.8F)));
 
         renderPlayerHand(poseStack, buffer, packedLight, player, pullingArm);
         poseStack.popPose();
@@ -216,66 +231,80 @@ public final class LodgedShieldArrowRemovalClient {
         return handArm(entity, pullingHand(ClientArrowState.shieldArrowRemoval(entity).shieldHand()));
     }
 
-    public static float pullProgress(LivingEntity entity) {
-        return pullProgress(ClientArrowState.shieldArrowRemoval(entity).ticks());
-    }
-
     public static HumanoidArm armorPullingArm(LivingEntity entity) {
         ArmorArrowRemovalState state = ClientArrowState.armorArrowRemoval(entity);
         return LodgedArrowRemovalScoring.armorPullingArm(entity.getMainArm(), state.arrow());
     }
 
-    public static float armorPullProgress(LivingEntity entity) {
-        return pullProgress(ClientArrowState.armorArrowRemoval(entity).ticks());
-    }
-
-    public static float armorPullingArmXRot(LivingEntity entity, float ageInTicks, float pull) {
-        LodgedArrowVisual arrow = ClientArrowState.armorArrowRemoval(entity).arrow();
-        if (ClientArrowState.armorArrowRemoval(entity).target() == Target.BODY) {
-            return pullingArmXRot(ageInTicks, pull);
+    public static ThirdPersonArmPose thirdPersonRemovalArmPose(LivingEntity entity, float ageInTicks) {
+        ShieldArrowRemovalState shieldState = ClientArrowState.shieldArrowRemoval(entity);
+        if (shieldState.active()) {
+            HumanoidArm arm = pullingArm(entity);
+            float side = arm == HumanoidArm.RIGHT ? 1.0F : -1.0F;
+            return thirdPersonArmPose(
+                    arm,
+                    shieldRemovalArrow(entity, shieldState.shieldHand()),
+                    ageInTicks,
+                    shieldState.ticks(),
+                    ARM_X_ROT,
+                    side * ARM_Y_ROT,
+                    side * ARM_Z_ROT);
         }
 
-        float target = switch (arrow.bodyPart()) {
+        ArmorArrowRemovalState armorState = ClientArrowState.armorArrowRemoval(entity);
+        if (!armorState.active()) {
+            return null;
+        }
+
+        HumanoidArm arm = armorPullingArm(entity);
+        float side = arm == HumanoidArm.RIGHT ? 1.0F : -1.0F;
+        LodgedArrowVisual arrow = armorState.arrow();
+        if (armorState.target() == Target.BODY) {
+            return thirdPersonArmPose(
+                    arm,
+                    arrow,
+                    ageInTicks,
+                    armorState.ticks(),
+                    ARM_X_ROT,
+                    side * ARM_Y_ROT,
+                    side * ARM_Z_ROT);
+        }
+
+        float targetX = switch (arrow.bodyPart()) {
             case HEAD -> -2.15F;
             case CHEST, LEFT_ARM, RIGHT_ARM -> -1.35F;
             case LEFT_LEG, RIGHT_LEG -> -0.45F;
         };
-        float pulse = (float) Math.sin(ageInTicks * ARM_PULSE_SPEED) * ARM_PULSE_AMOUNT;
-        return Mth.lerp(pull, ARM_X_ROT, target) + pulse;
+        float targetY = side * Mth.clamp(Math.abs(arrow.modelX()) * 1.5F + 0.2F, 0.2F, 0.75F);
+        float targetZ = side * (arrow.bodyPart().isLeg() ? -0.35F : 0.25F);
+        return thirdPersonArmPose(arm, arrow, ageInTicks, armorState.ticks(), targetX, targetY, targetZ);
     }
 
-    public static float armorPullingArmYRot(LivingEntity entity) {
-        LodgedArrowVisual arrow = ClientArrowState.armorArrowRemoval(entity).arrow();
-        float side = armorPullingArm(entity) == HumanoidArm.RIGHT ? 1.0F : -1.0F;
-        if (ClientArrowState.armorArrowRemoval(entity).target() == Target.BODY) {
-            return side * pullingArmYRot();
-        }
+    private static ThirdPersonArmPose thirdPersonArmPose(
+            HumanoidArm arm,
+            LodgedArrowVisual arrow,
+            float ageInTicks,
+            float ticks,
+            float targetX,
+            float targetY,
+            float targetZ) {
+        float reach = smootherStep(Math.min(ticks / FIRST_PERSON_REACH_TICKS, 1.0F));
+        float gripAge = Math.max(ticks - FIRST_PERSON_REACH_TICKS, 0.0F);
+        float grip = smootherStep(Math.min(gripAge / FIRST_PERSON_GRIP_TICKS, 1.0F));
+        float pullAge = Math.max(gripAge - FIRST_PERSON_GRIP_TICKS, 0.0F);
+        float pull = smootherStep(Math.min(pullAge / THIRD_PERSON_EXTRACTION_TICKS, 1.0F));
+        float effort = removalEffort(arrow);
+        float resistance = Mth.sin(pull * Mth.PI) * effort;
+        float lateStrain = smootherStep(Mth.clamp((pull - 0.55F) / 0.45F, 0.0F, 1.0F));
+        float shakeAmount = lateStrain * effort * THIRD_PERSON_SHAKE_SCALE;
+        float strain = (Mth.sin(ageInTicks * 2.2F) + (Mth.sin(ageInTicks * 4.9F) * 0.35F)) * shakeAmount;
+        float lateralStrain = Mth.sin((ageInTicks * 3.15F) + 1.1F) * shakeAmount;
 
-        return side * Mth.clamp(Math.abs(arrow.modelX()) * 1.5F + 0.2F, 0.2F, 0.75F);
-    }
-
-    public static float armorPullingArmZRot(LivingEntity entity) {
-        LodgedArrowVisual arrow = ClientArrowState.armorArrowRemoval(entity).arrow();
-        float side = armorPullingArm(entity) == HumanoidArm.RIGHT ? 1.0F : -1.0F;
-        if (ClientArrowState.armorArrowRemoval(entity).target() == Target.BODY) {
-            return side * pullingArmZRot();
-        }
-
-        float target = arrow.bodyPart().isLeg() ? -0.35F : 0.25F;
-        return side * target;
-    }
-
-    public static float pullingArmXRot(float ageInTicks, float pull) {
-        float pulse = (float) Math.sin(ageInTicks * ARM_PULSE_SPEED) * ARM_PULSE_AMOUNT;
-        return ARM_X_ROT + (ARM_PULL_X_ROT * pull) + pulse;
-    }
-
-    public static float pullingArmYRot() {
-        return ARM_Y_ROT;
-    }
-
-    public static float pullingArmZRot() {
-        return ARM_Z_ROT;
+        float side = arm == HumanoidArm.RIGHT ? 1.0F : -1.0F;
+        float xRot = targetX - (grip * 0.06F) - (resistance * 0.06F) + (pull * 0.28F) + strain;
+        float yRot = targetY + (side * ((grip * -0.04F) - (resistance * 0.04F) + (pull * 0.18F) + (lateralStrain * 0.65F)));
+        float zRot = targetZ + (side * ((grip * 0.03F) + (resistance * 0.04F) + (pull * 0.09F) + (strain * 0.75F)));
+        return new ThirdPersonArmPose(arm, reach, xRot, yRot, zRot);
     }
 
     private static boolean canStart(LocalPlayer player, Minecraft minecraft) {
@@ -515,13 +544,8 @@ public final class LodgedShieldArrowRemovalClient {
         }
     }
 
-    private static float pullProgress(float ticks) {
-        return smoothStep(Math.min(ticks / PULL_EASE_TICKS, 1.0F));
-    }
-
     private static float firstPersonPullProgress(float ticks) {
-        float value = Math.min(ticks / FIRST_PERSON_ITEM_DROP_TICKS, 1.0F);
-        return 1.0F - ((1.0F - value) * (1.0F - value));
+        return smootherStep(Math.min(ticks / FIRST_PERSON_REACH_TICKS, 1.0F));
     }
 
     private static float firstPersonHandRiseProgress(float ticks) {
@@ -530,6 +554,45 @@ public final class LodgedShieldArrowRemovalClient {
 
     private static float smoothStep(float value) {
         return value * value * (3.0F - (2.0F * value));
+    }
+
+    private static float smootherStep(float value) {
+        return value * value * value * (value * ((value * 6.0F) - 15.0F) + 10.0F);
+    }
+
+    private static float firstPersonRemovalEffort(LocalPlayer player) {
+        return removalEffort(firstPersonRemovalArrow(player));
+    }
+
+    private static float removalEffort(LodgedArrowVisual arrow) {
+        return switch (arrow.depth()) {
+            case SHALLOW -> 0.6F;
+            case LODGED -> 1.0F;
+            case DEEP_LODGED -> 1.55F;
+        };
+    }
+
+    private static LodgedArrowVisual firstPersonRemovalArrow(LocalPlayer player) {
+        ShieldArrowRemovalState shieldState = ClientArrowState.shieldArrowRemoval(player);
+        if (shieldState.active()) {
+            return shieldRemovalArrow(player, shieldState.shieldHand());
+        }
+
+        return ClientArrowState.armorArrowRemoval(player).arrow();
+    }
+
+    private static LodgedArrowVisual shieldRemovalArrow(LivingEntity entity, InteractionHand hand) {
+        List<LodgedArrowVisual> arrows = LodgedShieldArrowStorage.readAll(entity.getItemInHand(hand));
+        LodgedArrowVisual best = LodgedArrowVisual.DEFAULT;
+        double bestScore = Double.MAX_VALUE;
+        for (LodgedArrowVisual arrow : arrows) {
+            double score = Math.abs(arrow.modelX()) + Math.abs(arrow.modelY() * 0.75D);
+            if (score < bestScore) {
+                bestScore = score;
+                best = arrow;
+            }
+        }
+        return best;
     }
 
     private static int pullingTicks(LocalPlayer player) {
@@ -554,6 +617,9 @@ public final class LodgedShieldArrowRemovalClient {
         activeArmorRemoval = false;
         activeTargetEntityId = -1;
         activeArmorTicks = 0;
+    }
+
+    public record ThirdPersonArmPose(HumanoidArm arm, float reach, float xRot, float yRot, float zRot) {
     }
 
     private record InWorldArrowTarget(Target target, EquipmentSlot slot, int targetEntityId, LodgedArrowVisual arrow) {

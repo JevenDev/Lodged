@@ -3,6 +3,7 @@ package com.jvn.lodged.mixin.client;
 import com.jvn.lodged.client.LodgedShieldArrowRemovalClient;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -28,24 +29,14 @@ public abstract class HumanoidModelMixin<T extends LivingEntity> {
             float netHeadYaw,
             float headPitch,
             CallbackInfo callbackInfo) {
-        if (LodgedShieldArrowRemovalClient.isPullingShieldArrow(entity)) {
-            HumanoidArm arm = LodgedShieldArrowRemovalClient.pullingArm(entity);
-            ModelPart modelPart = arm == HumanoidArm.RIGHT ? rightArm : leftArm;
-            float side = arm == HumanoidArm.RIGHT ? 1.0F : -1.0F;
-            float pull = LodgedShieldArrowRemovalClient.pullProgress(entity);
-            modelPart.xRot = LodgedShieldArrowRemovalClient.pullingArmXRot(ageInTicks, pull);
-            modelPart.yRot = side * LodgedShieldArrowRemovalClient.pullingArmYRot();
-            modelPart.zRot = side * LodgedShieldArrowRemovalClient.pullingArmZRot();
+        var pose = LodgedShieldArrowRemovalClient.thirdPersonRemovalArmPose(entity, ageInTicks);
+        if (pose == null) {
             return;
         }
 
-        if (LodgedShieldArrowRemovalClient.isPullingArmorArrow(entity)) {
-            HumanoidArm arm = LodgedShieldArrowRemovalClient.armorPullingArm(entity);
-            ModelPart modelPart = arm == HumanoidArm.RIGHT ? rightArm : leftArm;
-            float pull = LodgedShieldArrowRemovalClient.armorPullProgress(entity);
-            modelPart.xRot = LodgedShieldArrowRemovalClient.armorPullingArmXRot(entity, ageInTicks, pull);
-            modelPart.yRot = LodgedShieldArrowRemovalClient.armorPullingArmYRot(entity);
-            modelPart.zRot = LodgedShieldArrowRemovalClient.armorPullingArmZRot(entity);
-        }
+        ModelPart modelPart = pose.arm() == HumanoidArm.RIGHT ? rightArm : leftArm;
+        modelPart.xRot = Mth.lerp(pose.reach(), modelPart.xRot, pose.xRot());
+        modelPart.yRot = Mth.lerp(pose.reach(), modelPart.yRot, pose.yRot());
+        modelPart.zRot = Mth.lerp(pose.reach(), modelPart.zRot, pose.zRot());
     }
 }
