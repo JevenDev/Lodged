@@ -41,6 +41,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.HorseInventoryMenu;
@@ -133,7 +134,7 @@ public final class PlayerArrowRemoval {
         }
         LAST_REQUEST_TICK.put(player.getUUID(), gameTime);
 
-        removeHorseArmorArrow(player, horse, payload.arrowIndex());
+        removeHorseArmorArrow(player, horse, payload.arrowIndex(), false);
     }
 
     static void handleShieldAction(ShieldArrowRemovalActionPayload payload, IPayloadContext context) {
@@ -159,7 +160,7 @@ public final class PlayerArrowRemoval {
             return;
         }
 
-        startInWorldArrowRemoval(player);
+        startInWorldArrowRemoval(player, payload.targetEntityId());
     }
 
     public static void onEntityTick(EntityTickEvent.Post event) {
@@ -204,6 +205,7 @@ public final class PlayerArrowRemoval {
                             true,
                             armorAttempt.target(),
                             armorAttempt.slot(),
+                            armorAttempt.targetEntityId(),
                             armorAttempt.visual()));
         }
     }
@@ -246,6 +248,55 @@ public final class PlayerArrowRemoval {
 
         LodgedNetwork.syncPlayerArrows(player);
         LodgedNetwork.syncEntityArrows(player);
+    }
+
+    private static void removeMobBodyArrow(ServerPlayer player, LivingEntity mob, int arrowIndex) {
+        List<LodgedArrowData> arrows = LodgedArrowStorage.readAll(mob);
+        if (arrowIndex < 0 || arrowIndex >= arrows.size()) {
+            sendRemovalResult(player, Result.CANT_REMOVE_NOW, Target.BODY, InteractionHand.MAIN_HAND, LodgedArrowVisual.DEFAULT);
+            LodgedNetwork.syncEntityArrows(mob);
+            return;
+        }
+
+        LodgedArrowData arrow = arrows.get(arrowIndex);
+        double baseChance = LodgedConfig.tamedMobArrowRemovalSuccessChance(arrow.visual().bodyPart())
+                * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.visual().depth());
+        double successChance = removalSuccessChance(arrow.infinityGenerated(), baseChance);
+        if (successChance <= 0.0D) {
+            sendRemovalResult(player, Result.TOO_RISKY, Target.BODY, InteractionHand.MAIN_HAND, arrow.visual());
+            return;
+        }
+
+        LodgedArrowData removedArrow = LodgedArrowStorage.removeAt(mob, arrowIndex);
+        if (removedArrow == null) {
+            sendRemovalResult(player, Result.CANT_REMOVE_NOW, Target.BODY, InteractionHand.MAIN_HAND, arrow.visual());
+            LodgedNetwork.syncEntityArrows(mob);
+            return;
+        }
+
+        boolean safelyRemoved = succeeds(player, successChance);
+        if (safelyRemoved) {
+            sendSuccessfulRemoval(
+                    player,
+                    Target.BODY,
+                    InteractionHand.MAIN_HAND,
+                    removedArrow.visual(),
+                    canRecoverArrow(removedArrow) ? removedArrow.stack() : ItemStack.EMPTY);
+            playSound(mob, SoundEvents.ITEM_PICKUP, 0.2F, 2.0F);
+        } else {
+            sendRemovalResult(player, Result.FAILED, Target.BODY, InteractionHand.MAIN_HAND, removedArrow.visual());
+            playSound(mob, SoundEvents.ITEM_BREAK, 0.8F, 1.0F);
+        }
+
+        if (LodgedConfig.tamedMobArrowRemovalCausesBleeding() && removedArrow.causesBleeding()) {
+            BleedingEvents.tryApplyFromArrowRemoval(mob, removedArrow.visual(), !safelyRemoved);
+        }
+        if (LodgedConfig.tamedMobArrowRemovalParticles() && mob.level() instanceof ServerLevel level) {
+            Vec3 position = bodyArrowWorldPosition(mob, removedArrow.visual());
+            level.sendParticles(ParticleTypes.CRIT, position.x, position.y, position.z, 6, 0.04D, 0.04D, 0.04D, 0.02D);
+        }
+
+        LodgedNetwork.syncEntityArrows(mob);
     }
 
     private static void removeShieldArrow(ServerPlayer player, InteractionHand hand, int arrowIndex, boolean spawnBreakParticles) {
@@ -342,7 +393,11 @@ public final class PlayerArrowRemoval {
         player.containerMenu.broadcastChanges();
     }
 
-    private static void removeHorseArmorArrow(ServerPlayer player, AbstractHorse horse, int arrowIndex) {
+    private static void removeHorseArmorArrow(
+            ServerPlayer player,
+            AbstractHorse horse,
+            int arrowIndex,
+            boolean spawnBreakParticles) {
         ItemStack armor = horse.getItemBySlot(EquipmentSlot.BODY);
         List<LodgedArmorArrowData> arrows = LodgedArmorArrowStorage.readData(armor, player.registryAccess());
         if (arrowIndex < 0 || arrowIndex >= arrows.size()) {
@@ -380,20 +435,24 @@ public final class PlayerArrowRemoval {
                     InteractionHand.MAIN_HAND,
                     removedArrow.visual(),
                     canRecoverArrow(removedArrow) ? removedArrow.stack() : ItemStack.EMPTY);
-            playSound(player, SoundEvents.ITEM_PICKUP, 0.2F, 2.0F);
+            playSound(horse, SoundEvents.ITEM_PICKUP, 0.2F, 2.0F);
             maybeDamageHorseArmor(
                     horse,
                     armor,
                     LodgedConfig.armorArrowRemovalDurabilityDamageChance());
         } else {
             sendRemovalResult(player, Result.FAILED, Target.ARMOR, InteractionHand.MAIN_HAND, removedArrow.visual());
-            playSound(player, SoundEvents.ITEM_BREAK, 0.8F, 1.0F);
+            playSound(horse, SoundEvents.ITEM_BREAK, 0.8F, 1.0F);
             maybeDamageHorseArmor(
                     horse,
                     armor,
                     broke
                             ? LodgedConfig.armorArrowBreakDurabilityDamageChance()
                             : LodgedConfig.armorArrowRemovalDurabilityDamageChance());
+        }
+
+        if (spawnBreakParticles && !safelyRemoved) {
+            spawnArmorArrowBreakParticles(horse, removedArrow.visual());
         }
 
         horse.setItemSlot(EquipmentSlot.BODY, armor);
@@ -504,32 +563,46 @@ public final class PlayerArrowRemoval {
         syncShieldArrowRemoval(player, true, hand);
     }
 
-    private static void startInWorldArrowRemoval(ServerPlayer player) {
+    private static void startInWorldArrowRemoval(ServerPlayer player, int targetEntityId) {
         if (SHIELD_ARROW_REMOVALS.containsKey(player.getUUID())
                 || ARMOR_ARROW_REMOVALS.containsKey(player.getUUID())
                 || player.isUsingItem()) {
             return;
         }
 
-        InWorldArrowTarget target = priorityArmorArrow(player);
-        if (target == null) {
-            target = priorityBodyArrow(player);
+        InWorldArrowTarget target;
+        if (targetEntityId == player.getId()) {
+            target = priorityArmorArrow(player);
+            if (target == null) {
+                target = priorityBodyArrow(player);
+            }
+        } else {
+            if (priorityArmorArrow(player) != null || priorityBodyArrow(player) != null) {
+                return;
+            }
+            Entity entity = player.level().getEntity(targetEntityId);
+            if (!(entity instanceof LivingEntity mob)
+                    || !canAttemptTamedMobRemoval(player, mob, true)) {
+                return;
+            }
+            target = priorityMobArrow(player, mob);
         }
         if (target == null) {
             return;
         }
 
         long gameTime = player.level().getGameTime();
-        long completeTick = gameTime + inWorldRemovalTicks(player, target.target());
+        long completeTick = gameTime + inWorldRemovalTicks(player, target);
         ARMOR_ARROW_REMOVALS.put(
                 player.getUUID(),
                 new ArmorArrowRemovalAttempt(
                         target.target(),
                         target.slot(),
+                        target.targetEntityId(),
                         target.arrowIndex(),
                         completeTick,
                         target.visual()));
-        syncArmorArrowRemoval(player, true, target.target(), target.slot(), target.visual());
+        syncArmorArrowRemoval(player, true, target.target(), target.slot(), target.targetEntityId(), target.visual());
     }
 
     private static void tickShieldArrowRemoval(ServerPlayer player) {
@@ -570,6 +643,17 @@ public final class PlayerArrowRemoval {
         }
 
         stopArmorArrowRemoval(player);
+        if (attempt.targetEntityId() != player.getId()) {
+            Entity target = player.level().getEntity(attempt.targetEntityId());
+            if (target instanceof LivingEntity mob) {
+                if (attempt.target() == Target.ARMOR && mob instanceof AbstractHorse horse) {
+                    removeHorseArmorArrow(player, horse, attempt.arrowIndex(), LodgedConfig.tamedMobArrowRemovalParticles());
+                } else {
+                    removeMobBodyArrow(player, mob, attempt.arrowIndex());
+                }
+            }
+            return;
+        }
         if (attempt.target() == Target.BODY) {
             removeBodyArrow(player, attempt.arrowIndex());
         } else {
@@ -577,8 +661,13 @@ public final class PlayerArrowRemoval {
         }
     }
 
-    private static int inWorldRemovalTicks(ServerPlayer player, Target target) {
-        if (target == Target.ARMOR) {
+    private static int inWorldRemovalTicks(ServerPlayer player, InWorldArrowTarget target) {
+        if (target.targetEntityId() != player.getId()) {
+            int minTicks = LodgedConfig.tamedMobArrowRemovalMinTicks();
+            int maxTicks = LodgedConfig.tamedMobArrowRemovalMaxTicks();
+            return minTicks + player.getRandom().nextInt(maxTicks - minTicks + 1);
+        }
+        if (target.target() == Target.ARMOR) {
             return LodgedConfig.armorArrowRemovalTicks();
         }
 
@@ -607,7 +696,7 @@ public final class PlayerArrowRemoval {
     private static void stopArmorArrowRemoval(ServerPlayer player) {
         ArmorArrowRemovalAttempt removed = ARMOR_ARROW_REMOVALS.remove(player.getUUID());
         if (removed != null) {
-            syncArmorArrowRemoval(player, false, removed.target(), removed.slot(), removed.visual());
+            syncArmorArrowRemoval(player, false, removed.target(), removed.slot(), removed.targetEntityId(), removed.visual());
         }
     }
 
@@ -622,10 +711,11 @@ public final class PlayerArrowRemoval {
             boolean active,
             Target target,
             EquipmentSlot slot,
+            int targetEntityId,
             LodgedArrowVisual arrow) {
         PacketDistributor.sendToPlayersTrackingEntityAndSelf(
                 player,
-                new SyncArmorArrowRemovalPayload(player.getId(), active, target, slot, arrow));
+                new SyncArmorArrowRemovalPayload(player.getId(), active, target, slot, targetEntityId, arrow));
     }
 
     private static boolean canAttemptHeldShieldRemoval(ServerPlayer player, ItemStack shield) {
@@ -694,6 +784,17 @@ public final class PlayerArrowRemoval {
     }
 
     private static boolean canAttemptInWorldRemoval(ServerPlayer player, ArmorArrowRemovalAttempt attempt) {
+        if (attempt.targetEntityId() != player.getId()) {
+            Entity entity = player.level().getEntity(attempt.targetEntityId());
+            if (!(entity instanceof LivingEntity mob) || !canAttemptTamedMobRemoval(player, mob, false)) {
+                return false;
+            }
+            if (attempt.target() == Target.ARMOR) {
+                return mob instanceof AbstractHorse horse
+                        && hasExpectedMobArmorArrow(horse, attempt.arrowIndex(), attempt.visual());
+            }
+            return hasExpectedMobBodyArrow(mob, attempt.arrowIndex(), attempt.visual());
+        }
         if (attempt.target() == Target.BODY) {
             return canAttemptBodyRemoval(player, attempt.arrowIndex(), attempt.visual());
         }
@@ -723,6 +824,91 @@ public final class PlayerArrowRemoval {
                 && (expectedVisual == null || arrows.get(arrowIndex).visual().matches(expectedVisual));
     }
 
+
+    private static boolean canAttemptTamedMobRemoval(ServerPlayer player, LivingEntity mob, boolean requireInitialAim) {
+        if (!LodgedConfig.enableTamedMobArrowRemoval()
+                || !player.isAlive()
+                || !mob.isAlive()
+                || player.getVehicle() != mob
+                && player.distanceTo(mob) > LodgedConfig.tamedMobArrowRemovalRange()
+                || !player.hasLineOfSight(mob)) {
+            return false;
+        }
+
+        boolean tamed;
+        boolean owned;
+        if (mob instanceof TamableAnimal tamable) {
+            tamed = tamable.isTame();
+            owned = tamable.isOwnedBy(player);
+        } else if (mob instanceof AbstractHorse horse) {
+            tamed = horse.isTamed();
+            owned = player.getUUID().equals(horse.getOwnerUUID());
+        } else {
+            return false;
+        }
+        if (!tamed || LodgedConfig.requireMobOwnership() && !owned) {
+            return false;
+        }
+        if (player.getVehicle() == mob) {
+            return true;
+        }
+        if (!requireInitialAim) {
+            return true;
+        }
+        Vec3 eye = player.getEyePosition();
+        Vec3 end = eye.add(player.getViewVector(1.0F).scale(LodgedConfig.tamedMobArrowRemovalRange()));
+        return mob.getBoundingBox().inflate(0.3D).clip(eye, end).isPresent();
+    }
+
+    private static boolean hasExpectedMobBodyArrow(LivingEntity mob, int arrowIndex, LodgedArrowVisual expectedVisual) {
+        List<LodgedArrowData> arrows = LodgedArrowStorage.readAll(mob);
+        return arrowIndex >= 0
+                && arrowIndex < arrows.size()
+                && arrows.get(arrowIndex).visual().matches(expectedVisual);
+    }
+
+    private static boolean hasExpectedMobArmorArrow(
+            AbstractHorse horse,
+            int arrowIndex,
+            LodgedArrowVisual expectedVisual) {
+        List<LodgedArmorArrowData> arrows =
+                LodgedArmorArrowStorage.readData(horse.getItemBySlot(EquipmentSlot.BODY), horse.registryAccess());
+        return arrowIndex >= 0
+                && arrowIndex < arrows.size()
+                && arrows.get(arrowIndex).visual().matches(expectedVisual);
+    }
+
+    private static InWorldArrowTarget priorityMobArrow(ServerPlayer player, LivingEntity mob) {
+        InWorldArrowTarget best = null;
+        double bestScore = Double.MAX_VALUE;
+        if (mob instanceof AbstractHorse horse) {
+            List<LodgedArmorArrowData> armorArrows =
+                    LodgedArmorArrowStorage.readData(horse.getItemBySlot(EquipmentSlot.BODY), player.registryAccess());
+            for (int index = 0; index < armorArrows.size(); index++) {
+                LodgedArrowVisual visual = armorArrows.get(index).visual();
+                double score = LodgedArrowRemovalScoring.armorArrowPriorityScore(
+                        EquipmentSlot.BODY,
+                        visual,
+                        player.getMainArm());
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = new InWorldArrowTarget(Target.ARMOR, EquipmentSlot.BODY, mob.getId(), index, visual);
+                }
+            }
+        }
+        List<LodgedArrowData> arrows = LodgedArrowStorage.readAll(mob);
+        for (int index = 0; index < arrows.size(); index++) {
+            LodgedArrowData arrow = arrows.get(index);
+            double chance = LodgedConfig.tamedMobArrowRemovalSuccessChance(arrow.visual().bodyPart())
+                    * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.visual().depth());
+            double score = LodgedArrowRemovalScoring.bodyArrowPriorityScore(arrow.visual(), chance);
+            if (score < bestScore) {
+                bestScore = score;
+                best = new InWorldArrowTarget(Target.BODY, EquipmentSlot.CHEST, mob.getId(), index, arrow.visual());
+            }
+        }
+        return best;
+    }
     private static int priorityShieldArrowIndex(List<LodgedShieldArrowData> arrows) {
         int bestIndex = 0;
         double bestScore = Double.MAX_VALUE;
@@ -748,7 +934,7 @@ public final class PlayerArrowRemoval {
                 double score = LodgedArrowRemovalScoring.armorArrowPriorityScore(slot, visual, player.getMainArm());
                 if (score < bestScore) {
                     bestScore = score;
-                    best = new InWorldArrowTarget(Target.ARMOR, slot, index, visual);
+                    best = new InWorldArrowTarget(Target.ARMOR, slot, player.getId(), index, visual);
                 }
             }
         }
@@ -767,7 +953,7 @@ public final class PlayerArrowRemoval {
                     removalSuccessChance(arrow));
             if (score < bestScore) {
                 bestScore = score;
-                best = new InWorldArrowTarget(Target.BODY, EquipmentSlot.CHEST, index, arrow.visual());
+                best = new InWorldArrowTarget(Target.BODY, EquipmentSlot.CHEST, player.getId(), index, arrow.visual());
             }
         }
         return best;
@@ -953,12 +1139,12 @@ public final class PlayerArrowRemoval {
                 0.04D);
     }
 
-    private static void spawnArmorArrowBreakParticles(ServerPlayer player, LodgedArrowVisual arrow) {
-        if (!(player.level() instanceof ServerLevel level)) {
+    private static void spawnArmorArrowBreakParticles(LivingEntity entity, LodgedArrowVisual arrow) {
+        if (!(entity.level() instanceof ServerLevel level)) {
             return;
         }
 
-        Vec3 location = armorArrowWorldPosition(player, arrow);
+        Vec3 location = armorArrowWorldPosition(entity, arrow);
         level.sendParticles(
                 new BlockParticleOption(ParticleTypes.BLOCK, Blocks.IRON_BLOCK.defaultBlockState()),
                 location.x,
@@ -991,15 +1177,30 @@ public final class PlayerArrowRemoval {
                 .add(forward.scale(-arrow.modelZ()));
     }
 
-    private static Vec3 armorArrowWorldPosition(ServerPlayer player, LodgedArrowVisual arrow) {
-        float yawRadians = player.yBodyRot * ((float) Math.PI / 180.0F);
+    private static Vec3 armorArrowWorldPosition(LivingEntity entity, LodgedArrowVisual arrow) {
+        float yawRadians = entity.yBodyRot * ((float) Math.PI / 180.0F);
         Vec3 right = new Vec3(Math.cos(yawRadians), 0.0D, Math.sin(yawRadians));
         Vec3 forward = new Vec3(-Math.sin(yawRadians), 0.0D, Math.cos(yawRadians));
-        Vec3 local = arrow.toEntityLocalPosition(player);
-        return new Vec3(player.getX(), player.getY(), player.getZ())
+        Vec3 local = arrow.toEntityLocalPosition(entity);
+        return new Vec3(entity.getX(), entity.getY(), entity.getZ())
                 .add(right.scale(local.x))
                 .add(0.0D, local.y, 0.0D)
                 .add(forward.scale(local.z));
+    }
+
+    private static Vec3 bodyArrowWorldPosition(LivingEntity target, LodgedArrowVisual arrow) {
+        float yawRadians = target.yBodyRot * ((float) Math.PI / 180.0F);
+        Vec3 right = new Vec3(Math.cos(yawRadians), 0.0D, Math.sin(yawRadians));
+        Vec3 forward = new Vec3(-Math.sin(yawRadians), 0.0D, Math.cos(yawRadians));
+        Vec3 local = arrow.toEntityLocalPosition(target);
+        return target.position()
+                .add(right.scale(local.x))
+                .add(0.0D, local.y, 0.0D)
+                .add(forward.scale(local.z));
+    }
+
+    private static void playSound(LivingEntity entity, net.minecraft.sounds.SoundEvent sound, float volume, float pitch) {
+        entity.level().playSound(null, entity.getX(), entity.getY(), entity.getZ(), sound, SoundSource.PLAYERS, volume, pitch);
     }
 
     private static void playSound(ServerPlayer player, net.minecraft.sounds.SoundEvent sound, float volume, float pitch) {
@@ -1035,6 +1236,7 @@ public final class PlayerArrowRemoval {
     private record ArmorArrowRemovalAttempt(
             Target target,
             EquipmentSlot slot,
+            int targetEntityId,
             int arrowIndex,
             long completeTick,
             LodgedArrowVisual visual) {
@@ -1043,6 +1245,7 @@ public final class PlayerArrowRemoval {
     private record InWorldArrowTarget(
             Target target,
             EquipmentSlot slot,
+            int targetEntityId,
             int arrowIndex,
             LodgedArrowVisual visual) {
     }

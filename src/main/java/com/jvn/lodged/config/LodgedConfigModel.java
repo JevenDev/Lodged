@@ -15,7 +15,7 @@ import net.minecraft.resources.ResourceLocation;
 @Modmenu(modId = "lodged")
 public class LodgedConfigModel {
     @ExcludeFromScreen
-    public int configVersion = 2;
+    public int configVersion = 5;
 
     @Nest
     @SectionHeader("arrowRecovery")
@@ -28,6 +28,10 @@ public class LodgedConfigModel {
     @Nest
     @SectionHeader("playerArrowRemoval")
     public PlayerArrowRemoval playerArrowRemoval = new PlayerArrowRemoval();
+
+    @Nest
+    @SectionHeader("tamedMobArrowRemoval")
+    public TamedMobArrowRemoval tamedMobArrowRemoval = new TamedMobArrowRemoval();
 
     @Nest
     @SectionHeader("arrowDepth")
@@ -150,6 +154,34 @@ public class LodgedConfigModel {
 
         @RangeConstraint(min = 1, max = 1200)
         public int lodgedArrowDizzinessRefreshInterval = 20;
+    }
+
+    public static class TamedMobArrowRemoval {
+        public boolean enableTamedMobArrowRemoval = true;
+        public boolean requireMobOwnership = false;
+        public boolean tamedMobArrowRemovalCausesBleeding = false;
+        public boolean tamedMobArrowRemovalParticles = true;
+
+        @RangeConstraint(min = 1.0D, max = 16.0D)
+        public double tamedMobArrowRemovalRange = 1.0D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double tamedMobArrowRemovalHeadSuccessChance = 0.50D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double tamedMobArrowRemovalChestSuccessChance = 0.72D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double tamedMobArrowRemovalArmSuccessChance = 0.90D;
+
+        @RangeConstraint(min = 0.0D, max = 1.0D)
+        public double tamedMobArrowRemovalLegSuccessChance = 0.90D;
+
+        @RangeConstraint(min = 1, max = 1200)
+        public int tamedMobArrowRemovalMinTicks = 40;
+
+        @RangeConstraint(min = 1, max = 1200)
+        public int tamedMobArrowRemovalMaxTicks = 60;
     }
 
     public static class ArrowDepth {

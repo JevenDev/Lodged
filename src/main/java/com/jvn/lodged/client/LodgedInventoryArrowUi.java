@@ -559,8 +559,8 @@ public final class LodgedInventoryArrowUi {
         }
     }
 
-    private static void renderInventoryTurnHint(GuiGraphics guiGraphics, int x1, int y1, int x2, int y2) {
-        InventoryTurnHintBounds bounds = inventoryTurnHintBounds(x1, y2);
+    public static void renderInventoryTurnHint(GuiGraphics guiGraphics, int x1, int y1, int x2, int y2) {
+        InventoryTurnHintBounds bounds = inventoryTurnHintBounds(x1, x2, y2);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         guiGraphics.blit(
@@ -575,6 +575,23 @@ public final class LodgedInventoryArrowUi {
                 INVENTORY_TURN_TEXTURE_WIDTH,
                 INVENTORY_TURN_TEXTURE_HEIGHT);
         RenderSystem.disableBlend();
+    }
+
+    public static boolean isInInventoryTurnHint(
+            int previewLeft,
+            int previewRight,
+            int previewBottom,
+            double mouseX,
+            double mouseY) {
+        InventoryTurnHintBounds bounds = inventoryTurnHintBounds(previewLeft, previewRight, previewBottom);
+        return mouseX >= bounds.x()
+                && mouseX < bounds.x() + INVENTORY_TURN_TEXTURE_WIDTH
+                && mouseY >= bounds.y()
+                && mouseY < bounds.y() + INVENTORY_TURN_TEXTURE_HEIGHT;
+    }
+
+    public static void renderInventoryTurnTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        guiGraphics.renderComponentTooltip(Minecraft.getInstance().font, INVENTORY_TURN_TOOLTIP, mouseX, mouseY);
     }
 
     private static void renderArrowRemovalTooltip(GuiGraphics guiGraphics, HoveredArrow hoveredArrow, int mouseX, int mouseY) {
@@ -1376,17 +1393,16 @@ public final class LodgedInventoryArrowUi {
     }
 
     private static boolean isInInventoryTurnHint(InventoryScreen screen, double mouseX, double mouseY) {
-        InventoryTurnHintBounds bounds = inventoryTurnHintBounds(
+        return isInInventoryTurnHint(
                 screen.getGuiLeft() + MODEL_LEFT,
-                screen.getGuiTop() + MODEL_BOTTOM);
-        return mouseX >= bounds.x()
-                && mouseX < bounds.x() + INVENTORY_TURN_TEXTURE_WIDTH
-                && mouseY >= bounds.y()
-                && mouseY < bounds.y() + INVENTORY_TURN_TEXTURE_HEIGHT;
+                screen.getGuiLeft() + MODEL_RIGHT,
+                screen.getGuiTop() + MODEL_BOTTOM,
+                mouseX,
+                mouseY);
     }
 
-    private static InventoryTurnHintBounds inventoryTurnHintBounds(int previewLeft, int previewBottom) {
-        int x = previewLeft + ((MODEL_RIGHT - MODEL_LEFT - INVENTORY_TURN_TEXTURE_WIDTH) / 2);
+    private static InventoryTurnHintBounds inventoryTurnHintBounds(int previewLeft, int previewRight, int previewBottom) {
+        int x = previewLeft + ((previewRight - previewLeft - INVENTORY_TURN_TEXTURE_WIDTH) / 2);
         int y = previewBottom - INVENTORY_TURN_TEXTURE_HEIGHT - INVENTORY_TURN_BOTTOM_PADDING;
         return new InventoryTurnHintBounds(x, y);
     }

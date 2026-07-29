@@ -14,7 +14,7 @@ import java.util.function.IntSupplier;
 import net.minecraft.util.Mth;
 
 public final class LodgedConfig {
-    private static final int CURRENT_CONFIG_VERSION = 2;
+    private static final int CURRENT_CONFIG_VERSION = 5;
     private static final int MAX_SYNCED_BODY_ARROW_VISUALS = 64;
     private static final String CONFIG_VERSION_KEY = "configVersion";
     private static final LodgedConfigWrapper CONFIG = loadConfig();
@@ -48,6 +48,19 @@ public final class LodgedConfig {
         if (legacyUnversioned || loadedVersion < 2) {
             migrateBalancedDefaults(config);
             Lodged.LOGGER.info("Updated Lodged's unchanged defaults to the balanced v2 values");
+            save = true;
+        }
+
+        if (loadedVersion < 4 && config.tamedMobArrowRemoval.requireMobOwnership()) {
+            config.tamedMobArrowRemoval.requireMobOwnership(false);
+            Lodged.LOGGER.info("Updated tamed mob arrow removal to allow any tamed mob by default");
+            save = true;
+        }
+
+        if (loadedVersion < 5
+                && Double.compare(config.tamedMobArrowRemoval.tamedMobArrowRemovalRange(), 4.5D) == 0) {
+            config.tamedMobArrowRemoval.tamedMobArrowRemovalRange(1.0D);
+            Lodged.LOGGER.info("Updated the default tamed mob arrow removal range to one block");
             save = true;
         }
 
@@ -309,6 +322,45 @@ public final class LodgedConfig {
         return Math.max(
                 playerArrowRemoval().inWorldBodyArrowRemovalMinTicks(),
                 playerArrowRemoval().inWorldBodyArrowRemovalMaxTicks());
+    }
+
+    public static boolean enableTamedMobArrowRemoval() {
+        return tamedMobArrowRemoval().enableTamedMobArrowRemoval();
+    }
+
+    public static boolean requireMobOwnership() {
+        return tamedMobArrowRemoval().requireMobOwnership();
+    }
+
+    public static boolean tamedMobArrowRemovalCausesBleeding() {
+        return tamedMobArrowRemoval().tamedMobArrowRemovalCausesBleeding();
+    }
+
+    public static boolean tamedMobArrowRemovalParticles() {
+        return tamedMobArrowRemoval().tamedMobArrowRemovalParticles();
+    }
+
+    public static double tamedMobArrowRemovalRange() {
+        return tamedMobArrowRemoval().tamedMobArrowRemovalRange();
+    }
+
+    public static double tamedMobArrowRemovalSuccessChance(LodgedArrowBodyPart bodyPart) {
+        return switch (bodyPart) {
+            case HEAD -> tamedMobArrowRemoval().tamedMobArrowRemovalHeadSuccessChance();
+            case CHEST -> tamedMobArrowRemoval().tamedMobArrowRemovalChestSuccessChance();
+            case LEFT_ARM, RIGHT_ARM -> tamedMobArrowRemoval().tamedMobArrowRemovalArmSuccessChance();
+            case LEFT_LEG, RIGHT_LEG -> tamedMobArrowRemoval().tamedMobArrowRemovalLegSuccessChance();
+        };
+    }
+
+    public static int tamedMobArrowRemovalMinTicks() {
+        return Math.min(tamedMobArrowRemoval().tamedMobArrowRemovalMinTicks(), tamedMobArrowRemovalMaxTicks());
+    }
+
+    public static int tamedMobArrowRemovalMaxTicks() {
+        return Math.max(
+                tamedMobArrowRemoval().tamedMobArrowRemovalMinTicks(),
+                tamedMobArrowRemoval().tamedMobArrowRemovalMaxTicks());
     }
 
     public static boolean enableArrowDepthTiers() {
@@ -749,6 +801,10 @@ public final class LodgedConfig {
 
     private static LodgedConfigWrapper.PlayerArrowRemoval playerArrowRemoval() {
         return CONFIG.playerArrowRemoval;
+    }
+
+    private static LodgedConfigWrapper.TamedMobArrowRemoval tamedMobArrowRemoval() {
+        return CONFIG.tamedMobArrowRemoval;
     }
 
     private static LodgedConfigWrapper.ArrowDepth arrowDepth() {

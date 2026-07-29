@@ -14,6 +14,7 @@ public record SyncArmorArrowRemovalPayload(
         boolean active,
         Target target,
         EquipmentSlot slot,
+        int targetEntityId,
         LodgedArrowVisual arrow) implements CustomPacketPayload {
     public static final Type<SyncArmorArrowRemovalPayload> TYPE = new Type<>(LodgedNetwork.id("sync_armor_arrow_removal"));
     public static final StreamCodec<RegistryFriendlyByteBuf, SyncArmorArrowRemovalPayload> STREAM_CODEC = StreamCodec.composite(
@@ -25,6 +26,8 @@ public record SyncArmorArrowRemovalPayload(
             SyncArmorArrowRemovalPayload::target,
             ByteBufCodecs.idMapper(SyncArmorArrowRemovalPayload::slotById, EquipmentSlot::ordinal),
             SyncArmorArrowRemovalPayload::slot,
+            ByteBufCodecs.VAR_INT,
+            SyncArmorArrowRemovalPayload::targetEntityId,
             LodgedArrowVisual.STREAM_CODEC,
             SyncArmorArrowRemovalPayload::arrow,
             SyncArmorArrowRemovalPayload::new);

@@ -81,7 +81,7 @@ Default recovery behaviour:
 Remove arrows in the place that makes sense:
 
 - **Your body, shield, or equipped armor:** Open your inventory, rotate the player preview if needed, and click an arrow.
-- **In world:** Hold the **Remove lodged arrow** key (default: `G`). While actively using a shield, it removes an arrow from that shield; otherwise it removes a priority arrow from your equipped armor, then your body. These removals take time and cancel if interrupted.
+- **In world:** Hold the **Remove lodged arrow** key (default: `G`). While actively using a shield, it removes an arrow from that shield; otherwise it removes a priority arrow from your equipped armor, then your body. With no arrows on yourself, it removes an arrow from the nearby tamed mob you are looking at, or from your current tamed mount. These removals take time and cancel if interrupted.
 - **Horse armor:** Open that horse's inventory and click an arrow in the horse preview. Horse armor removal is inventory-only.
 
 Hovering an arrow shows its location, armor piece, depth, removal chance, and bleeding risk. A safe removal returns a recoverable arrow; non-recoverable arrows can still be removed without creating an item. Failed body removal can break the arrow, hurt you, and cause bleeding. Shield and armor removals can also break arrows and damage the item they were lodged in.
@@ -201,6 +201,7 @@ Major systems can be tuned or disabled:
 - Entity denylist
 - Arrow breakage on entities and blocks
 - Body, shield, and armor arrow removal
+- Tamed mob removal ownership, range, particles, bleeding, success chances, and timing
 - Inventory and in-world removal timing
 - Arrow removal animation enablement and speed
 - Shield arrow lodging, removal timing, durability chance, first-person rendering, and mob-fired shield arrow recovery

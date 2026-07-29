@@ -6,11 +6,13 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-public record ArmorArrowRemovalActionPayload(Action action) implements CustomPacketPayload {
+public record ArmorArrowRemovalActionPayload(Action action, int targetEntityId) implements CustomPacketPayload {
     public static final Type<ArmorArrowRemovalActionPayload> TYPE = new Type<>(LodgedNetwork.id("armor_arrow_removal_action"));
     public static final StreamCodec<RegistryFriendlyByteBuf, ArmorArrowRemovalActionPayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.idMapper(Action::byId, Action::id),
             ArmorArrowRemovalActionPayload::action,
+            ByteBufCodecs.VAR_INT,
+            ArmorArrowRemovalActionPayload::targetEntityId,
             ArmorArrowRemovalActionPayload::new);
 
     @Override

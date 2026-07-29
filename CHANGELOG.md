@@ -6,6 +6,7 @@
 
 - Added horse armor arrow lodging, rendering, inventory-preview tooltips, and removal
 - Added optional Ride On load-order compatibility
+- Added timed in-world arrow removal for nearby tamed mobs and ridden mounts, with player-first priority and configurable particles, bleeding, success chances, a one-block default range, and timing
 
 ### Changed
 
@@ -13,6 +14,8 @@
 - Made Dizziness gain strength every two arrows beyond its threshold instead of every arrow
 - Made non-recoverable arrows removable without forcing an automatic failed-removal penalty
 - Added a config v2 migration that updates unchanged old defaults while preserving customized values
+- Added config migrations for tamed mob arrow removal settings, including allowing any tamed mob by default
+- Added scroll/drag rotation, the turn indicator and tooltip, arrow tooltips, and highlighting to the mount inventory preview
 - Stored the traced humanoid model part with each arrow so shoulder, hip, and overlapping limb hits remain stable
 - Snapped humanoid arrow anchors to the client model's real cubes and aligned inventory hit-testing with animated parts, including slim arms
 

@@ -24,9 +24,13 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.TamableAnimal;
+import net.minecraft.world.entity.animal.horse.AbstractHorse;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
@@ -56,6 +60,7 @@ public final class LodgedShieldArrowRemovalClient {
     private static int activeTicks;
     private static boolean activeArmorRemoval;
     private static int activeArmorTicks;
+    private static int activeTargetEntityId = -1;
 
     private LodgedShieldArrowRemovalClient() {
     }
@@ -80,17 +85,22 @@ public final class LodgedShieldArrowRemovalClient {
                 activeTicks = 0;
                 ClientArrowState.setLocalShieldArrowRemoval(player.getId(), activeShieldHand, true);
                 PacketDistributor.sendToServer(new ShieldArrowRemovalActionPayload(Action.START, activeShieldHand));
-            } else if (!activeArmorRemoval && activeShieldHand == null && canStartInWorldRemoval(player, minecraft)) {
+            } else if (!activeArmorRemoval && activeShieldHand == null) {
+                InWorldArrowTarget target = priorityInWorldArrow(player, minecraft);
+                if (target == null || !canStartInWorldRemoval(player, minecraft)) {
+                    continue;
+                }
                 activeArmorRemoval = true;
                 activeArmorTicks = 0;
-                InWorldArrowTarget target = priorityInWorldArrow(player);
+                activeTargetEntityId = target.targetEntityId();
                 ClientArrowState.setLocalArmorArrowRemoval(
                         player.getId(),
                         true,
                         target.target(),
                         target.slot(),
+                        target.targetEntityId(),
                         target.arrow());
-                PacketDistributor.sendToServer(new ArmorArrowRemovalActionPayload(ArmorArrowRemovalActionPayload.Action.START));
+                PacketDistributor.sendToServer(new ArmorArrowRemovalActionPayload(ArmorArrowRemovalActionPayload.Action.START, target.targetEntityId()));
             }
         }
 
@@ -110,12 +120,13 @@ public final class LodgedShieldArrowRemovalClient {
             if (!ClientArrowState.armorArrowRemoval(player).active()) {
                 clearArmorLocalState();
             } else if (!canContinueInWorldRemoval(player, minecraft) || activeArmorTicks > maxLocalInWorldRemovalTicks()) {
-                PacketDistributor.sendToServer(new ArmorArrowRemovalActionPayload(ArmorArrowRemovalActionPayload.Action.CANCEL));
+                PacketDistributor.sendToServer(new ArmorArrowRemovalActionPayload(ArmorArrowRemovalActionPayload.Action.CANCEL, activeTargetEntityId));
                 ClientArrowState.setLocalArmorArrowRemoval(
                         player.getId(),
                         false,
                         Target.ARMOR,
                         EquipmentSlot.CHEST,
+                        -1,
                         LodgedArrowVisual.DEFAULT);
                 clearArmorLocalState();
             }
@@ -282,8 +293,10 @@ public final class LodgedShieldArrowRemovalClient {
 
     private static int maxLocalInWorldRemovalTicks() {
         return Math.max(
-                LodgedConfig.armorArrowRemovalTicks(),
-                LodgedConfig.inWorldBodyArrowRemovalMaxTicks()) + LOCAL_REMOVAL_GRACE_TICKS;
+                LodgedConfig.tamedMobArrowRemovalMaxTicks(),
+                Math.max(
+                        LodgedConfig.armorArrowRemovalTicks(),
+                        LodgedConfig.inWorldBodyArrowRemovalMaxTicks())) + LOCAL_REMOVAL_GRACE_TICKS;
     }
 
     private static boolean canContinue(LocalPlayer player, Minecraft minecraft, InteractionHand shieldHand) {
@@ -297,10 +310,10 @@ public final class LodgedShieldArrowRemovalClient {
 
     private static boolean canStartInWorldRemoval(LocalPlayer player, Minecraft minecraft) {
         return minecraft.screen == null
-                && LodgedConfig.enablePlayerArrowRemoval()
+                && (LodgedConfig.enablePlayerArrowRemoval() || LodgedConfig.enableTamedMobArrowRemoval())
                 && player.isAlive()
                 && !player.isUsingItem()
-                && priorityInWorldArrow(player) != null;
+                && priorityInWorldArrow(player, minecraft) != null;
     }
 
     private static boolean canContinueInWorldRemoval(LocalPlayer player, Minecraft minecraft) {
@@ -308,7 +321,7 @@ public final class LodgedShieldArrowRemovalClient {
                 && player.isAlive()
                 && !player.isUsingItem()
                 && REMOVE_SHIELD_ARROW_KEY.isDown()
-                && hasInWorldArrows(player);
+                && hasActiveTargetArrows(player, minecraft);
     }
 
     private static boolean hasShieldArrows(LocalPlayer player, InteractionHand hand) {
@@ -335,9 +348,32 @@ public final class LodgedShieldArrowRemovalClient {
         return hasArmorArrows(player) || hasBodyArrows();
     }
 
-    private static InWorldArrowTarget priorityInWorldArrow(LocalPlayer player) {
-        InWorldArrowTarget armorTarget = priorityArmorArrow(player);
-        return armorTarget != null ? armorTarget : priorityBodyArrow();
+    private static InWorldArrowTarget priorityInWorldArrow(LocalPlayer player, Minecraft minecraft) {
+        if (LodgedConfig.enablePlayerArrowRemoval()) {
+            InWorldArrowTarget armorTarget = priorityArmorArrow(player);
+            if (armorTarget != null) {
+                return armorTarget;
+            }
+            InWorldArrowTarget bodyTarget = priorityBodyArrow();
+            if (bodyTarget != null) {
+                return bodyTarget;
+            }
+        }
+        if (!LodgedConfig.enableTamedMobArrowRemoval()) {
+            return null;
+        }
+        if (player.getVehicle() instanceof LivingEntity mount) {
+            InWorldArrowTarget mountTarget = priorityMobArrow(player, mount);
+            if (mountTarget != null) {
+                return mountTarget;
+            }
+        }
+        if (!(minecraft.hitResult instanceof EntityHitResult hit)
+                || !(hit.getEntity() instanceof LivingEntity mob)
+                || player.distanceTo(mob) > LodgedConfig.tamedMobArrowRemovalRange()) {
+            return null;
+        }
+        return priorityMobArrow(player, mob);
     }
 
     private static InWorldArrowTarget priorityArmorArrow(LocalPlayer player) {
@@ -348,7 +384,7 @@ public final class LodgedShieldArrowRemovalClient {
                 double score = LodgedArrowRemovalScoring.armorArrowPriorityScore(slot, arrow, player.getMainArm());
                 if (score < bestScore) {
                     bestScore = score;
-                    best = new InWorldArrowTarget(Target.ARMOR, slot, arrow);
+                    best = new InWorldArrowTarget(Target.ARMOR, slot, player.getId(), arrow);
                 }
             }
         }
@@ -369,10 +405,78 @@ public final class LodgedShieldArrowRemovalClient {
                             * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.depth()));
             if (score < bestScore) {
                 bestScore = score;
-                best = new InWorldArrowTarget(Target.BODY, EquipmentSlot.CHEST, arrow);
+                best = new InWorldArrowTarget(Target.BODY, EquipmentSlot.CHEST, Minecraft.getInstance().player.getId(), arrow);
             }
         }
         return best;
+    }
+
+    private static InWorldArrowTarget priorityMobArrow(LocalPlayer player, LivingEntity mob) {
+        if (!isEligibleTamedMob(player, mob)) {
+            return null;
+        }
+        InWorldArrowTarget best = null;
+        double bestScore = Double.MAX_VALUE;
+        if (mob instanceof AbstractHorse horse) {
+            for (LodgedArrowVisual arrow : LodgedArmorArrowStorage.readAll(horse.getItemBySlot(EquipmentSlot.BODY))) {
+                double score = LodgedArrowRemovalScoring.armorArrowPriorityScore(
+                        EquipmentSlot.BODY,
+                        arrow,
+                        player.getMainArm());
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = new InWorldArrowTarget(Target.ARMOR, EquipmentSlot.BODY, mob.getId(), arrow);
+                }
+            }
+        }
+        List<LodgedArrowVisual> arrows = ClientArrowState.entityArrows(mob).arrows();
+        for (LodgedArrowVisual arrow : arrows) {
+            double score = LodgedArrowRemovalScoring.bodyArrowPriorityScore(
+                    arrow,
+                    LodgedConfig.tamedMobArrowRemovalSuccessChance(arrow.bodyPart())
+                            * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.depth()));
+            if (score < bestScore) {
+                bestScore = score;
+                best = new InWorldArrowTarget(Target.BODY, EquipmentSlot.CHEST, mob.getId(), arrow);
+            }
+        }
+        return best;
+    }
+
+    private static boolean isEligibleTamedMob(LocalPlayer player, LivingEntity mob) {
+        if (!mob.isAlive() || mob == player) {
+            return false;
+        }
+        boolean tamed;
+        boolean owned;
+        if (mob instanceof TamableAnimal tamable) {
+            tamed = tamable.isTame();
+            owned = tamable.isOwnedBy(player);
+        } else if (mob instanceof AbstractHorse horse) {
+            tamed = horse.isTamed();
+            owned = player.getUUID().equals(horse.getOwnerUUID());
+        } else {
+            return false;
+        }
+        return tamed && (!LodgedConfig.requireMobOwnership() || owned);
+    }
+
+    private static boolean hasActiveTargetArrows(LocalPlayer player, Minecraft minecraft) {
+        if (activeTargetEntityId == player.getId()) {
+            return hasInWorldArrows(player);
+        }
+        Entity entity = minecraft.level.getEntity(activeTargetEntityId);
+        return entity instanceof LivingEntity living
+                && isEligibleTamedMob(player, living)
+                && (player.getVehicle() == living
+                        || player.distanceTo(living) <= LodgedConfig.tamedMobArrowRemovalRange())
+                && hasMobArrows(living);
+    }
+
+    private static boolean hasMobArrows(LivingEntity mob) {
+        return !ClientArrowState.entityArrows(mob).arrows().isEmpty()
+                || mob instanceof AbstractHorse horse
+                && !LodgedArmorArrowStorage.readAll(horse.getItemBySlot(EquipmentSlot.BODY)).isEmpty();
     }
 
     private static InteractionHand pullingHand(InteractionHand shieldHand) {
@@ -448,9 +552,10 @@ public final class LodgedShieldArrowRemovalClient {
 
     private static void clearArmorLocalState() {
         activeArmorRemoval = false;
+        activeTargetEntityId = -1;
         activeArmorTicks = 0;
     }
 
-    private record InWorldArrowTarget(Target target, EquipmentSlot slot, LodgedArrowVisual arrow) {
+    private record InWorldArrowTarget(Target target, EquipmentSlot slot, int targetEntityId, LodgedArrowVisual arrow) {
     }
 }
