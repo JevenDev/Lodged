@@ -144,6 +144,10 @@ public final class LodgedArrowEvents {
             return;
         }
 
+        if (arrow.getPierceLevel() > 0) {
+            return;
+        }
+
         if (!canTrack(target)) {
             return;
         }
@@ -272,6 +276,8 @@ public final class LodgedArrowEvents {
         if (brokenImpact.causesBleeding()) {
             BleedingEvents.tryApplyFromBrokenArrowImpact(target, brokenImpact.visual());
         }
+        playArrowBreakSound(arrow);
+        discardArrow(arrow);
         if (arrow.getPierceLevel() <= 0) {
             PENDING_ARROW_COUNT_REMOVALS.merge(target.getUUID(), 1, Integer::sum);
         }

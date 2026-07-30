@@ -28,7 +28,10 @@ final class LodgedItemArrowStorage {
 
         List<LodgedArrowVisual> arrows = new ArrayList<>(storedArrows.size());
         for (int index = 0; index < storedArrows.size(); index++) {
-            arrows.add(LodgedArrowVisual.load(storedArrows.getCompound(index)));
+            CompoundTag arrowTag = storedArrows.getCompound(index);
+            if (arrowTag.contains(STACK_KEY, Tag.TAG_COMPOUND)) {
+                arrows.add(LodgedArrowVisual.load(arrowTag));
+            }
         }
         return arrows;
     }
@@ -46,7 +49,11 @@ final class LodgedItemArrowStorage {
         List<T> arrows = new ArrayList<>(storedArrows.size());
         for (int index = 0; index < storedArrows.size(); index++) {
             CompoundTag arrowTag = storedArrows.getCompound(index);
-            ItemStack stack = ItemStack.parse(registries, arrowTag.get(STACK_KEY))
+            if (!arrowTag.contains(STACK_KEY, Tag.TAG_COMPOUND)) {
+                continue;
+            }
+
+            ItemStack stack = ItemStack.parse(registries, arrowTag.getCompound(STACK_KEY))
                     .orElse(ItemStack.EMPTY)
                     .copyWithCount(1);
             if (!stack.isEmpty()) {

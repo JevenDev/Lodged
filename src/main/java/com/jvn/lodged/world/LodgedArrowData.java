@@ -1,6 +1,7 @@
 package com.jvn.lodged.world;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 
@@ -37,9 +38,11 @@ public record LodgedArrowData(
     }
 
     static LodgedArrowData load(Entity entity, CompoundTag tag) {
-        ItemStack stack = ItemStack.parse(entity.registryAccess(), tag.get(STACK_KEY))
-                .orElse(ItemStack.EMPTY)
-                .copyWithCount(1);
+        ItemStack stack = tag.contains(STACK_KEY, Tag.TAG_COMPOUND)
+                ? ItemStack.parse(entity.registryAccess(), tag.getCompound(STACK_KEY))
+                        .orElse(ItemStack.EMPTY)
+                        .copyWithCount(1)
+                : ItemStack.EMPTY;
 
         return new LodgedArrowData(
                 stack,
