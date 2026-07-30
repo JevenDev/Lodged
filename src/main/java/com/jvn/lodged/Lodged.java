@@ -10,7 +10,6 @@ import com.jvn.lodged.network.PlayerArrowRemoval;
 import com.jvn.lodged.particle.LodgedParticles;
 import com.jvn.lodged.world.LodgedArrowEvents;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import org.slf4j.Logger;
@@ -20,7 +19,7 @@ public final class Lodged {
     public static final String MOD_ID = "lodged";
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    public Lodged(IEventBus modEventBus, ModContainer modContainer) {
+    public Lodged(IEventBus modEventBus) {
         LodgedConfig.load();
         LodgedEffects.EFFECTS.register(modEventBus);
         LodgedParticles.PARTICLES.register(modEventBus);

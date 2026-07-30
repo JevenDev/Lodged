@@ -31,10 +31,6 @@ repositories {
         url = 'https://maven.wispforest.io/releases/'
     }
     maven {
-        name = 'JitPack'
-        url = 'https://jitpack.io'
-    }
-    maven {
         name = 'Sinytra'
         url = 'https://maven.su5ed.dev/releases'
     }
