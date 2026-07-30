@@ -43,8 +43,18 @@ public abstract class ItemInHandRendererMixin {
             MultiBufferSource buffer,
             int combinedLight,
             CallbackInfo callbackInfo) {
-        if (!(player instanceof LocalPlayer localPlayer)
-                || !LodgedShieldArrowRemovalClient.shouldRenderFirstPersonPullingHand(localPlayer, hand)) {
+        if (!(player instanceof LocalPlayer localPlayer)) {
+            return;
+        }
+
+        if (LodgedShieldArrowRemovalClient.shouldRenderFirstPersonShieldHand(localPlayer, hand)) {
+            lodged$renderMovingShield(
+                    localPlayer, hand, stack, partialTicks, equippedProgress, poseStack, buffer, combinedLight);
+            callbackInfo.cancel();
+            return;
+        }
+
+        if (!LodgedShieldArrowRemovalClient.shouldRenderFirstPersonPullingHand(localPlayer, hand)) {
             return;
         }
 
@@ -53,6 +63,32 @@ public abstract class ItemInHandRendererMixin {
         LodgedShieldArrowRemovalClient.renderFirstPersonPullingArm(
                 localPlayer, hand, partialTicks, equippedProgress, poseStack, buffer, combinedLight);
         callbackInfo.cancel();
+    }
+
+    private void lodged$renderMovingShield(
+            LocalPlayer player,
+            InteractionHand hand,
+            ItemStack stack,
+            float partialTicks,
+            float equippedProgress,
+            PoseStack poseStack,
+            MultiBufferSource buffer,
+            int combinedLight) {
+        HumanoidArm arm = hand == InteractionHand.MAIN_HAND ? player.getMainArm() : player.getMainArm().getOpposite();
+        boolean rightHand = arm == HumanoidArm.RIGHT;
+        float side = rightHand ? 1.0F : -1.0F;
+        poseStack.pushPose();
+        poseStack.translate(side * 0.56F, -0.52F + (equippedProgress * -0.6F), -0.72F);
+        LodgedShieldArrowRemovalClient.applyFirstPersonShieldPose(player, partialTicks, poseStack);
+        this.renderItem(
+                player,
+                stack,
+                rightHand ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND : ItemDisplayContext.FIRST_PERSON_LEFT_HAND,
+                !rightHand,
+                poseStack,
+                buffer,
+                combinedLight);
+        poseStack.popPose();
     }
 
     private void lodged$renderDroppingHeldItem(

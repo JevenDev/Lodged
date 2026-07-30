@@ -1,6 +1,7 @@
 package com.jvn.lodged.mixin.client;
 
 import com.jvn.lodged.client.LodgedShieldArrowRemovalClient;
+import com.jvn.lodged.client.LodgedShieldArrowRemovalClient.ThirdPersonArmPose;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.util.Mth;
@@ -29,13 +30,18 @@ public abstract class HumanoidModelMixin<T extends LivingEntity> {
             float netHeadYaw,
             float headPitch,
             CallbackInfo callbackInfo) {
-        var pose = LodgedShieldArrowRemovalClient.thirdPersonRemovalArmPose(entity, ageInTicks);
+        lodged$applyArmPose(LodgedShieldArrowRemovalClient.thirdPersonShieldArmPose(entity, ageInTicks));
+        lodged$applyArmPose(LodgedShieldArrowRemovalClient.thirdPersonRemovalArmPose(entity, ageInTicks));
+    }
+
+    private void lodged$applyArmPose(ThirdPersonArmPose pose) {
         if (pose == null) {
             return;
         }
 
         ModelPart modelPart = pose.arm() == HumanoidArm.RIGHT ? rightArm : leftArm;
         modelPart.xRot = Mth.lerp(pose.reach(), modelPart.xRot, pose.xRot());
+        modelPart.z += pose.forwardOffset() * pose.reach();
         modelPart.yRot = Mth.lerp(pose.reach(), modelPart.yRot, pose.yRot());
         modelPart.zRot = Mth.lerp(pose.reach(), modelPart.zRot, pose.zRot());
     }
