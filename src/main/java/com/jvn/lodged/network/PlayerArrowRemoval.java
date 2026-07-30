@@ -81,13 +81,10 @@ public final class PlayerArrowRemoval {
             return;
         }
 
-        long gameTime = player.level().getGameTime();
-        Long lastRequestTick = LAST_REQUEST_TICK.get(player.getUUID());
-        if (lastRequestTick != null && gameTime - lastRequestTick < REQUEST_COOLDOWN_TICKS) {
+        if (!acceptRequest(player)) {
             sendRemovalResult(player, Result.CANT_REMOVE_NOW, payload.target(), payload.hand(), LodgedArrowVisual.DEFAULT);
             return;
         }
-        LAST_REQUEST_TICK.put(player.getUUID(), gameTime);
 
         if (payload.target() == Target.SHIELD) {
             removeShieldArrow(player, payload.hand(), payload.arrowIndex(), false);
@@ -121,9 +118,7 @@ public final class PlayerArrowRemoval {
             return;
         }
 
-        long gameTime = player.level().getGameTime();
-        Long lastRequestTick = LAST_REQUEST_TICK.get(player.getUUID());
-        if (lastRequestTick != null && gameTime - lastRequestTick < REQUEST_COOLDOWN_TICKS) {
+        if (!acceptRequest(player)) {
             sendRemovalResult(
                     player,
                     Result.CANT_REMOVE_NOW,
@@ -132,7 +127,6 @@ public final class PlayerArrowRemoval {
                     LodgedArrowVisual.DEFAULT);
             return;
         }
-        LAST_REQUEST_TICK.put(player.getUUID(), gameTime);
 
         removeHorseArmorArrow(player, horse, payload.arrowIndex(), false);
     }
@@ -460,6 +454,17 @@ public final class PlayerArrowRemoval {
         LodgedNetwork.syncEntityArrows(horse);
     }
 
+    private static boolean acceptRequest(ServerPlayer player) {
+        long gameTime = player.level().getGameTime();
+        Long lastRequestTick = LAST_REQUEST_TICK.get(player.getUUID());
+        if (lastRequestTick != null && gameTime - lastRequestTick < REQUEST_COOLDOWN_TICKS) {
+            return false;
+        }
+
+        LAST_REQUEST_TICK.put(player.getUUID(), gameTime);
+        return true;
+    }
+
     private static boolean canAttemptRemoval(ServerPlayer player, RemovePlayerArrowPayload payload) {
         if (!LodgedConfig.enablePlayerArrowRemoval() || !player.isAlive()) {
             return false;
@@ -722,10 +727,6 @@ public final class PlayerArrowRemoval {
         return canAttemptHeldShieldRemoval(player, shield, 0, null);
     }
 
-    private static boolean canAttemptHeldShieldRemoval(ServerPlayer player, ItemStack shield, int arrowIndex) {
-        return canAttemptHeldShieldRemoval(player, shield, arrowIndex, null);
-    }
-
     private static boolean canAttemptHeldShieldRemoval(
             ServerPlayer player,
             ItemStack shield,
@@ -800,10 +801,6 @@ public final class PlayerArrowRemoval {
         }
 
         return canAttemptArmorRemoval(player, attempt.slot(), attempt.arrowIndex(), attempt.visual());
-    }
-
-    private static boolean canAttemptBodyRemoval(ServerPlayer player, int arrowIndex) {
-        return canAttemptBodyRemoval(player, arrowIndex, null);
     }
 
     private static boolean canAttemptBodyRemoval(

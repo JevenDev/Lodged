@@ -22,22 +22,17 @@ public final class LodgedArmorArrowStorage {
     }
 
     public static boolean add(ItemStack armor, LodgedArmorArrowData arrowData, HolderLookup.Provider registries) {
-        int maxTrackedArrows = LodgedConfig.maxTrackedArrowsPerArmorPiece();
-        if (!LodgedConfig.enableArmorArrowLodging()
-                || armor.isEmpty()
-                || arrowData.stack().isEmpty()
-                || maxTrackedArrows <= 0) {
+        if (!LodgedConfig.enableArmorArrowLodging()) {
             return false;
         }
 
-        List<LodgedArmorArrowData> arrows = new ArrayList<>(readData(armor, registries));
-        while (arrows.size() >= maxTrackedArrows) {
-            arrows.remove(0);
-        }
-
-        arrows.add(arrowData);
-        writeAll(armor, arrows, registries);
-        return true;
+        return LodgedItemArrowStorage.add(
+                armor,
+                STORAGE_KEY,
+                arrowData,
+                LodgedConfig.maxTrackedArrowsPerArmorPiece(),
+                registries,
+                LodgedArmorArrowData::new);
     }
 
     public static List<LodgedArrowVisual> readAll(ItemStack armor) {
@@ -68,14 +63,8 @@ public final class LodgedArmorArrowStorage {
             ItemStack armor,
             int arrowIndex,
             HolderLookup.Provider registries) {
-        List<LodgedArmorArrowData> arrows = new ArrayList<>(readData(armor, registries));
-        if (arrowIndex < 0 || arrowIndex >= arrows.size()) {
-            return null;
-        }
-
-        LodgedArmorArrowData removed = arrows.remove(arrowIndex);
-        writeAll(armor, arrows, registries);
-        return removed;
+        return LodgedItemArrowStorage.removeAt(
+                armor, STORAGE_KEY, arrowIndex, registries, LodgedArmorArrowData::new);
     }
 
     public static List<LodgedArmorArrowData> readData(ItemStack armor, HolderLookup.Provider registries) {
@@ -89,10 +78,6 @@ public final class LodgedArmorArrowStorage {
     public static boolean isHorseArmor(ItemStack stack) {
         return stack.getItem() instanceof AnimalArmorItem animalArmor
                 && animalArmor.getBodyType() == AnimalArmorItem.BodyType.EQUESTRIAN;
-    }
-
-    private static void writeAll(ItemStack armor, List<LodgedArmorArrowData> arrows, HolderLookup.Provider registries) {
-        LodgedItemArrowStorage.writeAll(armor, STORAGE_KEY, arrows, registries);
     }
 
     public record LodgedArmorArrowData(

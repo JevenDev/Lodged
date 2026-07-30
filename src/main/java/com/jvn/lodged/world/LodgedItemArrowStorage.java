@@ -69,7 +69,44 @@ final class LodgedItemArrowStorage {
         return arrows;
     }
 
-    static void writeAll(
+    static <T extends ItemArrowData> boolean add(
+            ItemStack item,
+            String storageKey,
+            T arrowData,
+            int maxTrackedArrows,
+            HolderLookup.Provider registries,
+            ArrowDataFactory<T> factory) {
+        if (item.isEmpty() || arrowData.stack().isEmpty() || maxTrackedArrows <= 0) {
+            return false;
+        }
+
+        List<T> arrows = new ArrayList<>(readData(item, registries, storageKey, factory));
+        while (arrows.size() >= maxTrackedArrows) {
+            arrows.remove(0);
+        }
+
+        arrows.add(arrowData);
+        writeAll(item, storageKey, arrows, registries);
+        return true;
+    }
+
+    static <T extends ItemArrowData> T removeAt(
+            ItemStack item,
+            String storageKey,
+            int arrowIndex,
+            HolderLookup.Provider registries,
+            ArrowDataFactory<T> factory) {
+        List<T> arrows = new ArrayList<>(readData(item, registries, storageKey, factory));
+        if (arrowIndex < 0 || arrowIndex >= arrows.size()) {
+            return null;
+        }
+
+        T removed = arrows.remove(arrowIndex);
+        writeAll(item, storageKey, arrows, registries);
+        return removed;
+    }
+
+    private static void writeAll(
             ItemStack item,
             String storageKey,
             List<? extends ItemArrowData> arrows,

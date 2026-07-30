@@ -219,14 +219,6 @@ public final class LodgedShieldArrowRemovalClient {
         return smoothStep(Math.min((armorState.ticks() + partialTick) / FIRST_PERSON_ITEM_DROP_TICKS, 1.0F));
     }
 
-    public static boolean isPullingShieldArrow(LivingEntity entity) {
-        return ClientArrowState.shieldArrowRemoval(entity).active();
-    }
-
-    public static boolean isPullingArmorArrow(LivingEntity entity) {
-        return ClientArrowState.armorArrowRemoval(entity).active();
-    }
-
     public static HumanoidArm pullingArm(LivingEntity entity) {
         return handArm(entity, pullingHand(ClientArrowState.shieldArrowRemoval(entity).shieldHand()));
     }
