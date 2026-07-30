@@ -39,6 +39,10 @@ public final class LodgedArmorArrowStorage {
         return LodgedItemArrowStorage.readVisuals(armor, STORAGE_KEY);
     }
 
+    public static int count(ItemStack armor) {
+        return LodgedItemArrowStorage.countVisuals(armor, STORAGE_KEY);
+    }
+
     public static List<LodgedArrowVisual> readAllEquipped(LivingEntity entity) {
         List<LodgedArrowVisual> arrows = new ArrayList<>();
         int maxTrackedArrows = LodgedConfig.maxTrackedArrowsPerArmorPiece();

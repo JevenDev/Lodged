@@ -349,12 +349,12 @@ public final class LodgedShieldArrowRemovalClient {
         ItemStack shield = player.getItemInHand(hand);
         return !shield.isEmpty()
                 && shield.canPerformAction(ItemAbilities.SHIELD_BLOCK)
-                && !LodgedShieldArrowStorage.readAll(shield).isEmpty();
+                && LodgedShieldArrowStorage.count(shield) > 0;
     }
 
     private static boolean hasArmorArrows(LocalPlayer player) {
         for (EquipmentSlot slot : LodgedArmorArrowStorage.armorSlots()) {
-            if (!LodgedArmorArrowStorage.readAll(player.getItemBySlot(slot)).isEmpty()) {
+            if (LodgedArmorArrowStorage.count(player.getItemBySlot(slot)) > 0) {
                 return true;
             }
         }
@@ -497,7 +497,7 @@ public final class LodgedShieldArrowRemovalClient {
     private static boolean hasMobArrows(LivingEntity mob) {
         return !ClientArrowState.entityArrows(mob).arrows().isEmpty()
                 || mob instanceof AbstractHorse horse
-                && !LodgedArmorArrowStorage.readAll(horse.getItemBySlot(EquipmentSlot.BODY)).isEmpty();
+                && LodgedArmorArrowStorage.count(horse.getItemBySlot(EquipmentSlot.BODY)) > 0;
     }
 
     private static InteractionHand pullingHand(InteractionHand shieldHand) {

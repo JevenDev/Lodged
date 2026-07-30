@@ -30,6 +30,10 @@ public final class LodgedShieldArrowStorage {
         return LodgedItemArrowStorage.readVisuals(shield, STORAGE_KEY);
     }
 
+    public static int count(ItemStack shield) {
+        return LodgedItemArrowStorage.countVisuals(shield, STORAGE_KEY);
+    }
+
     public static LodgedShieldArrowData removeAt(ItemStack shield, int arrowIndex, HolderLookup.Provider registries) {
         return LodgedItemArrowStorage.removeAt(
                 shield, STORAGE_KEY, arrowIndex, registries, LodgedShieldArrowData::new);

@@ -36,6 +36,21 @@ final class LodgedItemArrowStorage {
         return arrows;
     }
 
+    static int countVisuals(ItemStack item, String storageKey) {
+        ListTag storedArrows = storedArrows(item, storageKey);
+        if (storedArrows == null) {
+            return 0;
+        }
+
+        int count = 0;
+        for (int index = 0; index < storedArrows.size(); index++) {
+            if (storedArrows.getCompound(index).contains(STACK_KEY, Tag.TAG_COMPOUND)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     static <T extends ItemArrowData> List<T> readData(
             ItemStack item,
             HolderLookup.Provider registries,
@@ -81,8 +96,9 @@ final class LodgedItemArrowStorage {
         }
 
         List<T> arrows = new ArrayList<>(readData(item, registries, storageKey, factory));
-        while (arrows.size() >= maxTrackedArrows) {
-            arrows.remove(0);
+        int arrowsToEvict = Math.max(0, arrows.size() - maxTrackedArrows + 1);
+        if (arrowsToEvict > 0) {
+            arrows.subList(0, arrowsToEvict).clear();
         }
 
         arrows.add(arrowData);

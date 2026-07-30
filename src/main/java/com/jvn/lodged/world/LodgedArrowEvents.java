@@ -294,7 +294,7 @@ public final class LodgedArrowEvents {
 
         for (EquipmentSlot slot : LodgedArmorArrowStorage.armorSlots()) {
             ItemStack armor = event.getArmorItemStack(slot);
-            int arrowCount = LodgedArmorArrowStorage.readAll(armor).size();
+            int arrowCount = LodgedArmorArrowStorage.count(armor);
             if (arrowCount <= 0 || event.getNewDamage(slot) <= 0.0F) {
                 continue;
             }
@@ -1014,12 +1014,12 @@ public final class LodgedArrowEvents {
 
     private static boolean willEvictShieldArrow(ItemStack shield) {
         int maxTrackedArrows = LodgedConfig.maxTrackedArrowsPerShield();
-        return maxTrackedArrows > 0 && LodgedShieldArrowStorage.readAll(shield).size() >= maxTrackedArrows;
+        return maxTrackedArrows > 0 && LodgedShieldArrowStorage.count(shield) >= maxTrackedArrows;
     }
 
     private static boolean willEvictArmorArrow(ItemStack armor) {
         int maxTrackedArrows = LodgedConfig.maxTrackedArrowsPerArmorPiece();
-        return maxTrackedArrows > 0 && LodgedArmorArrowStorage.readAll(armor).size() >= maxTrackedArrows;
+        return maxTrackedArrows > 0 && LodgedArmorArrowStorage.count(armor) >= maxTrackedArrows;
     }
 
     private static void maybeDamageShieldFromArrowRemoval(LivingEntity holder, ItemStack shield) {

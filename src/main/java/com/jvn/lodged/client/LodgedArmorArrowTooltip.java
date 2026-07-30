@@ -17,7 +17,7 @@ public final class LodgedArmorArrowTooltip {
             return;
         }
 
-        int arrowCount = LodgedArmorArrowStorage.readAll(stack).size();
+        int arrowCount = LodgedArmorArrowStorage.count(stack);
         if (arrowCount <= 0) {
             return;
         }
