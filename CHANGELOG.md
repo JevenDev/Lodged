@@ -22,6 +22,7 @@
 - Added scroll/drag rotation, the turn indicator and tooltip, arrow tooltips, and highlighting to the mount inventory preview
 - Stored the traced humanoid model part with each arrow so shoulder, hip, and overlapping limb hits remain stable
 - Snapped humanoid arrow anchors to the client model's real cubes and aligned inventory hit-testing with animated parts, including slim arms
+- Tracked each active bleeding source separately so a bandage patches only one wound instead of clearing all bleeding
 
 ## 2.0.0 - 2026-06-28
 

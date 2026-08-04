@@ -33,7 +33,7 @@ public final class BleedingEvents {
     private static final String WOUND_RIGHT_KEY = "right";
     private static final String WOUND_HEIGHT_KEY = "height";
     private static final String WOUND_FORWARD_KEY = "forward";
-    private static final int MAX_STORED_WOUNDS = 8;
+    private static final String WOUND_REMAINING_TICKS_KEY = "remaining_ticks";
     private static final EquipmentSlot[] ARMOR_SLOTS = {
             EquipmentSlot.HEAD,
             EquipmentSlot.CHEST,
@@ -88,12 +88,7 @@ public final class BleedingEvents {
             return;
         }
 
-        List<Wound> wounds = readWounds(target);
-        if (wounds.isEmpty()) {
-            Wound wound = randomBodyWound(target);
-            rememberWound(target, wound);
-            wounds = List.of(wound);
-        }
+        List<Wound> wounds = synchronizeWounds(target, bleeding.getDuration());
 
         spawnBleedingParticles(target, wounds, bleeding.getAmplifier() > 0 ? 2 : 1);
     }
@@ -151,13 +146,51 @@ public final class BleedingEvents {
         return true;
     }
 
-    public static void spawnBleedingParticles(LivingEntity target, int count) {
-        List<Wound> wounds = readWounds(target);
-        if (wounds.isEmpty()) {
-            Wound wound = randomBodyWound(target);
-            rememberWound(target, wound);
-            wounds = List.of(wound);
+    public static boolean patchOneBleedingSource(LivingEntity target) {
+        if (target.level().isClientSide()) {
+            return false;
         }
+
+        MobEffectInstance bleeding = target.getEffect(LodgedEffects.BLEEDING);
+        if (bleeding == null) {
+            return false;
+        }
+
+        if (bleeding.getDuration() <= 0) {
+            target.removeEffect(LodgedEffects.BLEEDING);
+            return false;
+        }
+
+        List<Wound> wounds = synchronizeWounds(target, bleeding.getDuration());
+        if (wounds.isEmpty()) {
+            target.removeEffect(LodgedEffects.BLEEDING);
+            return false;
+        }
+
+        Wound patchedWound = wounds.remove(wounds.size() - 1);
+        int remainingDuration = Math.max(0, bleeding.getDuration() - patchedWound.remainingTicks());
+
+        target.removeEffect(LodgedEffects.BLEEDING);
+        if (remainingDuration > 0 && !wounds.isEmpty()) {
+            writeWounds(target, wounds);
+            int amplifier = bleedingAmplifier(remainingDuration);
+            target.addEffect(new MobEffectInstance(
+                    LodgedEffects.BLEEDING,
+                    remainingDuration,
+                    amplifier,
+                    false,
+                    false,
+                    true));
+        }
+        return true;
+    }
+
+    public static void spawnBleedingParticles(LivingEntity target, int count) {
+        MobEffectInstance bleeding = target.getEffect(LodgedEffects.BLEEDING);
+        if (bleeding == null) {
+            return;
+        }
+        List<Wound> wounds = synchronizeWounds(target, bleeding.getDuration());
         spawnBleedingParticles(target, wounds, count);
     }
 
@@ -200,13 +233,25 @@ public final class BleedingEvents {
         int maxDuration = LodgedConfig.bleedingMaxDuration();
         MobEffectInstance existing = target.getEffect(LodgedEffects.BLEEDING);
         int currentDuration = existing != null ? existing.getDuration() : 0;
-        int newDuration = Math.min(maxDuration, currentDuration + addedDuration);
-        int amplifier = newDuration >= LodgedConfig.bleedingStrongDurationThreshold() ? 1 : 0;
+        int newDuration = (int) Math.min(maxDuration, (long) currentDuration + addedDuration);
+        int amplifier = bleedingAmplifier(newDuration);
 
-        rememberWound(target, wound);
+        List<Wound> wounds = existing != null
+                ? synchronizeWounds(target, currentDuration)
+                : new ArrayList<>();
+        int sourceDuration = Math.min(addedDuration, maxDuration);
+        int supersededDuration = currentDuration + sourceDuration - newDuration;
+        trimDurationFromOldest(wounds, supersededDuration);
+        wounds.add(wound.withRemainingTicks(sourceDuration));
+        writeWounds(target, wounds);
+
         target.addEffect(new MobEffectInstance(LodgedEffects.BLEEDING, newDuration, amplifier, false, false, true));
         spawnBleedingParticles(target, wound, existing == null ? 10 : 5);
         return true;
+    }
+
+    private static int bleedingAmplifier(int duration) {
+        return duration >= LodgedConfig.bleedingStrongDurationThreshold() ? 1 : 0;
     }
 
     private static int scaledArrowRemovalBleedingDuration(LodgedArrowVisual arrowVisual) {
@@ -261,20 +306,14 @@ public final class BleedingEvents {
         return new Wound(
                 Mth.clamp(wound.right(), -maxSide, maxSide),
                 Mth.clamp(wound.height(), height * 0.12D, height * 0.94D),
-                Mth.clamp(wound.forward(), -maxSide, maxSide));
+                Mth.clamp(wound.forward(), -maxSide, maxSide),
+                wound.remainingTicks());
     }
 
-    private static void rememberWound(LivingEntity target, Wound wound) {
-        Wound clampedWound = clampWound(target, wound);
-        List<Wound> wounds = new ArrayList<>(readWounds(target));
-        wounds.add(clampedWound);
-        while (wounds.size() > MAX_STORED_WOUNDS) {
-            wounds.remove(0);
-        }
-
+    private static void writeWounds(LivingEntity target, List<Wound> wounds) {
         ListTag woundList = new ListTag();
         for (Wound storedWound : wounds) {
-            woundList.add(saveWound(storedWound));
+            woundList.add(saveWound(clampWound(target, storedWound)));
         }
 
         target.getPersistentData().put(WOUNDS_KEY, woundList);
@@ -292,6 +331,7 @@ public final class BleedingEvents {
         tag.putDouble(WOUND_RIGHT_KEY, wound.right());
         tag.putDouble(WOUND_HEIGHT_KEY, wound.height());
         tag.putDouble(WOUND_FORWARD_KEY, wound.forward());
+        tag.putInt(WOUND_REMAINING_TICKS_KEY, wound.remainingTicks());
         return tag;
     }
 
@@ -299,9 +339,8 @@ public final class BleedingEvents {
         CompoundTag entityData = target.getPersistentData();
         if (entityData.contains(WOUNDS_KEY, Tag.TAG_LIST)) {
             ListTag woundList = entityData.getList(WOUNDS_KEY, Tag.TAG_COMPOUND);
-            List<Wound> wounds = new ArrayList<>(Math.min(woundList.size(), MAX_STORED_WOUNDS));
-            int firstIndex = Math.max(0, woundList.size() - MAX_STORED_WOUNDS);
-            for (int index = firstIndex; index < woundList.size(); index++) {
+            List<Wound> wounds = new ArrayList<>(woundList.size());
+            for (int index = 0; index < woundList.size(); index++) {
                 wounds.add(readWound(target, woundList.getCompound(index)));
             }
             return wounds;
@@ -314,11 +353,73 @@ public final class BleedingEvents {
         return List.of(readWound(target, entityData.getCompound(WOUND_KEY)));
     }
 
+    private static List<Wound> synchronizeWounds(LivingEntity target, int effectDuration) {
+        if (effectDuration <= 0) {
+            clearWounds(target);
+            return new ArrayList<>();
+        }
+
+        List<Wound> wounds = new ArrayList<>(readWounds(target));
+        if (wounds.isEmpty()) {
+            wounds.add(randomBodyWound(target).withRemainingTicks(effectDuration));
+            writeWounds(target, wounds);
+            return wounds;
+        }
+
+        int trackedDuration = wounds.stream().mapToInt(Wound::remainingTicks).sum();
+        if (trackedDuration <= 0) {
+            int baseDuration = effectDuration / wounds.size();
+            int extraTicks = effectDuration % wounds.size();
+            for (int index = 0; index < wounds.size(); index++) {
+                int duration = baseDuration + (index < extraTicks ? 1 : 0);
+                wounds.set(index, wounds.get(index).withRemainingTicks(duration));
+            }
+        } else if (trackedDuration > effectDuration) {
+            int elapsedTicks = trackedDuration - effectDuration;
+            while (elapsedTicks > 0 && !wounds.isEmpty()) {
+                Wound wound = wounds.get(0);
+                if (wound.remainingTicks() <= elapsedTicks) {
+                    elapsedTicks -= wound.remainingTicks();
+                    wounds.remove(0);
+                } else {
+                    wounds.set(0, wound.withRemainingTicks(wound.remainingTicks() - elapsedTicks));
+                    elapsedTicks = 0;
+                }
+            }
+        } else if (trackedDuration < effectDuration) {
+            int lastIndex = wounds.size() - 1;
+            Wound wound = wounds.get(lastIndex);
+            wounds.set(lastIndex, wound.withRemainingTicks(
+                    wound.remainingTicks() + effectDuration - trackedDuration));
+        }
+
+        wounds.removeIf(wound -> wound.remainingTicks() <= 0);
+        if (wounds.isEmpty() && effectDuration > 0) {
+            wounds.add(randomBodyWound(target).withRemainingTicks(effectDuration));
+        }
+        writeWounds(target, wounds);
+        return wounds;
+    }
+
+    private static void trimDurationFromOldest(List<Wound> wounds, int ticks) {
+        while (ticks > 0 && !wounds.isEmpty()) {
+            Wound wound = wounds.get(0);
+            if (wound.remainingTicks() <= ticks) {
+                ticks -= wound.remainingTicks();
+                wounds.remove(0);
+            } else {
+                wounds.set(0, wound.withRemainingTicks(wound.remainingTicks() - ticks));
+                ticks = 0;
+            }
+        }
+    }
+
     private static Wound readWound(LivingEntity target, CompoundTag tag) {
         return clampWound(target, new Wound(
                 tag.getDouble(WOUND_RIGHT_KEY),
                 tag.getDouble(WOUND_HEIGHT_KEY),
-                tag.getDouble(WOUND_FORWARD_KEY)));
+                tag.getDouble(WOUND_FORWARD_KEY),
+                tag.getInt(WOUND_REMAINING_TICKS_KEY)));
     }
 
     private static boolean shouldWeaponApplyBleeding(ItemStack weapon, LivingEntity target) {
@@ -386,7 +487,15 @@ public final class BleedingEvents {
         return stack.getItem() instanceof ArmorItem armorItem && armorItem.getEquipmentSlot() == slot;
     }
 
-    private record Wound(double right, double height, double forward) {
+    private record Wound(double right, double height, double forward, int remainingTicks) {
+        Wound(double right, double height, double forward) {
+            this(right, height, forward, 0);
+        }
+
+        Wound withRemainingTicks(int remainingTicks) {
+            return new Wound(right, height, forward, remainingTicks);
+        }
+
         Vec3 toWorld(LivingEntity target) {
             BodyAxes axes = BodyAxes.of(target.yBodyRot);
             return new Vec3(target.getX(), target.getBoundingBox().minY + height, target.getZ())

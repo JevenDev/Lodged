@@ -1,5 +1,6 @@
 package com.jvn.lodged.item;
 
+import com.jvn.lodged.effect.BleedingEvents;
 import com.jvn.lodged.effect.LodgedEffects;
 import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.server.level.ServerPlayer;
@@ -38,7 +39,7 @@ public final class BandageItem extends Item {
             return stack;
         }
 
-        if (!livingEntity.removeEffect(LodgedEffects.BLEEDING)) {
+        if (!BleedingEvents.patchOneBleedingSource(livingEntity)) {
             return stack;
         }
 
