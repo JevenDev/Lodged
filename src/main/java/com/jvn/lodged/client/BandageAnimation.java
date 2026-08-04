@@ -106,7 +106,7 @@ public final class BandageAnimation {
         float xMotion = holdingBandage ? directedStroke * 0.07F : 0.0F;
         float yMotion = holdingBandage ? orbit * 0.06F : orbit * 0.015F;
         float zMotion = holdingBandage ? directedStroke * 0.03F : 0.0F;
-        float roleXOffset = amount * (holdingBandage ? 0.33F : -0.43F);
+        float roleXOffset = side * amount * (holdingBandage ? 0.33F : 0.43F);
         float roleYOffset = amount * (holdingBandage ? 0.0F : -0.34F);
         float roleDepthOffset = amount * (holdingBandage ? -0.23F : -0.28F);
 

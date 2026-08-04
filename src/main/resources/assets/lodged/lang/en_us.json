@@ -334,6 +334,7 @@
   "death.attack.lodged.bleeding.player": "%1$s bled out while fighting %2$s",
   "key.lodged.remove_shield_arrow": "Remove lodged arrow",
   "key.lodged.use_bandage": "Use bandage",
+  "key.categories.lodged": "Lodged",
   "text.config.lodged.category.tamedMobArrowRemoval": "Tamed mob arrow removal",
   "text.config.lodged.category.tamedMobArrowRemoval.tooltip": "Controls pulling lodged arrows from owned pets and mounts.",
   "text.config.lodged.section.tamedMobArrowRemoval": "Tamed mob arrow removal",

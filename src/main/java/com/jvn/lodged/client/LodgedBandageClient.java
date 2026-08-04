@@ -19,7 +19,7 @@ public final class LodgedBandageClient {
             "key.lodged.use_bandage",
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_V,
-            KeyMapping.CATEGORY_GAMEPLAY);
+            "key.categories.lodged");
     private static boolean bandageKeyWasDown;
 
     private LodgedBandageClient() {

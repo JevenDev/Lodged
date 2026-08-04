@@ -56,7 +56,7 @@ public final class LodgedShieldArrowRemovalClient {
             "key.lodged.remove_shield_arrow",
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_G,
-            KeyMapping.CATEGORY_GAMEPLAY);
+            "key.categories.lodged");
 
     private static InteractionHand activeShieldHand;
     private static int activeTicks;
