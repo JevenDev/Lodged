@@ -16,8 +16,13 @@ import net.neoforged.neoforge.common.NeoForge;
 public final class LodgedClient {
     public LodgedClient(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(LodgedClient::registerParticleProviders);
+        modEventBus.addListener(BandageOverlayRenderer::registerLayerDefinitions);
+        modEventBus.addListener(BandageOverlayRenderer::addPlayerLayers);
+        modEventBus.addListener(LodgedBandageClient::registerKeyMappings);
         modEventBus.addListener(LodgedShieldArrowRemovalClient::registerKeyMappings);
         modEventBus.addListener(LodgedDizzinessPostProcessor::registerReloadListeners);
+        NeoForge.EVENT_BUS.addListener(BandageOverlayRenderer::onRenderArm);
+        NeoForge.EVENT_BUS.addListener(LodgedBandageClient::onClientTick);
         NeoForge.EVENT_BUS.addListener(LodgedShieldArrowRemovalClient::onClientTick);
         NeoForge.EVENT_BUS.addListener(LodgedArmorArrowTooltip::onItemTooltip);
         NeoForge.EVENT_BUS.addListener(LodgedDizzinessClientEffects::onClientTick);

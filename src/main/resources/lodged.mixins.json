@@ -14,9 +14,11 @@
     "client.HorseInventoryScreenAccessor",
     "client.HorseInventoryScreenMixin",
     "client.InventoryScreenMixin",
+    "client.ItemInHandLayerMixin",
     "client.ItemInHandRendererMixin",
     "client.LevelRendererAccessor",
     "client.LivingEntityRendererMixin",
+    "client.MinecraftBandageUseMixin",
     "client.ModelPartAccessor",
     "client.ModelPartMixin",
     "client.StuckInBodyLayerMixin"

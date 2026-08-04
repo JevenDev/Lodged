@@ -9,8 +9,10 @@ import com.jvn.lodged.network.payload.RemoveHorseArmorArrowPayload;
 import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload;
 import com.jvn.lodged.network.payload.SyncEntityArrowsPayload;
 import com.jvn.lodged.network.payload.SyncArmorArrowRemovalPayload;
+import com.jvn.lodged.network.payload.SyncBandageUsePayload;
 import com.jvn.lodged.network.payload.SyncPlayerArrowsPayload;
 import com.jvn.lodged.network.payload.SyncShieldArrowRemovalPayload;
+import com.jvn.lodged.network.payload.UseBandagePayload;
 import com.jvn.lodged.world.LodgedArrowData;
 import com.jvn.lodged.world.LodgedArrowStorage;
 import com.jvn.lodged.world.LodgedArrowVisual;
@@ -24,7 +26,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class LodgedNetwork {
-    private static final String NETWORK_VERSION = "16";
+    private static final String NETWORK_VERSION = "18";
 
     private LodgedNetwork() {
     }
@@ -47,6 +49,14 @@ public final class LodgedNetwork {
                 ArmorArrowRemovalActionPayload.TYPE,
                 ArmorArrowRemovalActionPayload.STREAM_CODEC,
                 PlayerArrowRemoval::handleArmorAction);
+        registrar.playToServer(
+                UseBandagePayload.TYPE,
+                UseBandagePayload.STREAM_CODEC,
+                BandageUseHandler::handleRequest);
+        registrar.playToClient(
+                SyncBandageUsePayload.TYPE,
+                SyncBandageUsePayload.STREAM_CODEC,
+                ClientBandageState::handleSync);
         registrar.playToClient(
                 SyncPlayerArrowsPayload.TYPE,
                 SyncPlayerArrowsPayload.STREAM_CODEC,

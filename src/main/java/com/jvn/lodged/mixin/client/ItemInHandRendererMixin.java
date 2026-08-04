@@ -1,5 +1,6 @@
 package com.jvn.lodged.mixin.client;
 
+import com.jvn.lodged.client.BandageAnimation;
 import com.jvn.lodged.client.LodgedShieldArrowRemovalClient;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
@@ -44,6 +45,20 @@ public abstract class ItemInHandRendererMixin {
             int combinedLight,
             CallbackInfo callbackInfo) {
         if (!(player instanceof LocalPlayer localPlayer)) {
+            return;
+        }
+
+        if (BandageAnimation.isUsingBandage(localPlayer)) {
+            if (hand == BandageAnimation.usedHand(localPlayer)) {
+                BandageAnimation.renderFirstPersonBandagingArms(
+                        localPlayer,
+                        partialTicks,
+                        equippedProgress,
+                        poseStack,
+                        buffer,
+                        combinedLight);
+            }
+            callbackInfo.cancel();
             return;
         }
 

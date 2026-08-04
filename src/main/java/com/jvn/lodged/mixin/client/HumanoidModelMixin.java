@@ -1,5 +1,7 @@
 package com.jvn.lodged.mixin.client;
 
+import com.jvn.lodged.client.BandageAnimation;
+import com.jvn.lodged.client.BandageAnimation.ArmPose;
 import com.jvn.lodged.client.LodgedShieldArrowRemovalClient;
 import com.jvn.lodged.client.LodgedShieldArrowRemovalClient.ThirdPersonArmPose;
 import net.minecraft.client.model.HumanoidModel;
@@ -32,6 +34,8 @@ public abstract class HumanoidModelMixin<T extends LivingEntity> {
             CallbackInfo callbackInfo) {
         lodged$applyArmPose(LodgedShieldArrowRemovalClient.thirdPersonShieldArmPose(entity, ageInTicks));
         lodged$applyArmPose(LodgedShieldArrowRemovalClient.thirdPersonRemovalArmPose(entity, ageInTicks));
+        lodged$applyArmPose(BandageAnimation.thirdPersonArmPose(entity, HumanoidArm.RIGHT, ageInTicks));
+        lodged$applyArmPose(BandageAnimation.thirdPersonArmPose(entity, HumanoidArm.LEFT, ageInTicks));
     }
 
     private void lodged$applyArmPose(ThirdPersonArmPose pose) {
@@ -44,5 +48,16 @@ public abstract class HumanoidModelMixin<T extends LivingEntity> {
         modelPart.z += pose.forwardOffset() * pose.reach();
         modelPart.yRot = Mth.lerp(pose.reach(), modelPart.yRot, pose.yRot());
         modelPart.zRot = Mth.lerp(pose.reach(), modelPart.zRot, pose.zRot());
+    }
+
+    private void lodged$applyArmPose(ArmPose pose) {
+        if (pose == null) {
+            return;
+        }
+
+        ModelPart modelPart = pose.arm() == HumanoidArm.RIGHT ? rightArm : leftArm;
+        modelPart.xRot = Mth.lerp(pose.amount(), modelPart.xRot, pose.xRot());
+        modelPart.yRot = Mth.lerp(pose.amount(), modelPart.yRot, pose.yRot());
+        modelPart.zRot = Mth.lerp(pose.amount(), modelPart.zRot, pose.zRot());
     }
 }

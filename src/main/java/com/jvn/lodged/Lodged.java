@@ -5,6 +5,8 @@ import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.effect.BloodColors;
 import com.jvn.lodged.effect.BleedingEvents;
 import com.jvn.lodged.effect.LodgedEffects;
+import com.jvn.lodged.item.LodgedItems;
+import com.jvn.lodged.network.BandageUseHandler;
 import com.jvn.lodged.network.LodgedNetwork;
 import com.jvn.lodged.network.PlayerArrowRemoval;
 import com.jvn.lodged.particle.LodgedParticles;
@@ -22,9 +24,15 @@ public final class Lodged {
     public Lodged(IEventBus modEventBus) {
         LodgedConfig.load();
         LodgedEffects.EFFECTS.register(modEventBus);
+        LodgedItems.ITEMS.register(modEventBus);
         LodgedParticles.PARTICLES.register(modEventBus);
+        modEventBus.addListener(LodgedItems::addCreativeTabItems);
         modEventBus.addListener(LodgedNetwork::registerPayloads);
         NeoForge.EVENT_BUS.addListener(BloodColors::onAddReloadListeners);
+        NeoForge.EVENT_BUS.addListener(BandageUseHandler::onPlayerTick);
+        NeoForge.EVENT_BUS.addListener(BandageUseHandler::onPlayerLoggedOut);
+        NeoForge.EVENT_BUS.addListener(BandageUseHandler::onPlayerStartTracking);
+        NeoForge.EVENT_BUS.addListener(BandageUseHandler::onServerStopped);
         NeoForge.EVENT_BUS.addListener(PlayerArrowRemoval::onEntityTick);
         NeoForge.EVENT_BUS.addListener(PlayerArrowRemoval::onServerStopped);
         NeoForge.EVENT_BUS.register(BleedingEvents.class);
