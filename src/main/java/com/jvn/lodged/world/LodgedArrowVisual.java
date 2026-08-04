@@ -1,6 +1,9 @@
 package com.jvn.lodged.world;
 
+import com.jvn.lodged.collision.ModelHitboxProjectileAccess;
+import com.jvn.lodged.collision.ModelHitboxPart;
 import java.util.Optional;
+import java.util.Objects;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -25,6 +28,7 @@ public record LodgedArrowVisual(
         float directionY,
         float directionZ,
         LodgedArrowBodyPart bodyPart,
+        String modelPartPath,
         LodgedArrowDepth depth,
         ItemStack stack) {
     private static final String MODEL_X_KEY = "visual_model_x";
@@ -34,6 +38,7 @@ public record LodgedArrowVisual(
     private static final String DIRECTION_Y_KEY = "visual_direction_y";
     private static final String DIRECTION_Z_KEY = "visual_direction_z";
     private static final String BODY_PART_KEY = "visual_body_part";
+    private static final String MODEL_PART_KEY = "visual_model_part";
     private static final String DEPTH_KEY = "visual_depth";
     private static final float MODEL_HEAD_TOP = -8.0F / 16.0F;
     private static final float MODEL_HEAD_BOTTOM = 0.0F;
@@ -133,14 +138,27 @@ public record LodgedArrowVisual(
         this(modelX, modelY, modelZ, directionX, directionY, directionZ, null, depth, stack);
     }
 
+    public LodgedArrowVisual(
+            float modelX,
+            float modelY,
+            float modelZ,
+            float directionX,
+            float directionY,
+            float directionZ,
+            LodgedArrowBodyPart bodyPart,
+            LodgedArrowDepth depth,
+            ItemStack stack) {
+        this(modelX, modelY, modelZ, directionX, directionY, directionZ, bodyPart, null, depth, stack);
+    }
+
     public LodgedArrowVisual withStack(ItemStack stack) {
         return new LodgedArrowVisual(
-                modelX, modelY, modelZ, directionX, directionY, directionZ, bodyPart, depth, stack);
+                modelX, modelY, modelZ, directionX, directionY, directionZ, bodyPart, modelPartPath, depth, stack);
     }
 
     public LodgedArrowVisual withDepth(LodgedArrowDepth depth) {
         return new LodgedArrowVisual(
-                modelX, modelY, modelZ, directionX, directionY, directionZ, bodyPart, depth, stack);
+                modelX, modelY, modelZ, directionX, directionY, directionZ, bodyPart, modelPartPath, depth, stack);
     }
 
     public boolean matches(LodgedArrowVisual other) {
@@ -153,10 +171,28 @@ public record LodgedArrowVisual(
                 && Float.compare(directionZ, other.directionZ) == 0
                 && bodyPart == other.bodyPart
                 && depth == other.depth
+                && Objects.equals(modelPartPath, other.modelPartPath)
                 && ItemStack.isSameItemSameComponents(stack, other.stack);
     }
 
     public static LodgedArrowVisual fromImpact(LivingEntity target, AbstractArrow arrow, EntityHitResult hitResult) {
+        if (arrow instanceof ModelHitboxProjectileAccess modelHit
+                && modelHit.lodged$modelHitEntityId() == target.getId()
+                && modelHit.lodged$modelHitBodyPart() != null
+                && modelHit.lodged$modelHitPartPath() != null) {
+            return new LodgedArrowVisual(
+                    modelHit.lodged$modelHitX(),
+                    modelHit.lodged$modelHitY(),
+                    modelHit.lodged$modelHitZ(),
+                    modelHit.lodged$modelHitDirectionX(),
+                    modelHit.lodged$modelHitDirectionY(),
+                    modelHit.lodged$modelHitDirectionZ(),
+                    modelHit.lodged$modelHitBodyPart(),
+                    modelHit.lodged$modelHitPartPath(),
+                    LodgedArrowDepth.LODGED,
+                    new ItemStack(Items.ARROW));
+        }
+
         BodyAxes axes = BodyAxes.of(target.yBodyRot);
         Vec3 motion = impactMotion(arrow);
         AABB boundingBox = target.getBoundingBox();
@@ -246,6 +282,9 @@ public record LodgedArrowVisual(
         tag.putFloat(DIRECTION_Y_KEY, directionY);
         tag.putFloat(DIRECTION_Z_KEY, directionZ);
         tag.putString(BODY_PART_KEY, bodyPart.serializedName());
+        if (modelPartPath != null) {
+            tag.putString(MODEL_PART_KEY, modelPartPath);
+        }
         tag.putString(DEPTH_KEY, depth.serializedName());
     }
 
@@ -269,6 +308,9 @@ public record LodgedArrowVisual(
                 tag.contains(BODY_PART_KEY, Tag.TAG_STRING)
                         ? LodgedArrowBodyPart.bySerializedName(tag.getString(BODY_PART_KEY))
                         : null,
+                tag.contains(MODEL_PART_KEY, Tag.TAG_STRING)
+                        ? decodeModelPartPath(tag.getString(MODEL_PART_KEY))
+                        : null,
                 tag.contains(DEPTH_KEY, Tag.TAG_STRING)
                         ? LodgedArrowDepth.bySerializedName(tag.getString(DEPTH_KEY))
                         : LodgedArrowDepth.LODGED,
@@ -283,6 +325,7 @@ public record LodgedArrowVisual(
         buffer.writeFloat(directionY);
         buffer.writeFloat(directionZ);
         ByteBufCodecs.idMapper(LodgedArrowBodyPart::byId, LodgedArrowBodyPart::id).encode(buffer, bodyPart);
+        buffer.writeUtf(modelPartPath == null ? "" : modelPartPath, 256);
         ByteBufCodecs.idMapper(LodgedArrowDepth::byId, LodgedArrowDepth::id).encode(buffer, depth);
         ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, stack);
     }
@@ -296,10 +339,20 @@ public record LodgedArrowVisual(
                 buffer.readFloat(),
                 buffer.readFloat(),
                 ByteBufCodecs.idMapper(LodgedArrowBodyPart::byId, LodgedArrowBodyPart::id).decode(buffer),
+                emptyToNull(buffer.readUtf(256)),
                 ByteBufCodecs.idMapper(LodgedArrowDepth::byId, LodgedArrowDepth::id).decode(buffer),
                 ItemStack.OPTIONAL_STREAM_CODEC.decode(buffer));
     }
 
+
+    private static String decodeModelPartPath(String stored) {
+        ModelHitboxPart legacy = ModelHitboxPart.bySerializedName(stored);
+        return legacy == null ? emptyToNull(stored) : legacy.modelPartPath();
+    }
+
+    private static String emptyToNull(String value) {
+        return value == null || value.isEmpty() ? null : value;
+    }
     private static ItemStack renderStack(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             return new ItemStack(Items.ARROW);

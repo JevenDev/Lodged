@@ -3,7 +3,11 @@ package com.jvn.lodged.client;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import com.jvn.lodged.mixin.client.ModelPartAccessor;
 import com.mojang.blaze3d.vertex.PoseStack;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.client.model.EntityModel;
+import net.minecraft.client.model.HierarchicalModel;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
@@ -15,6 +19,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import org.joml.Quaternionf;
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 public final class LodgedArrowRenderHelper {
@@ -65,6 +70,99 @@ public final class LodgedArrowRenderHelper {
         return renderedArrow;
     }
 
+    public static Vector3f translateToModelPart(
+            PoseStack poseStack,
+            EntityModel<?> model,
+            LodgedArrowVisual arrow) {
+        if (model instanceof HumanoidModel<?> humanoidModel) {
+            return translateToHumanoidPart(poseStack, humanoidModel, arrow);
+        }
+        if (arrow.modelPartPath() == null) {
+            return null;
+        }
+
+        List<ModelPart> chain = resolvePartChain(model, arrow.modelPartPath());
+        if (chain == null || chain.isEmpty()) {
+            return null;
+        }
+        PartAnchor anchor = partAnchor(chain, arrow);
+        for (ModelPart part : chain) {
+            part.translateAndRotate(poseStack);
+        }
+        poseStack.translate(
+                anchor.localPosition().x() / 16.0F,
+                anchor.localPosition().y() / 16.0F,
+                anchor.localPosition().z() / 16.0F);
+        return anchor.localDirection();
+    }
+
+
+    private static List<ModelPart> resolvePartChain(EntityModel<?> model, String path) {
+        String[] names = path.split("/");
+        try {
+            if (model instanceof HierarchicalModel<?> hierarchicalModel) {
+                List<ModelPart> chain = new ArrayList<>();
+                ModelPart current = hierarchicalModel.root();
+                chain.add(current);
+                for (String name : names) {
+                    if (name.equals("root") || name.isEmpty()) {
+                        continue;
+                    }
+                    current = current.getChild(name);
+                    chain.add(current);
+                }
+                return chain;
+            }
+
+            String topName = names[0];
+            ModelPart current = topLevelPart(model, topName);
+            if (current == null) {
+                return null;
+            }
+            List<ModelPart> chain = new ArrayList<>();
+            chain.add(current);
+            for (int index = 1; index < names.length; index++) {
+                current = current.getChild(names[index]);
+                chain.add(current);
+            }
+            return chain;
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static ModelPart topLevelPart(EntityModel<?> model, String name) throws ReflectiveOperationException {
+        for (Class<?> type = model.getClass(); type != null; type = type.getSuperclass()) {
+            for (Field field : type.getDeclaredFields()) {
+                if (field.getType() == ModelPart.class && field.getName().equals(name)) {
+                    field.setAccessible(true);
+                    return (ModelPart) field.get(model);
+                }
+            }
+        }
+        return null;
+    }
+
+    private static PartAnchor partAnchor(List<ModelPart> chain, LodgedArrowVisual arrow) {
+        Matrix4f restTransform = new Matrix4f();
+        for (ModelPart part : chain) {
+            PartPose pose = part.getInitialPose();
+            restTransform.translate(pose.x, pose.y, pose.z)
+                    .rotate(new Quaternionf().rotationZYX(pose.zRot, pose.yRot, pose.xRot));
+        }
+        Matrix4f inverse = restTransform.invert(new Matrix4f());
+        Vector3f localPosition = inverse.transformPosition(new Vector3f(
+                arrow.modelX() * 16.0F,
+                arrow.modelY() * 16.0F,
+                arrow.modelZ() * 16.0F));
+        Vector3f localDirection = inverse.transformDirection(new Vector3f(
+                arrow.directionX(),
+                arrow.directionY(),
+                arrow.directionZ())).normalize();
+        ModelPart part = chain.getLast();
+        snapToClosestCube(part, localPosition);
+        return new PartAnchor(part, localPosition, localDirection);
+    }
     public static Vector3f translateToHumanoidPart(
             PoseStack poseStack,
             HumanoidModel<?> model,
@@ -97,6 +195,10 @@ public final class LodgedArrowRenderHelper {
             case LEFT_LEG -> model.leftLeg;
             case RIGHT_LEG -> model.rightLeg;
         };
+        return partAnchor(part, arrow);
+    }
+
+    private static PartAnchor partAnchor(ModelPart part, LodgedArrowVisual arrow) {
         PartPose initialPose = part.getInitialPose();
         Quaternionf inverseInitialRotation = new Quaternionf()
                 .rotationZYX(initialPose.zRot, initialPose.yRot, initialPose.xRot)

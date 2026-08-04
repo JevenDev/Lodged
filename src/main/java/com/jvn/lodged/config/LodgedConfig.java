@@ -14,7 +14,7 @@ import java.util.function.IntSupplier;
 import net.minecraft.util.Mth;
 
 public final class LodgedConfig {
-    private static final int CURRENT_CONFIG_VERSION = 5;
+    private static final int CURRENT_CONFIG_VERSION = 7;
     private static final int MAX_SYNCED_BODY_ARROW_VISUALS = 64;
     private static final String CONFIG_VERSION_KEY = "configVersion";
     private static final LodgedConfigWrapper CONFIG = loadConfig();
@@ -61,6 +61,12 @@ public final class LodgedConfig {
                 && Double.compare(config.tamedMobArrowRemoval.tamedMobArrowRemovalRange(), 4.5D) == 0) {
             config.tamedMobArrowRemoval.tamedMobArrowRemovalRange(1.0D);
             Lodged.LOGGER.info("Updated the default tamed mob arrow removal range to one block");
+            save = true;
+        }
+
+        if (loadedVersion < 7 && !config.projectileCollision.enableModelAccurateProjectileCollision()) {
+            config.projectileCollision.enableModelAccurateProjectileCollision(true);
+            Lodged.LOGGER.info("Enabled model-accurate projectile collision to match the new default");
             save = true;
         }
 
@@ -186,6 +192,18 @@ public final class LodgedConfig {
             return false;
         }
     }
+    public static boolean enableModelAccurateProjectileCollision() {
+        return projectileCollision().enableModelAccurateProjectileCollision();
+    }
+
+    public static boolean showModelHitboxesInDebug() {
+        return projectileCollision().showModelHitboxesInDebug();
+    }
+
+    public static double modelHitboxInflation() {
+        return Mth.clamp(projectileCollision().modelHitboxInflation(), 0.0D, 0.25D);
+    }
+
 
     public static boolean enableArrowRecovery() {
         return arrowRecovery().enableArrowRecovery();
@@ -789,6 +807,10 @@ public final class LodgedConfig {
         return amplifier > 0
                 ? bleedingEffect().bleedingStrongDripInterval()
                 : bleedingEffect().bleedingBaseDripInterval();
+    }
+
+    private static LodgedConfigWrapper.ProjectileCollision projectileCollision() {
+        return CONFIG.projectileCollision;
     }
 
     private static LodgedConfigWrapper.ArrowRecovery arrowRecovery() {

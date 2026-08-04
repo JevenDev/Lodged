@@ -4,6 +4,10 @@
 
 ### Added
 
+- Added optional animated model-part projectile collision for players and spiders, including F3 + B visualization, shield/piercing compatibility, tests, and benchmarks
+- Changed model-accurate collision to be enabled by default and made arrows follow the exact animated part they struck
+- Expanded model-part collision from players and spiders to generated server-safe cuboids for the full vanilla living-entity model roster
+- Made F3 + B model cuboids follow vanilla's exact live part poses, visibility, scaling, and model-specific animations
 - Added horse armor arrow lodging, rendering, inventory-preview tooltips, and removal
 - Added optional Ride On load-order compatibility
 - Added timed in-world arrow removal for nearby tamed mobs and ridden mounts, with player-first priority and configurable particles, bleeding, success chances, a one-block default range, and timing

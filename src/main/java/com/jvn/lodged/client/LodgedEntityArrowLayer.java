@@ -51,19 +51,23 @@ public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends Enti
         for (int index = 0; index < arrowCount; index++) {
             LodgedArrowVisual arrow = arrows.get(index);
             poseStack.pushPose();
-            if (model instanceof HumanoidModel<?> humanoidModel) {
-                renderHumanoidArrow(poseStack, buffer, packedLight, livingEntity, humanoidModel, arrow, partialTicks);
+            Vector3f partLocalDirection =
+                    LodgedArrowRenderHelper.translateToModelPart(poseStack, model, arrow);
+            if (partLocalDirection != null) {
+                renderArrow(
+                        poseStack,
+                        buffer,
+                        packedLight,
+                        livingEntity,
+                        arrow,
+                        partLocalDirection,
+                        partialTicks);
             } else {
                 renderRootArrow(poseStack, buffer, packedLight, livingEntity, arrow, partialTicks);
-                if (livingEntity instanceof AbstractHorse horse
-                        && LodgedHorseArmorArrowUi.isHovered(horse, arrow)) {
-                    renderHorseArmorHoverOutline(
-                            poseStack,
-                            packedLight,
-                            livingEntity,
-                            arrow,
-                            partialTicks);
-                }
+            }
+            if (livingEntity instanceof AbstractHorse horse
+                    && LodgedHorseArmorArrowUi.isHovered(horse, arrow)) {
+                renderHorseArmorHoverOutline(poseStack, packedLight, livingEntity, arrow, partialTicks);
             }
             poseStack.popPose();
         }

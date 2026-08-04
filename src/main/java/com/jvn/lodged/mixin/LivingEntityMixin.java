@@ -1,5 +1,7 @@
 package com.jvn.lodged.mixin;
 
+import com.jvn.lodged.collision.ModelHitboxCache;
+import com.jvn.lodged.collision.ModelHitboxCacheHolder;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.world.LodgedArrowStorage;
 import net.minecraft.nbt.CompoundTag;
@@ -7,14 +9,18 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LivingEntity.class)
-public abstract class LivingEntityMixin {
+public abstract class LivingEntityMixin implements ModelHitboxCacheHolder {
     private static final int PROTECTED_ARROW_DESPAWN_TIME = Integer.MAX_VALUE;
     private static final int PROTECTED_ARROW_DESPAWN_TOP_UP_THRESHOLD = Integer.MAX_VALUE / 2;
+
+    @Unique
+    private ModelHitboxCache lodged$modelHitboxCache;
 
     @Shadow
     public int removeArrowTime;
@@ -37,6 +43,14 @@ public abstract class LivingEntityMixin {
         if (!entity.level().isClientSide()) {
             LodgedArrowStorage.restoreArrowCount(entity);
         }
+    }
+
+    @Override
+    public ModelHitboxCache lodged$getModelHitboxCache() {
+        if (lodged$modelHitboxCache == null) {
+            lodged$modelHitboxCache = new ModelHitboxCache();
+        }
+        return lodged$modelHitboxCache;
     }
 
     private static boolean shouldPreventArrowDespawn(LivingEntity entity) {

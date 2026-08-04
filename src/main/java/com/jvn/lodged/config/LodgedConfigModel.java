@@ -15,7 +15,11 @@ import net.minecraft.resources.ResourceLocation;
 @Modmenu(modId = "lodged")
 public class LodgedConfigModel {
     @ExcludeFromScreen
-    public int configVersion = 5;
+    public int configVersion = 7;
+
+    @Nest
+    @SectionHeader("projectileCollision")
+    public ProjectileCollision projectileCollision = new ProjectileCollision();
 
     @Nest
     @SectionHeader("arrowRecovery")
@@ -56,6 +60,15 @@ public class LodgedConfigModel {
     @Nest
     @SectionHeader("bleedingEffect")
     public BleedingEffect bleedingEffect = new BleedingEffect();
+
+    public static class ProjectileCollision {
+        public boolean enableModelAccurateProjectileCollision = true;
+        public boolean showModelHitboxesInDebug = true;
+
+        @RangeConstraint(min = 0.0D, max = 0.25D)
+        public double modelHitboxInflation = 0.03125D;
+    }
+
 
     public static class ArrowRecovery {
         public boolean enableArrowRecovery = true;

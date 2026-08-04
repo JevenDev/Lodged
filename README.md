@@ -181,6 +181,25 @@ Default bleeding damage:
 | Normal bleed pulse | 1 damage every 100 ticks |
 | Strong bleed pulse | 2 damage every 80 ticks |
 
+
+## Model-Accurate Projectile Collision
+
+Lodged includes an optional model-part collision system for tracked `AbstractArrow` projectiles. It is enabled by default and can be disabled for compatibility. When enabled:
+
+- Every vanilla living-entity model is tested against generated, server-safe model cuboids
+- Players and spiders retain specialized animation-aware transforms; all new hits stay attached to the exact live-rendered part as it animates
+- Every part is expanded by half a model pixel (`0.03125` blocks) by default
+- Entity movement and physical collision continue to use the unchanged vanilla AABB
+- Modded entities without a bundled model definition continue through vanilla projectile collision
+- Active shields retain vanilla interception behavior, while piercing arrows retain vanilla shield bypass and multi-hit behavior
+- NeoForge projectile impact events and vanilla damage handling remain in the normal arrow path
+
+Vanilla's F3 + B debug hotkey shows live model cuboids alongside the normal entity AABB when both model collision and the debug-display option are enabled. The cuboids use vanilla's fully animated, visible model parts, so action poses, baby scaling, and model-specific transforms move exactly with the rendered entity. On multiplayer, this is a client visualization; the authoritative hit decision remains on the server.
+
+The injection is optional and fails back to vanilla if another mod makes the expected arrow collision hook unavailable. If an unexpected runtime compatibility error occurs, Lodged disables model collision for that session and logs the cause rather than risking broken projectiles.
+
+Developers can run `./gradlew projectileCollisionBenchmark` for dense-hit, dense-miss, and mixed projectile microbenchmarks.
+
 ## Configuration
 
 Main config file:
@@ -192,6 +211,7 @@ The in-game config screen is powered by owo-lib and Mod Menu integration.
 
 Major systems can be tuned or disabled:
 
+- Model-accurate arrow collision, F3 + B model-box display, and model-part inflation
 - Arrow recovery
 - Recovery chance
 - Maximum tracked arrows per body part

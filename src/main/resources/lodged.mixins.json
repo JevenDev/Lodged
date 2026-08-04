@@ -4,6 +4,7 @@
   "package": "com.jvn.lodged.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "AbstractArrowMixin",
     "HorseInventoryMenuAccessor",
     "LivingEntityMixin"
   ],
@@ -17,6 +18,7 @@
     "client.LevelRendererAccessor",
     "client.LivingEntityRendererMixin",
     "client.ModelPartAccessor",
+    "client.ModelPartMixin",
     "client.StuckInBodyLayerMixin"
   ],
   "injectors": {
