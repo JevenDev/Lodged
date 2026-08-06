@@ -16,6 +16,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.client.resources.PlayerSkin.Model;
 import net.minecraft.resources.ResourceLocation;
@@ -95,7 +96,7 @@ public final class BandageOverlayRenderer {
                 poseStack,
                 buffer.getBuffer(RenderType.entitySolid(player.getSkin().texture())),
                 packedLight,
-                0);
+                OverlayTexture.NO_OVERLAY);
 
         ModelPart sleeve = sleeve(playerModel, renderedArm);
         sleeve.copyFrom(playerArm);
@@ -107,7 +108,7 @@ public final class BandageOverlayRenderer {
                 poseStack,
                 buffer.getBuffer(RenderType.entityTranslucent(player.getSkin().texture())),
                 packedLight,
-                0);
+                OverlayTexture.NO_OVERLAY);
 
         if (renderedArm == treatedArm) {
             renderBandageLayers(
@@ -117,7 +118,7 @@ public final class BandageOverlayRenderer {
                     poseStack,
                     buffer,
                     packedLight,
-                    0);
+                    OverlayTexture.NO_OVERLAY);
         }
         event.setCanceled(true);
     }
