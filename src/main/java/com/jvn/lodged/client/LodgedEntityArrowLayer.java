@@ -143,7 +143,10 @@ public final class LodgedEntityArrowLayer<T extends LivingEntity, M extends Enti
         MultiBufferSource.BufferSource delegate =
                 MultiBufferSource.immediate(new ByteBufferBuilder(HOVER_OUTLINE_BUFFER_SIZE));
         OutlineBufferSource outlineBuffer = new OutlineBufferSource(delegate);
-        LodgedInventoryArrowUi.OutlineColor outlineColor = LodgedInventoryArrowUi.armorArrowOutlineColor();
+        LodgedInventoryArrowUi.OutlineColor outlineColor = livingEntity instanceof AbstractHorse horse
+                && !LodgedHorseArmorArrowUi.isHoveredArmorArrow(horse)
+                ? LodgedInventoryArrowUi.tamedMobRiskOutlineColor(arrow)
+                : LodgedInventoryArrowUi.armorArrowOutlineColor();
         outlineBuffer.setColor(outlineColor.red(), outlineColor.green(), outlineColor.blue(), outlineColor.alpha());
         try {
             renderArrow(poseStack, outlineBuffer, packedLight, livingEntity, arrow, partialTicks);

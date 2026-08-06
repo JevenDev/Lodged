@@ -129,7 +129,11 @@ public final class PlayerArrowRemoval {
             return;
         }
 
-        removeHorseArmorArrow(player, horse, payload.arrowIndex(), false);
+        if (payload.target() == Target.BODY) {
+            removeMobBodyArrow(player, horse, payload.arrowIndex());
+        } else {
+            removeHorseArmorArrow(player, horse, payload.arrowIndex(), false);
+        }
     }
 
     static void handleShieldAction(ShieldArrowRemovalActionPayload payload, IPayloadContext context) {
@@ -538,6 +542,15 @@ public final class PlayerArrowRemoval {
             return false;
         }
 
+        if (payload.target() == Target.BODY) {
+            return LodgedConfig.enableTamedMobArrowRemoval()
+                    && canAttemptTamedMobRemoval(player, horse, false)
+                    && payload.arrowIndex() < LodgedArrowStorage.readAll(horse).size();
+        }
+        if (payload.target() != Target.ARMOR) {
+            return false;
+        }
+
         ItemStack armor = horse.getItemBySlot(EquipmentSlot.BODY);
         return LodgedArmorArrowStorage.isHorseArmor(armor)
                 && payload.arrowIndex()
@@ -828,7 +841,7 @@ public final class PlayerArrowRemoval {
                 || !player.isAlive()
                 || !mob.isAlive()
                 || player.getVehicle() != mob
-                && player.distanceTo(mob) > LodgedConfig.tamedMobArrowRemovalRange()
+                && distanceToBounds(player, mob) > LodgedConfig.tamedMobArrowRemovalRange()
                 || !player.hasLineOfSight(mob)) {
             return false;
         }
@@ -854,8 +867,13 @@ public final class PlayerArrowRemoval {
             return true;
         }
         Vec3 eye = player.getEyePosition();
-        Vec3 end = eye.add(player.getViewVector(1.0F).scale(LodgedConfig.tamedMobArrowRemovalRange()));
+        double aimDistance = LodgedConfig.tamedMobArrowRemovalRange() + player.getEyeHeight();
+        Vec3 end = eye.add(player.getViewVector(1.0F).scale(aimDistance));
         return mob.getBoundingBox().inflate(0.3D).clip(eye, end).isPresent();
+    }
+
+    private static double distanceToBounds(Entity source, Entity target) {
+        return Math.sqrt(target.getBoundingBox().distanceToSqr(source.position()));
     }
 
     private static boolean hasExpectedMobBodyArrow(LivingEntity mob, int arrowIndex, LodgedArrowVisual expectedVisual) {

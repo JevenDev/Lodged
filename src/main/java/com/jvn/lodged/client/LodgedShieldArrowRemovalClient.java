@@ -465,7 +465,7 @@ public final class LodgedShieldArrowRemovalClient {
         }
         if (!(minecraft.hitResult instanceof EntityHitResult hit)
                 || !(hit.getEntity() instanceof LivingEntity mob)
-                || player.distanceTo(mob) > LodgedConfig.tamedMobArrowRemovalRange()) {
+                || distanceToBounds(player, mob) > LodgedConfig.tamedMobArrowRemovalRange()) {
             return null;
         }
         return priorityMobArrow(player, mob);
@@ -564,8 +564,12 @@ public final class LodgedShieldArrowRemovalClient {
         return entity instanceof LivingEntity living
                 && isEligibleTamedMob(player, living)
                 && (player.getVehicle() == living
-                        || player.distanceTo(living) <= LodgedConfig.tamedMobArrowRemovalRange())
+                        || distanceToBounds(player, living) <= LodgedConfig.tamedMobArrowRemovalRange())
                 && hasMobArrows(living);
+    }
+
+    private static double distanceToBounds(Entity source, Entity target) {
+        return Math.sqrt(target.getBoundingBox().distanceToSqr(source.position()));
     }
 
     private static boolean hasMobArrows(LivingEntity mob) {

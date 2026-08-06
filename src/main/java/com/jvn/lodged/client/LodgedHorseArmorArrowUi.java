@@ -3,7 +3,9 @@ package com.jvn.lodged.client;
 import com.jvn.lodged.Lodged;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.mixin.client.HorseInventoryScreenAccessor;
+import com.jvn.lodged.network.ClientArrowState;
 import com.jvn.lodged.network.payload.RemoveHorseArmorArrowPayload;
+import com.jvn.lodged.network.payload.RemovePlayerArrowPayload.Target;
 import com.jvn.lodged.world.LodgedArmorArrowStorage;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import java.util.List;
@@ -39,7 +41,7 @@ public final class LodgedHorseArmorArrowUi {
     private static final int HIT_ZONE_RADIUS = 9;
 
     private static int hoveredHorseId = -1;
-    private static int hoveredArrowIndex = -1;
+    private static HoveredHorseArrow hoveredArrow;
     private static float yawDegrees;
     private static boolean customYawActive;
     private static boolean draggingPreview;
@@ -62,7 +64,7 @@ public final class LodgedHorseArmorArrowUi {
         }
 
         hoveredHorseId = horse.getId();
-        hoveredArrowIndex = findHoveredArrow(
+        hoveredArrow = findHoveredArrow(
                 screen,
                 horse,
                 event.getMouseX(),
@@ -76,13 +78,15 @@ public final class LodgedHorseArmorArrowUi {
         }
 
         AbstractHorse horse = horse(screen);
-        LodgedArrowVisual arrow = hoveredArrow(horse);
-        if (arrow != null) {
-            LodgedInventoryArrowUi.renderHorseArmorRemovalTooltip(
-                    event.getGuiGraphics(),
-                    arrow,
-                    event.getMouseX(),
-                    event.getMouseY());
+        HoveredHorseArrow hovered = hoveredArrow(horse);
+        if (hovered != null) {
+            if (hovered.target() == Target.ARMOR) {
+                LodgedInventoryArrowUi.renderHorseArmorRemovalTooltip(
+                        event.getGuiGraphics(), hovered.arrow(), event.getMouseX(), event.getMouseY());
+            } else {
+                LodgedInventoryArrowUi.renderHorseBodyRemovalTooltip(
+                        event.getGuiGraphics(), hovered.arrow(), event.getMouseX(), event.getMouseY());
+            }
             return;
         }
 
@@ -104,7 +108,7 @@ public final class LodgedHorseArmorArrowUi {
         }
 
         AbstractHorse horse = horse(screen);
-        int arrowIndex = findHoveredArrow(screen, horse, event.getMouseX(), event.getMouseY());
+        HoveredHorseArrow hovered = findHoveredArrow(screen, horse, event.getMouseX(), event.getMouseY());
         if (event.getButton() == 2 && isInPreview(screen, event.getMouseX(), event.getMouseY())) {
             resetPreviewRotation();
             event.setCanceled(true);
@@ -113,8 +117,9 @@ public final class LodgedHorseArmorArrowUi {
         if (event.getButton() != 0) {
             return;
         }
-        if (arrowIndex >= 0) {
-            PacketDistributor.sendToServer(new RemoveHorseArmorArrowPayload(horse.getId(), arrowIndex));
+        if (hovered != null) {
+            PacketDistributor.sendToServer(new RemoveHorseArmorArrowPayload(
+                    horse.getId(), hovered.arrowIndex(), hovered.target()));
             event.setCanceled(true);
             return;
         }
@@ -238,39 +243,59 @@ public final class LodgedHorseArmorArrowUi {
     }
 
     public static boolean isHovered(AbstractHorse horse, LodgedArrowVisual arrow) {
-        LodgedArrowVisual hovered = hoveredArrow(horse);
-        return hovered != null && hovered.matches(arrow);
+        HoveredHorseArrow hovered = hoveredArrow(horse);
+        return hovered != null && hovered.arrow().matches(arrow);
     }
 
-    private static int findHoveredArrow(
+    public static boolean isHoveredArmorArrow(AbstractHorse horse) {
+        HoveredHorseArrow hovered = hoveredArrow(horse);
+        return hovered != null && hovered.target() == Target.ARMOR;
+    }
+
+    private static HoveredHorseArrow findHoveredArrow(
             HorseInventoryScreen screen,
             AbstractHorse horse,
             double mouseX,
             double mouseY) {
         if (!isInPreview(screen, mouseX, mouseY)) {
-            return -1;
+            return null;
         }
 
         ItemStack armor = horse.getItemBySlot(EquipmentSlot.BODY);
-        if (!LodgedArmorArrowStorage.isHorseArmor(armor)) {
-            return -1;
-        }
-
-        List<LodgedArrowVisual> arrows = LodgedArmorArrowStorage.readAll(armor);
-        int arrowCount = Math.min(arrows.size(), LodgedConfig.maxTrackedArrowsPerArmorPiece());
-        int closestIndex = -1;
+        List<LodgedArrowVisual> armorArrows = LodgedArmorArrowStorage.isHorseArmor(armor)
+                ? LodgedArmorArrowStorage.readAll(armor)
+                : List.of();
+        int armorArrowCount = Math.min(armorArrows.size(), LodgedConfig.maxTrackedArrowsPerArmorPiece());
+        HoveredHorseArrow closest = null;
         double closestDistance = Double.MAX_VALUE;
-        for (int index = 0; index < arrowCount; index++) {
-            Vector3f projected = projectArrow(screen, horse, arrows.get(index), mouseX, mouseY);
+        for (int index = 0; index < armorArrowCount; index++) {
+            LodgedArrowVisual arrow = armorArrows.get(index);
+            Vector3f projected = projectArrow(screen, horse, arrow, mouseX, mouseY);
             double deltaX = mouseX - projected.x();
             double deltaY = mouseY - projected.y();
             double distance = deltaX * deltaX + deltaY * deltaY;
             if (distance <= HIT_ZONE_RADIUS * HIT_ZONE_RADIUS && distance < closestDistance) {
-                closestIndex = index;
+                closest = new HoveredHorseArrow(index, Target.ARMOR, arrow);
                 closestDistance = distance;
             }
         }
-        return closestIndex;
+
+        if (LodgedConfig.enableTamedMobArrowRemoval()) {
+            ClientArrowState.EntityArrows entityArrows = ClientArrowState.entityArrows(horse);
+            int bodyArrowCount = Math.min(entityArrows.arrows().size(), entityArrows.arrowCount());
+            for (int index = 0; index < bodyArrowCount; index++) {
+                LodgedArrowVisual arrow = entityArrows.arrows().get(index);
+                Vector3f projected = projectArrow(screen, horse, arrow, mouseX, mouseY);
+                double deltaX = mouseX - projected.x();
+                double deltaY = mouseY - projected.y();
+                double distance = deltaX * deltaX + deltaY * deltaY;
+                if (distance <= HIT_ZONE_RADIUS * HIT_ZONE_RADIUS && distance < closestDistance) {
+                    closest = new HoveredHorseArrow(index, Target.BODY, arrow);
+                    closestDistance = distance;
+                }
+            }
+        }
+        return closest;
     }
 
     private static Vector3f projectArrow(
@@ -303,15 +328,11 @@ public final class LodgedHorseArmorArrowUi {
                 .transformPosition(arrow.modelX(), arrow.modelY(), arrow.modelZ(), new Vector3f());
     }
 
-    private static LodgedArrowVisual hoveredArrow(AbstractHorse horse) {
-        if (hoveredArrowIndex < 0 || horse.getId() != hoveredHorseId) {
+    private static HoveredHorseArrow hoveredArrow(AbstractHorse horse) {
+        if (hoveredArrow == null || horse.getId() != hoveredHorseId) {
             return null;
         }
-
-        ItemStack armor = horse.getItemBySlot(EquipmentSlot.BODY);
-        List<LodgedArrowVisual> arrows = LodgedArmorArrowStorage.readAll(armor);
-        int arrowCount = Math.min(arrows.size(), LodgedConfig.maxTrackedArrowsPerArmorPiece());
-        return hoveredArrowIndex < arrowCount ? arrows.get(hoveredArrowIndex) : null;
+        return hoveredArrow;
     }
 
     private static boolean isInPreview(HorseInventoryScreen screen, double mouseX, double mouseY) {
@@ -353,12 +374,15 @@ public final class LodgedHorseArmorArrowUi {
 
     private static void clearHover() {
         hoveredHorseId = -1;
-        hoveredArrowIndex = -1;
+        hoveredArrow = null;
     }
 
     private static void resetPreviewRotation() {
         yawDegrees = 0.0F;
         customYawActive = false;
         draggingPreview = false;
+    }
+
+    private record HoveredHorseArrow(int arrowIndex, Target target, LodgedArrowVisual arrow) {
     }
 }

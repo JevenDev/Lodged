@@ -444,6 +444,10 @@ public final class LodgedInventoryArrowUi {
         return OutlineColor.fromRgb(ARMOR_ARROW_OUTLINE_COLOR);
     }
 
+    public static OutlineColor tamedMobRiskOutlineColor(LodgedArrowVisual arrow) {
+        return outlineColorFor(tamedMobRemovalChance(arrow));
+    }
+
     public static void renderHorseArmorRemovalTooltip(
             GuiGraphics guiGraphics,
             LodgedArrowVisual arrow,
@@ -454,6 +458,19 @@ public final class LodgedInventoryArrowUi {
                 new HoveredArrow(arrow, Target.ARMOR, InteractionHand.MAIN_HAND, EquipmentSlot.BODY),
                 mouseX,
                 mouseY);
+    }
+
+    public static void renderHorseBodyRemovalTooltip(
+            GuiGraphics guiGraphics,
+            LodgedArrowVisual arrow,
+            int mouseX,
+            int mouseY) {
+        renderArrowRemovalTooltip(
+                guiGraphics,
+                new HoveredArrow(arrow, Target.BODY, InteractionHand.MAIN_HAND, EquipmentSlot.BODY),
+                mouseX,
+                mouseY,
+                tamedMobRemovalChance(arrow));
     }
 
     public static void handleRemovalResult(ArrowRemovalResultPayload payload) {
@@ -595,11 +612,19 @@ public final class LodgedInventoryArrowUi {
     }
 
     private static void renderArrowRemovalTooltip(GuiGraphics guiGraphics, HoveredArrow hoveredArrow, int mouseX, int mouseY) {
+        renderArrowRemovalTooltip(guiGraphics, hoveredArrow, mouseX, mouseY, removalChance(hoveredArrow));
+    }
+
+    private static void renderArrowRemovalTooltip(
+            GuiGraphics guiGraphics,
+            HoveredArrow hoveredArrow,
+            int mouseX,
+            int mouseY,
+            double chance) {
         Minecraft minecraft = Minecraft.getInstance();
         Font font = minecraft.font;
-        double chance = removalChance(hoveredArrow);
         int chancePercent = Math.round((float) (Mth.clamp(chance, 0.0D, 1.0D) * 100.0D));
-        OutlineColor outlineColor = riskOutlineColor(hoveredArrow);
+        OutlineColor outlineColor = outlineColorFor(chance);
         List<Component> lines = new ArrayList<>();
         lines.add(paddedTooltipLine(hoveredArrow.arrow().stack().getHoverName()));
         if (hoveredArrow.target() != Target.SHIELD) {
@@ -1456,6 +1481,14 @@ public final class LodgedInventoryArrowUi {
 
     private static double removalChance(LodgedArrowVisual arrow) {
         return removalChance(arrow.bodyPart()) * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.depth());
+    }
+
+    private static double tamedMobRemovalChance(LodgedArrowVisual arrow) {
+        return Mth.clamp(
+                LodgedConfig.tamedMobArrowRemovalSuccessChance(arrow.bodyPart())
+                        * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.depth()),
+                0.0D,
+                1.0D);
     }
 
     private static double removalChance(HoveredArrow hoveredArrow) {
