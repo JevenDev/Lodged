@@ -1,4 +1,4 @@
-<div align="center">
+<div style="text-align:center">
 
 <h2><strong>Leave a mark!</strong></h2>
 
@@ -11,7 +11,9 @@
 </div>
 
 <br>
+<div style="text-align:center">
 <img src="https://i.imgur.com/HaMHMQS.png" alt="Warden being struck by multiple arrows" width="100%">
+</div>
 <br>
 
 Lodged adds physicality to arrows! They remain visible in bodies, shields, player armor, and horse armor until they are recovered, removed, or broken. There's also configurable wound depth, bleeding, dizziness, and leg-shot Slowness.
@@ -24,21 +26,27 @@ Lodged adds physicality to arrows! They remain visible in bodies, shields, playe
 - Shield, player-armor, and horse-armor lodging with durability effects (horse armor support is extended through an unreleased horse mod in development)
 - Shallow, lodged, and deep wounds with different removal risks
 - Configurable bleeding, dizziness, leg-shot Slowness, and impact breakage
+- Craftable bandages that patch individual bleeding wounds
 - Separate controls for player, mob, infinity, and creative arrows
 - Optional model-accurate projectile collision
 
 <br>
+<div style="text-align:center">
 <img src="https://i.imgur.com/AggUgw1.gif" alt="Removing arrows from the player model and using bandages" width="100%">
+</div>
 <br>
 
-<br>
+<div style="text-align:center">
 <img src="https://cdn.modrinth.com/data/cached_images/ec0e4dc78ec1a652eb11b233dd2926f7461fe770.png" alt="Features" width="100%">
+</div>
 <br>
 
 ## In Game
 
 <br>
+<div style="text-align:center">
 <img src="https://i.imgur.com/fZq5bxQ.gif" alt="A player removing lodged arrows from their inventory preview" width="100%">
+</div>
 <br>
 
 ### Lodging and Recovery
@@ -48,7 +56,9 @@ When an arrow hits a living entity, Lodged records where it landed and the item 
 By default, Lodged tracks up to eight arrows per body part and gives each player-fired arrow a 50% recovery chance. Mob-fired arrows are recoverable; Infinity and creative arrows are not. All of these rules are configurable.
 
 <br>
+<div style="text-align:center">
 <img src="https://i.imgur.com/T3WkoEa.gif" alt="Removing an arrow from player body in first person" width="100%">
+</div>
 <br>
 
 ### Removing Arrows
@@ -63,7 +73,9 @@ Inventory previews can be rotated to reach arrows on the other side. Hover an ar
 In-world removal takes time and stops if interrupted. A failed body removal can break the arrow, deal damage, and cause bleeding; armor and shield removals may damage the item. Successfully removed recoverable arrows are returned to you.
 
 <br>
+<div style="text-align:center">
 <img src="https://i.imgur.com/oe8IuEK.gif" alt="Removing an arrow from a shield in first person" width="100%">
+</div>
 <br>
 
 ### Depth, Shields, and Armor
@@ -82,8 +94,16 @@ Default body-removal chances are:
 | Leg | 90% |
 
 <br>
+<div style="text-align:center">
 <img src="https://i.imgur.com/AteOVPP.gif" alt="Player bandaging themselves in first person" width="100%">
+</div>
 <br>
+
+### Bandages
+
+Craft two bandages from three string and one paper. Hold **Use bandage** (default: **V**) while bleeding to use one from anywhere in your inventory, or use a held bandage normally. The wrapping animation is visible in first and third person.
+
+Bandaging takes two seconds and consumes one bandage to patch one bleeding wound. Stacked wounds may require multiple bandages, and releasing the key or interrupting the action cancels it.
 
 ### Bleeding and Status Effects
 
@@ -92,7 +112,9 @@ Bleeding can result from arrow impacts, risky removal, or weapons selected by ta
 Players receive a subtle Dizziness effect after carrying four lodged arrows, or half of their configured capacity. Leg hits apply Slowness I for two seconds by default. Both systems can be tuned or disabled.
 
 <br>
+<div style="text-align:center">
 <img src="https://i.imgur.com/oEPffkX.gif" alt="A player bleeding after removing a lodged arrow" width="100%">
+</div>
 <br>
 
 ### Arrow Breakage
@@ -100,7 +122,9 @@ Players receive a subtle Dizziness effect after carrying four lodged arrows, or 
 Arrows can break on entity or block impact. The default break chance for regular player arrows is 2%; mob and Infinity arrows default to 0%. Entity and block breakage can be configured independently.
 
 <br>
+<div style="text-align:center">
 <img src="https://cdn.modrinth.com/data/cached_images/1252c11050b7daf8b8621712b58dd1005e7ba982.png" alt="Configuration" width="100%">
+</div>
 <br>
 
 ## Configuration
@@ -123,49 +147,9 @@ Lodged tracks arrows against animated model parts instead of only the entity's v
 
 The feature is enabled by default and falls back to vanilla collision for unsupported modded models or incompatible hooks.
 
-<details>
-<summary><strong>Data-driven pack support</strong></summary>
+## Data-Driven Pack Support
 
-Lodged exposes tags for datapacks and mod integrations.
-
-**Entity tags**
-
-- `lodged:bleeding_immune`
-- `lodged:bleeding_skeletons`
-- `lodged:bleeding_undead`
-
-**Projectile entity-type tags**
-
-- `lodged:trackable_projectiles` opts an `AbstractArrow` entity into impact handling.
-- `lodged:recoverable_projectiles` allows its pickup stack to be stored and returned.
-- `lodged:bleeding_projectiles` allows impacts and removal to cause bleeding.
-- `lodged:non_lodging_projectiles` keeps other impact behavior without body or shield lodging.
-
-Vanilla arrows and spectral arrows are trackable, recoverable, and bleeding-capable by default.
-
-**Weapon and enchantment tags**
-
-- `lodged:bleeding_weapons`
-- `lodged:bleeding_living`
-- `lodged:bleeding_undead`
-
-**Blood colors**
-
-Place definitions in `data/<namespace>/lodged/blood_colors/*.json`. A file can target entity IDs or entity-type tags:
-
-```json
-{
-    "color": "#B36BFF",
-    "entity_types": [
-        "minecraft:enderman",
-        "#minecraft:raiders"
-    ]
-}
-```
-
-Colors apply to Lodged's world and inventory particles as well as Simple Blood decals spawned by Lodged.
-
-</details>
+For projectile and bleeding tags, custom blood colors, and integration details, see the [data-driven pack support section in the GitHub README](https://github.com/JevenDev/Lodged#data-driven-pack-support).
 
 ## Compatibility
 
@@ -183,7 +167,9 @@ Mods that replace projectile impacts, living-entity rendering, horse inventories
 - Older Minecraft versions - not planned
 
 <br>
+<div style="text-align:center">
 <img src="https://cdn.modrinth.com/data/cached_images/5fd3ad80e342e6985dd6ebda1f7afd9c48749fce.png" alt="Credits and license" width="100%">
+</div>
 <br>
 
 <details>

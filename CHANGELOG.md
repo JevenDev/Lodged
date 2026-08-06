@@ -1,29 +1,29 @@
 # Changelog
 
-## Unreleased
+## 3.0.0 - 2026-08-06
 
 ### Added
 
-- Added optional animated model-part projectile collision for players and spiders, including F3 + B visualization, shield/piercing compatibility, tests, and benchmarks
-- Changed model-accurate collision to be enabled by default and made arrows follow the exact animated part they struck
-- Expanded model-part collision from players and spiders to generated server-safe cuboids for the full vanilla living-entity model roster
-- Made F3 + B model cuboids follow vanilla's exact live part poses, visibility, scaling, and model-specific animations
-- Added horse armor arrow lodging, rendering, inventory-preview tooltips, and removal
-- Added optional Ride On load-order compatibility
-- Added timed in-world arrow removal for nearby tamed mobs and ridden mounts, with player-first priority and configurable particles, bleeding, success chances, a one-block default range, and timing
+- Added model-accurate projectile collision for tracked arrows across the all living-entities. Hits use live animated model cuboids, respect shields and piercing, fall back to vanilla collision for unsupported models, and include configurable inflation plus F3 + B visualization
+- Added horse-armor arrow lodging, rendering, durability effects, hover targeting, tooltips, outlines, and removal from the horse inventory, with optional "Ride On" (unreleased) compatibility
+- Added timed body-arrow removal from owned tamed mobs and ridden mounts in the world, with player-first targeting, plus body-arrow removal from mount inventory previews. Ownership, range, timing, success, particles, and bleeding are configurable
+- Added craftable bandages. Craft two from three string and one paper, holding Use bandage (default: V) finds one anywhere in the inventory, plays synchronized first/third-person wrapping animations for two seconds, and patches one bleeding wound
 - Added configurable bleeding-duration multipliers for head, chest, arm, and leg arrow wounds
 
 ### Changed
 
-- Rebalanced default recovery, body removal, deep-lodged, bleeding, shield, and armor risks to reduce stacked bad-luck penalties while keeping meaningful choices
+- Rebalanced default recovery, body-removal, deep-lodged, bleeding, shield, and armor risks to reduce stacked bad luck while preserving meaningful consequences
 - Made Dizziness gain strength every two arrows beyond its threshold instead of every arrow
-- Made non-recoverable arrows removable without forcing an automatic failed-removal penalty
-- Added a config v2 migration that updates unchanged old defaults while preserving customized values
-- Added config migrations for tamed mob arrow removal settings, including allowing any tamed mob by default
-- Added scroll/drag rotation, the turn indicator and tooltip, arrow tooltips, and highlighting to the mount inventory preview
-- Stored the traced humanoid model part with each arrow so shoulder, hip, and overlapping limb hits remain stable
-- Snapped humanoid arrow anchors to the client model's real cubes and aligned inventory hit-testing with animated parts, including slim arms
-- Tracked each active bleeding source separately so a bandage patches only one wound instead of clearing all bleeding
+- Made non-recoverable arrows safely removable instead of treating them as automatic failures
+- Reworked first and third-person body, armor, and shield removal animations with staged reach, grip, extraction, depth-based effort, and improved shield/bow clearance
+- Improved mount inventory previews with scroll/drag rotation, reset controls, a turn hint, arrow highlighting, and body/armor risk tooltips
+- Tracked bleeding sources independently so each bandage removes only one wound and stacked wounds require multiple bandages
+- Showed lodged-arrow counts on shields as well as armor and grouped both Lodged keybinds under a localized Lodged category
+
+### Fixed
+
+- Fixed piercing arrows duplicating recoverable lodged-arrow data across multiple targets
+- Fixed recovered arrow stacks retaining the intangible projectile marker, which could make returned arrows behave incorrectly
 
 ## 2.0.0 - 2026-06-28
 

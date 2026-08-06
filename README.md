@@ -22,6 +22,7 @@ Lodged adds physicality to arrows! They remain visible in bodies, shields, playe
 - Shield, player-armor, and horse-armor lodging with durability effects (horse armor support is extended through an unreleased horse mod in development)
 - Shallow, lodged, and deep wounds with different removal risks
 - Configurable bleeding, dizziness, leg-shot Slowness, and impact breakage
+- Craftable bandages that patch individual bleeding wounds
 - Separate controls for player, mob, infinity, and creative arrows
 - Optional model-accurate projectile collision
 
@@ -70,6 +71,12 @@ Default body-removal chances are:
 | Leg | 90% |
 
 <img src="https://i.imgur.com/AteOVPP.gif" alt="Player bandaging themselves in first person" width="100%">
+
+### Bandages
+
+Craft two bandages from three string and one paper. Hold **Use bandage** (default: **V**) while bleeding to use one from anywhere in your inventory, or use a held bandage normally. The wrapping animation is visible in first and third person.
+
+Bandaging takes two seconds and consumes one bandage to patch one bleeding wound. Stacked wounds may require multiple bandages, and releasing the key or interrupting the action cancels it.
 
 ### Bleeding and Status Effects
 
