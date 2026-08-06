@@ -115,7 +115,7 @@ public final class BleedingEvents {
         double chance = failedRemoval ? failedArrowRemovalBleedingChance(target) : normalArmorBleedingChance(target);
         return tryApplyBleeding(
                 target,
-                scaledArrowRemovalBleedingDuration(arrowVisual),
+                scaledArrowWoundBleedingDuration(LodgedConfig.bleedingArrowRemovalDuration(), arrowVisual),
                 woundFromArrow(target, arrowVisual),
                 Mth.clamp(chance * LodgedConfig.arrowDepthBleedingChanceMultiplier(arrowVisual.depth()), 0.0D, 1.0D));
     }
@@ -123,7 +123,7 @@ public final class BleedingEvents {
     public static boolean tryApplyFromBrokenArrowImpact(LivingEntity target, LodgedArrowVisual arrowVisual) {
         return tryApplyBleeding(
                 target,
-                LodgedConfig.bleedingDamageDuration(),
+                scaledArrowWoundBleedingDuration(LodgedConfig.bleedingDamageDuration(), arrowVisual),
                 woundFromArrow(target, arrowVisual),
                 normalArmorBleedingChance(target));
     }
@@ -254,10 +254,11 @@ public final class BleedingEvents {
         return duration >= LodgedConfig.bleedingStrongDurationThreshold() ? 1 : 0;
     }
 
-    private static int scaledArrowRemovalBleedingDuration(LodgedArrowVisual arrowVisual) {
+    private static int scaledArrowWoundBleedingDuration(int baseDuration, LodgedArrowVisual arrowVisual) {
         return Math.max(0, (int) Math.round(
-                LodgedConfig.bleedingArrowRemovalDuration()
-                        * LodgedConfig.arrowDepthBleedingDurationMultiplier(arrowVisual.depth())));
+                baseDuration
+                        * LodgedConfig.arrowDepthBleedingDurationMultiplier(arrowVisual.depth())
+                        * LodgedConfig.bleedingWoundDurationMultiplier(arrowVisual.bodyPart())));
     }
 
     private static Wound woundFromArrow(LivingEntity target, LodgedArrowVisual arrowVisual) {

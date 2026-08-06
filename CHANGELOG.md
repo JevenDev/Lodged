@@ -11,6 +11,7 @@
 - Added horse armor arrow lodging, rendering, inventory-preview tooltips, and removal
 - Added optional Ride On load-order compatibility
 - Added timed in-world arrow removal for nearby tamed mobs and ridden mounts, with player-first priority and configurable particles, bleeding, success chances, a one-block default range, and timing
+- Added configurable bleeding-duration multipliers for head, chest, arm, and leg arrow wounds
 
 ### Changed
 

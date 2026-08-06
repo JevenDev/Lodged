@@ -174,13 +174,19 @@ Default bleeding damage:
 
 | Setting | Default |
 | --- | ---: |
-| Weapon or broken-arrow bleeding duration | 120 ticks |
-| Arrow-removal bleeding duration | 160 ticks |
+| Weapon bleeding duration | 120 ticks |
+| Broken-arrow base bleeding duration | 120 ticks |
+| Arrow-removal base bleeding duration | 160 ticks |
+| Head-wound duration multiplier | 1.25x |
+| Chest-wound duration multiplier | 1.0x |
+| Arm-wound duration multiplier | 0.75x |
+| Leg-wound duration multiplier | 0.875x |
 | Maximum bleeding duration | 1200 ticks |
 | Strong bleeding threshold | 600 ticks |
 | Normal bleed pulse | 1 damage every 100 ticks |
 | Strong bleed pulse | 2 damage every 80 ticks |
 
+Arrow wounds combine their body-part multiplier with the existing shallow, lodged, or deep-lodged duration multiplier. Weapon wounds are unaffected by body-part and arrow-depth settings.
 
 ## Model-Accurate Projectile Collision
 
@@ -232,7 +238,7 @@ Major systems can be tuned or disabled:
 - Lodged arrow dizziness thresholds and duration
 - Leg shot Slowness duration, level, and enablement
 - Bleeding rules
-- Bleeding duration, damage, Lodged particles, Simple Blood compat particles, Simple Blood decal chance and scale, data-driven blood colors, and armor behavior
+- Bleeding duration by arrow-wound location and depth, damage, Lodged particles, Simple Blood compat particles, Simple Blood decal chance and scale, data-driven blood colors, and armor behavior
 
 ## Tags and Pack Support
 

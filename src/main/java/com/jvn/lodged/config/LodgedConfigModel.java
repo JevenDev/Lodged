@@ -15,7 +15,7 @@ import net.minecraft.resources.ResourceLocation;
 @Modmenu(modId = "lodged")
 public class LodgedConfigModel {
     @ExcludeFromScreen
-    public int configVersion = 7;
+    public int configVersion = 8;
 
     @Nest
     @SectionHeader("projectileCollision")
@@ -449,6 +449,18 @@ public class LodgedConfigModel {
 
         @RangeConstraint(min = 0, max = 12000)
         public int bleedingArrowRemovalDuration = 160;
+
+        @RangeConstraint(min = 0.0D, max = 10.0D)
+        public double bleedingHeadWoundDurationMultiplier = 1.25D;
+
+        @RangeConstraint(min = 0.0D, max = 10.0D)
+        public double bleedingChestWoundDurationMultiplier = 1.0D;
+
+        @RangeConstraint(min = 0.0D, max = 10.0D)
+        public double bleedingArmWoundDurationMultiplier = 0.75D;
+
+        @RangeConstraint(min = 0.0D, max = 10.0D)
+        public double bleedingLegWoundDurationMultiplier = 0.875D;
 
         @RangeConstraint(min = 20, max = 12000)
         public int bleedingMaxDuration = 1200;

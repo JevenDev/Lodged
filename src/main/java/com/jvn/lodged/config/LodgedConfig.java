@@ -14,7 +14,7 @@ import java.util.function.IntSupplier;
 import net.minecraft.util.Mth;
 
 public final class LodgedConfig {
-    private static final int CURRENT_CONFIG_VERSION = 7;
+    private static final int CURRENT_CONFIG_VERSION = 8;
     private static final int MAX_SYNCED_BODY_ARROW_VISUALS = 64;
     private static final String CONFIG_VERSION_KEY = "configVersion";
     private static final LodgedConfigWrapper CONFIG = loadConfig();
@@ -741,6 +741,15 @@ public final class LodgedConfig {
 
     public static int bleedingArrowRemovalDuration() {
         return bleedingEffect().bleedingArrowRemovalDuration();
+    }
+
+    public static double bleedingWoundDurationMultiplier(LodgedArrowBodyPart bodyPart) {
+        return switch (bodyPart) {
+            case HEAD -> bleedingEffect().bleedingHeadWoundDurationMultiplier();
+            case CHEST -> bleedingEffect().bleedingChestWoundDurationMultiplier();
+            case LEFT_ARM, RIGHT_ARM -> bleedingEffect().bleedingArmWoundDurationMultiplier();
+            case LEFT_LEG, RIGHT_LEG -> bleedingEffect().bleedingLegWoundDurationMultiplier();
+        };
     }
 
     public static int bleedingMaxDuration() {
