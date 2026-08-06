@@ -18,6 +18,7 @@ import com.jvn.lodged.world.LodgedArmorArrowStorage;
 import com.jvn.lodged.world.LodgedArmorArrowStorage.LodgedArmorArrowData;
 import com.jvn.lodged.world.LodgedArrowData;
 import com.jvn.lodged.world.LodgedArrowRemovalScoring;
+import com.jvn.lodged.world.LodgedArrowStacks;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import com.jvn.lodged.world.LodgedArrowStorage;
 import com.jvn.lodged.world.LodgedShieldArrowStorage;
@@ -957,7 +958,7 @@ public final class PlayerArrowRemoval {
     }
 
     private static ArrowRecoveryResult recoverArrow(Player player, ItemStack storedStack) {
-        ItemStack recoveredStack = storedStack.copyWithCount(1);
+        ItemStack recoveredStack = LodgedArrowStacks.copyForRecovery(storedStack);
         if (recoveredStack.isEmpty()) {
             return new ArrowRecoveryResult(false, NO_INVENTORY_SLOT);
         }

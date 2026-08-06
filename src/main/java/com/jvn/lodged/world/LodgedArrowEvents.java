@@ -374,7 +374,7 @@ public final class LodgedArrowEvents {
             }
 
             if (recoveryChance >= 1.0D || entity.getRandom().nextDouble() < recoveryChance) {
-                entity.spawnAtLocation(stack.copyWithCount(1));
+                entity.spawnAtLocation(LodgedArrowStacks.copyForRecovery(stack));
             }
         }
     }
@@ -1063,7 +1063,7 @@ public final class LodgedArrowEvents {
         if (LodgedConfig.preserveArrowItemStack()) {
             ItemStack originalStack = arrow.getPickupItemStackOrigin();
             if (!originalStack.isEmpty()) {
-                return originalStack.copyWithCount(1);
+                return LodgedArrowStacks.copyForRecovery(originalStack);
             }
         }
 
