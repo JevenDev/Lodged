@@ -2,7 +2,6 @@ package com.jvn.lodged.effect;
 
 import com.jvn.lodged.Lodged;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
@@ -26,18 +25,14 @@ public final class LodgedTags {
     }
 
     private static TagKey<Enchantment> enchantment(String path) {
-        return TagKey.create(Registries.ENCHANTMENT, id(path));
+        return TagKey.create(Registries.ENCHANTMENT, Lodged.IDS.id(path));
     }
 
     private static TagKey<Item> item(String path) {
-        return TagKey.create(Registries.ITEM, id(path));
+        return TagKey.create(Registries.ITEM, Lodged.IDS.id(path));
     }
 
     private static TagKey<EntityType<?>> entityType(String path) {
-        return TagKey.create(Registries.ENTITY_TYPE, id(path));
-    }
-
-    private static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, path);
+        return TagKey.create(Registries.ENTITY_TYPE, Lodged.IDS.id(path));
     }
 }

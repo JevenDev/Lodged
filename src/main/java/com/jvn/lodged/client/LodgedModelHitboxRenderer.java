@@ -1,7 +1,7 @@
 package com.jvn.lodged.client;
 
 import com.jvn.lodged.config.LodgedConfig;
-import com.jvn.lodged.mixin.client.ModelPartAccessor;
+import com.jvn.toucanlib.client.model.ToucanModelPartAnchors;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.Arrays;
@@ -52,7 +52,7 @@ public final class LodgedModelHitboxRenderer {
             return;
         }
 
-        List<ModelPart.Cube> cubes = ((ModelPartAccessor) (Object) part).lodged$getCubes();
+        List<ModelPart.Cube> cubes = ToucanModelPartAnchors.cubes(part);
         for (ModelPart.Cube cube : cubes) {
             float minX = (cube.minX - inflationPixels) / 16.0F;
             float minY = (cube.minY - inflationPixels) / 16.0F;

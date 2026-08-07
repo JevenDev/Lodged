@@ -6,6 +6,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.jvn.lodged.Lodged;
+import com.jvn.toucanlib.util.ToucanColorValues;
+import com.jvn.toucanlib.util.ToucanDatapackJson;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -76,7 +78,7 @@ public final class BloodColors extends SimpleJsonResourceReloadListener {
             List<TagColor> loadedTagColors) {
         try {
             JsonObject json = GsonHelper.convertToJsonObject(element, "blood color");
-            int color = parseColor(GsonHelper.getNonNull(json, "color"));
+            int color = ToucanColorValues.requireRgb(GsonHelper.getNonNull(json, "color"));
             for (JsonElement entityTypeElement : GsonHelper.getAsJsonArray(json, "entity_types")) {
                 String entry = GsonHelper.convertToString(entityTypeElement, "entity type");
                 if (entry.startsWith("#")) {
@@ -99,31 +101,10 @@ public final class BloodColors extends SimpleJsonResourceReloadListener {
         }
     }
 
-    private static int parseColor(JsonElement element) {
-        if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
-            return element.getAsInt() & 0xFFFFFF;
-        }
-
-        String rawColor = GsonHelper.convertToString(element, "color").trim();
-        String color = rawColor.startsWith("#") ? rawColor.substring(1) : rawColor;
-        color = color.startsWith("0x") || color.startsWith("0X") ? color.substring(2) : color;
-        if (color.length() != 6) {
-            throw new JsonParseException("Expected color to be a 6-digit RGB value, got '" + rawColor + "'");
-        }
-
-        try {
-            return Integer.parseUnsignedInt(color, 16) & 0xFFFFFF;
-        } catch (NumberFormatException exception) {
-            throw new JsonParseException("Invalid RGB color '" + rawColor + "'", exception);
-        }
-    }
-
     private static ResourceLocation parseId(String id, ResourceLocation fileId) {
-        ResourceLocation parsed = ResourceLocation.tryParse(id);
-        if (parsed == null) {
-            throw new JsonParseException("Invalid resource location '" + id + "' in " + fileId);
-        }
-        return parsed;
+        return ToucanDatapackJson.parseResourceLocation(id)
+                .orElseThrow(() -> new JsonParseException(
+                        "Invalid resource location '" + id + "' in " + fileId));
     }
 
     private record TagColor(TagKey<EntityType<?>> tag, int color) {

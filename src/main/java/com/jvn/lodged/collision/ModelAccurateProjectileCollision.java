@@ -4,6 +4,7 @@ import com.jvn.lodged.Lodged;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.effect.LodgedTags;
 import com.jvn.lodged.network.PlayerArrowRemoval;
+import com.jvn.toucanlib.util.ToucanSegmentAabbs;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
@@ -58,7 +59,7 @@ public final class ModelAccurateProjectileCollision {
         List<Entity> candidates = arrow.level().getEntities(arrow, broadPhase, filter);
 
         Entity nearestEntity = null;
-        double nearestTime = SweptCuboid.MISS;
+        double nearestTime = ToucanSegmentAabbs.MISS;
         ModelColliderPart nearestPart = null;
         double nearestModelX = 0.0D;
         double nearestModelY = 0.0D;
@@ -74,7 +75,7 @@ public final class ModelAccurateProjectileCollision {
             Entity candidate = candidates.get(candidateIndex);
             if (!(candidate instanceof LivingEntity living) || !ModelHitboxCache.supports(living)) {
                 AABB box = candidate.getBoundingBox().inflate(VANILLA_ENTITY_INFLATION);
-                double time = SweptCuboid.intersect(
+                double time = ToucanSegmentAabbs.intersect(
                         start.x, start.y, start.z,
                         deltaX, deltaY, deltaZ,
                         box.minX, box.minY, box.minZ,
@@ -123,7 +124,7 @@ public final class ModelAccurateProjectileCollision {
                         + deltaZ * cache.axisZZ(partIndex);
 
                 ModelColliderPart part = cache.part(partIndex);
-                double time = SweptCuboid.intersect(
+                double time = ToucanSegmentAabbs.intersect(
                         localStartX, localStartY, localStartZ,
                         localDeltaX, localDeltaY, localDeltaZ,
                         part.minX() * partScale - inflation,
@@ -153,7 +154,7 @@ public final class ModelAccurateProjectileCollision {
 
             if (preservesVanillaShieldHit(arrow, living)) {
                 AABB shieldFallback = living.getBoundingBox().inflate(VANILLA_ENTITY_INFLATION);
-                double time = SweptCuboid.intersect(
+                double time = ToucanSegmentAabbs.intersect(
                         start.x, start.y, start.z,
                         deltaX, deltaY, deltaZ,
                         shieldFallback.minX, shieldFallback.minY, shieldFallback.minZ,

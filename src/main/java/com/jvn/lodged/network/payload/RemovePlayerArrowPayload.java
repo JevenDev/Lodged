@@ -1,6 +1,6 @@
 package com.jvn.lodged.network.payload;
 
-import com.jvn.lodged.network.LodgedNetwork;
+import com.jvn.lodged.Lodged;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -13,7 +13,7 @@ public record RemovePlayerArrowPayload(
         Target target,
         InteractionHand hand,
         EquipmentSlot armorSlot) implements CustomPacketPayload {
-    public static final Type<RemovePlayerArrowPayload> TYPE = new Type<>(LodgedNetwork.id("remove_player_arrow"));
+    public static final Type<RemovePlayerArrowPayload> TYPE = new Type<>(Lodged.IDS.id("remove_player_arrow"));
     public static final StreamCodec<RegistryFriendlyByteBuf, RemovePlayerArrowPayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.VAR_INT,
             RemovePlayerArrowPayload::arrowIndex,

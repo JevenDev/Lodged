@@ -28,11 +28,11 @@ import net.neoforged.neoforge.client.event.RenderArmEvent;
 
 public final class BandageOverlayRenderer {
     private static final ResourceLocation TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "textures/entity/bandage_overlay.png");
+            Lodged.IDS.id("textures/entity/bandage_overlay.png");
     private static final ModelLayerLocation WIDE_LAYER = new ModelLayerLocation(
-            ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "bandage_overlay"), "wide");
+            Lodged.IDS.id("bandage_overlay"), "wide");
     private static final ModelLayerLocation SLIM_LAYER = new ModelLayerLocation(
-            ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "bandage_overlay"), "slim");
+            Lodged.IDS.id("bandage_overlay"), "slim");
     private static final Map<Model, PlayerModel<AbstractClientPlayer>> FIRST_PERSON_MODELS =
             new EnumMap<>(Model.class);
 

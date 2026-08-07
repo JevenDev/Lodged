@@ -1,6 +1,6 @@
 package com.jvn.lodged.network.payload;
 
-import com.jvn.lodged.network.LodgedNetwork;
+import com.jvn.lodged.Lodged;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -10,7 +10,7 @@ import net.minecraft.world.InteractionHand;
 public record SyncBandageUsePayload(int entityId, boolean active, InteractionHand hand)
         implements CustomPacketPayload {
     public static final Type<SyncBandageUsePayload> TYPE =
-            new Type<>(LodgedNetwork.id("sync_bandage_use"));
+            new Type<>(Lodged.IDS.id("sync_bandage_use"));
     public static final StreamCodec<RegistryFriendlyByteBuf, SyncBandageUsePayload> STREAM_CODEC =
             StreamCodec.composite(
                     ByteBufCodecs.VAR_INT,

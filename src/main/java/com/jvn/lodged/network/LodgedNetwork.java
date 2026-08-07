@@ -4,26 +4,24 @@ import com.jvn.lodged.Lodged;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.network.payload.ArmorArrowRemovalActionPayload;
 import com.jvn.lodged.network.payload.ArrowRemovalResultPayload;
-import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.network.payload.RemoveHorseArmorArrowPayload;
+import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload;
-import com.jvn.lodged.network.payload.SyncEntityArrowsPayload;
 import com.jvn.lodged.network.payload.SyncArmorArrowRemovalPayload;
 import com.jvn.lodged.network.payload.SyncBandageUsePayload;
+import com.jvn.lodged.network.payload.SyncEntityArrowsPayload;
 import com.jvn.lodged.network.payload.SyncPlayerArrowsPayload;
 import com.jvn.lodged.network.payload.SyncShieldArrowRemovalPayload;
 import com.jvn.lodged.network.payload.UseBandagePayload;
 import com.jvn.lodged.world.LodgedArrowData;
 import com.jvn.lodged.world.LodgedArrowStorage;
 import com.jvn.lodged.world.LodgedArrowVisual;
+import com.jvn.toucanlib.neoforge.network.ToucanNetwork;
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
-import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class LodgedNetwork {
     private static final String NETWORK_VERSION = "19";
@@ -32,51 +30,57 @@ public final class LodgedNetwork {
     }
 
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar(NETWORK_VERSION);
-        registrar.playToServer(
+        ToucanNetwork network = ToucanNetwork.create(Lodged.MOD_ID, NETWORK_VERSION, event);
+        network.playToServer(
                 RemovePlayerArrowPayload.TYPE,
                 RemovePlayerArrowPayload.STREAM_CODEC,
                 PlayerArrowRemoval::handleRequest);
-        registrar.playToServer(
+        network.playToServer(
                 RemoveHorseArmorArrowPayload.TYPE,
                 RemoveHorseArmorArrowPayload.STREAM_CODEC,
                 PlayerArrowRemoval::handleHorseArmorRequest);
-        registrar.playToServer(
+        network.playToServer(
                 ShieldArrowRemovalActionPayload.TYPE,
                 ShieldArrowRemovalActionPayload.STREAM_CODEC,
                 PlayerArrowRemoval::handleShieldAction);
-        registrar.playToServer(
+        network.playToServer(
                 ArmorArrowRemovalActionPayload.TYPE,
                 ArmorArrowRemovalActionPayload.STREAM_CODEC,
                 PlayerArrowRemoval::handleArmorAction);
-        registrar.playToServer(
+        network.playToServer(
                 UseBandagePayload.TYPE,
                 UseBandagePayload.STREAM_CODEC,
                 BandageUseHandler::handleRequest);
-        registrar.playToClient(
+        network.safePlayToClient(
                 SyncBandageUsePayload.TYPE,
                 SyncBandageUsePayload.STREAM_CODEC,
-                ClientBandageState::handleSync);
-        registrar.playToClient(
+                "com.jvn.lodged.network.ClientBandageState",
+                "handleSync");
+        network.safePlayToClient(
                 SyncPlayerArrowsPayload.TYPE,
                 SyncPlayerArrowsPayload.STREAM_CODEC,
-                ClientArrowState::handleSync);
-        registrar.playToClient(
+                "com.jvn.lodged.network.ClientArrowState",
+                "handleSync");
+        network.safePlayToClient(
                 SyncEntityArrowsPayload.TYPE,
                 SyncEntityArrowsPayload.STREAM_CODEC,
-                ClientArrowState::handleSync);
-        registrar.playToClient(
+                "com.jvn.lodged.network.ClientArrowState",
+                "handleSync");
+        network.safePlayToClient(
                 SyncShieldArrowRemovalPayload.TYPE,
                 SyncShieldArrowRemovalPayload.STREAM_CODEC,
-                ClientArrowState::handleSync);
-        registrar.playToClient(
+                "com.jvn.lodged.network.ClientArrowState",
+                "handleSync");
+        network.safePlayToClient(
                 SyncArmorArrowRemovalPayload.TYPE,
                 SyncArmorArrowRemovalPayload.STREAM_CODEC,
-                ClientArrowState::handleSync);
-        registrar.playToClient(
+                "com.jvn.lodged.network.ClientArrowState",
+                "handleSync");
+        network.safePlayToClient(
                 ArrowRemovalResultPayload.TYPE,
                 ArrowRemovalResultPayload.STREAM_CODEC,
-                ClientArrowState::handleRemovalResult);
+                "com.jvn.lodged.network.ClientArrowState",
+                "handleRemovalResult");
     }
 
     public static void syncPlayerArrows(ServerPlayer player) {
@@ -93,23 +97,19 @@ public final class LodgedNetwork {
         for (int index = 0; index < arrowCount; index++) {
             arrows.add(storedArrows.get(index).visual());
         }
-        PacketDistributor.sendToPlayer(player, new SyncPlayerArrowsPayload(arrows, storedArrowCount));
+        ToucanNetwork.sendToPlayer(player, new SyncPlayerArrowsPayload(arrows, storedArrowCount));
     }
 
     public static void syncEntityArrows(LivingEntity entity) {
-        PacketDistributor.sendToPlayersTrackingEntityAndSelf(entity, entityArrowsPayload(entity));
+        ToucanNetwork.sendToPlayersTrackingEntityAndSelf(entity, entityArrowsPayload(entity));
     }
 
     public static void syncEntityArrowsToPlayer(ServerPlayer player, LivingEntity entity) {
-        PacketDistributor.sendToPlayer(player, entityArrowsPayload(entity));
+        ToucanNetwork.sendToPlayer(player, entityArrowsPayload(entity));
     }
 
     public static void clearPlayerArrowRemovalCooldown(ServerPlayer player) {
         PlayerArrowRemoval.clearCooldown(player);
-    }
-
-    public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, path);
     }
 
     private static SyncEntityArrowsPayload entityArrowsPayload(LivingEntity entity) {

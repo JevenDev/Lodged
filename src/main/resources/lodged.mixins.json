@@ -19,7 +19,6 @@
     "client.LevelRendererAccessor",
     "client.LivingEntityRendererMixin",
     "client.MinecraftBandageUseMixin",
-    "client.ModelPartAccessor",
     "client.ModelPartMixin",
     "client.StuckInBodyLayerMixin"
   ],

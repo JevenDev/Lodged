@@ -1,6 +1,6 @@
 package com.jvn.lodged.network.payload;
 
-import com.jvn.lodged.network.LodgedNetwork;
+import com.jvn.lodged.Lodged;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -8,7 +8,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.world.InteractionHand;
 
 public record ShieldArrowRemovalActionPayload(Action action, InteractionHand hand) implements CustomPacketPayload {
-    public static final Type<ShieldArrowRemovalActionPayload> TYPE = new Type<>(LodgedNetwork.id("shield_arrow_removal_action"));
+    public static final Type<ShieldArrowRemovalActionPayload> TYPE = new Type<>(Lodged.IDS.id("shield_arrow_removal_action"));
     public static final StreamCodec<RegistryFriendlyByteBuf, ShieldArrowRemovalActionPayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.idMapper(Action::byId, Action::id),
             ShieldArrowRemovalActionPayload::action,

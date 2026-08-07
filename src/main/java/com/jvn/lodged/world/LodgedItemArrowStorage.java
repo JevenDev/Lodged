@@ -1,14 +1,12 @@
 package com.jvn.lodged.world;
 
+import com.jvn.toucanlib.util.ToucanItemCustomData;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 
 final class LodgedItemArrowStorage {
     private static final String STACK_KEY = "stack";
@@ -21,14 +19,14 @@ final class LodgedItemArrowStorage {
     }
 
     static List<LodgedArrowVisual> readVisuals(ItemStack item, String storageKey) {
-        ListTag storedArrows = storedArrows(item, storageKey);
-        if (storedArrows == null) {
+        List<CompoundTag> storedArrows = ToucanItemCustomData.readCompoundList(item, storageKey);
+        if (storedArrows.isEmpty()) {
             return List.of();
         }
 
         List<LodgedArrowVisual> arrows = new ArrayList<>(storedArrows.size());
         for (int index = 0; index < storedArrows.size(); index++) {
-            CompoundTag arrowTag = storedArrows.getCompound(index);
+            CompoundTag arrowTag = storedArrows.get(index);
             if (arrowTag.contains(STACK_KEY, Tag.TAG_COMPOUND)) {
                 arrows.add(LodgedArrowVisual.load(arrowTag));
             }
@@ -37,14 +35,14 @@ final class LodgedItemArrowStorage {
     }
 
     static int countVisuals(ItemStack item, String storageKey) {
-        ListTag storedArrows = storedArrows(item, storageKey);
-        if (storedArrows == null) {
+        List<CompoundTag> storedArrows = ToucanItemCustomData.readCompoundList(item, storageKey);
+        if (storedArrows.isEmpty()) {
             return 0;
         }
 
         int count = 0;
         for (int index = 0; index < storedArrows.size(); index++) {
-            if (storedArrows.getCompound(index).contains(STACK_KEY, Tag.TAG_COMPOUND)) {
+            if (storedArrows.get(index).contains(STACK_KEY, Tag.TAG_COMPOUND)) {
                 count++;
             }
         }
@@ -56,14 +54,14 @@ final class LodgedItemArrowStorage {
             HolderLookup.Provider registries,
             String storageKey,
             ArrowDataFactory<T> factory) {
-        ListTag storedArrows = storedArrows(item, storageKey);
-        if (storedArrows == null) {
+        List<CompoundTag> storedArrows = ToucanItemCustomData.readCompoundList(item, storageKey);
+        if (storedArrows.isEmpty()) {
             return List.of();
         }
 
         List<T> arrows = new ArrayList<>(storedArrows.size());
         for (int index = 0; index < storedArrows.size(); index++) {
-            CompoundTag arrowTag = storedArrows.getCompound(index);
+            CompoundTag arrowTag = storedArrows.get(index);
             if (!arrowTag.contains(STACK_KEY, Tag.TAG_COMPOUND)) {
                 continue;
             }
@@ -127,37 +125,18 @@ final class LodgedItemArrowStorage {
             String storageKey,
             List<? extends ItemArrowData> arrows,
             HolderLookup.Provider registries) {
-        CustomData.update(DataComponents.CUSTOM_DATA, item, tag -> {
-            if (arrows.isEmpty()) {
-                tag.remove(storageKey);
-                return;
-            }
-
-            ListTag storedArrows = new ListTag();
-            for (ItemArrowData arrow : arrows) {
-                CompoundTag arrowTag = new CompoundTag();
-                arrowTag.put(STACK_KEY, arrow.stack().copyWithCount(1).save(registries));
-                arrowTag.putBoolean(RECOVERABLE_KEY, arrow.recoverable());
-                arrowTag.putBoolean(FROM_PLAYER_KEY, arrow.fromPlayer());
-                arrowTag.putBoolean(INFINITY_GENERATED_KEY, arrow.infinityGenerated());
-                arrowTag.putBoolean(CREATIVE_GENERATED_KEY, arrow.creativeGenerated());
-                arrow.visual().save(arrowTag);
-                storedArrows.add(arrowTag);
-            }
-            tag.put(storageKey, storedArrows);
-        });
-    }
-
-    private static ListTag storedArrows(ItemStack item, String storageKey) {
-        if (item.isEmpty()) {
-            return null;
+        List<CompoundTag> storedArrows = new ArrayList<>(arrows.size());
+        for (ItemArrowData arrow : arrows) {
+            CompoundTag arrowTag = new CompoundTag();
+            arrowTag.put(STACK_KEY, arrow.stack().copyWithCount(1).save(registries));
+            arrowTag.putBoolean(RECOVERABLE_KEY, arrow.recoverable());
+            arrowTag.putBoolean(FROM_PLAYER_KEY, arrow.fromPlayer());
+            arrowTag.putBoolean(INFINITY_GENERATED_KEY, arrow.infinityGenerated());
+            arrowTag.putBoolean(CREATIVE_GENERATED_KEY, arrow.creativeGenerated());
+            arrow.visual().save(arrowTag);
+            storedArrows.add(arrowTag);
         }
-
-        CompoundTag customData = item.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        if (!customData.contains(storageKey, Tag.TAG_LIST)) {
-            return null;
-        }
-        return customData.getList(storageKey, Tag.TAG_COMPOUND);
+        ToucanItemCustomData.writeCompoundList(item, storageKey, storedArrows);
     }
 
     interface ItemArrowData {

@@ -3,6 +3,7 @@ package com.jvn.lodged.client;
 import com.jvn.lodged.effect.LodgedEffects;
 import com.jvn.lodged.network.ClientBandageState;
 import com.jvn.lodged.network.payload.UseBandagePayload;
+import com.jvn.toucanlib.neoforge.network.ToucanNetwork;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -11,7 +12,6 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.extensions.IKeyMappingExtension;
 import net.neoforged.neoforge.client.settings.KeyConflictContext;
-import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
 
 public final class LodgedBandageClient {
@@ -46,10 +46,10 @@ public final class LodgedBandageClient {
                 && !player.isUsingItem()
                 && !ClientBandageState.isActive(player)
                 && player.hasEffect(LodgedEffects.BLEEDING)) {
-            PacketDistributor.sendToServer(
+            ToucanNetwork.sendToServer(
                     new UseBandagePayload(UseBandagePayload.Action.START));
         } else if (!keyDown && bandageKeyWasDown) {
-            PacketDistributor.sendToServer(
+            ToucanNetwork.sendToServer(
                     new UseBandagePayload(UseBandagePayload.Action.CANCEL));
         }
         bandageKeyWasDown = keyDown;

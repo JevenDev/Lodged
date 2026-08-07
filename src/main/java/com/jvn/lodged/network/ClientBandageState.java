@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public final class ClientBandageState {
     private static final Map<Integer, BandageUseState> BANDAGE_USES = new HashMap<>();
@@ -40,7 +39,7 @@ public final class ClientBandageState {
         BANDAGE_USES.clear();
     }
 
-    public static void handleSync(SyncBandageUsePayload payload, IPayloadContext context) {
+    public static void handleSync(SyncBandageUsePayload payload) {
         if (!payload.active()) {
             BANDAGE_USES.remove(payload.entityId());
             return;

@@ -8,6 +8,7 @@ import com.jvn.lodged.network.payload.RemoveHorseArmorArrowPayload;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload.Target;
 import com.jvn.lodged.world.LodgedArmorArrowStorage;
 import com.jvn.lodged.world.LodgedArrowVisual;
+import com.jvn.toucanlib.neoforge.network.ToucanNetwork;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.HorseInventoryScreen;
@@ -21,7 +22,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ScreenEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -118,7 +118,7 @@ public final class LodgedHorseArmorArrowUi {
             return;
         }
         if (hovered != null) {
-            PacketDistributor.sendToServer(new RemoveHorseArmorArrowPayload(
+            ToucanNetwork.sendToServer(new RemoveHorseArmorArrowPayload(
                     horse.getId(), hovered.arrowIndex(), hovered.target()));
             event.setCanceled(true);
             return;

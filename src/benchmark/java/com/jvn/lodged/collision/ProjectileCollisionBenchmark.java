@@ -1,5 +1,6 @@
 package com.jvn.lodged.collision;
 
+import com.jvn.toucanlib.util.ToucanSegmentAabbs;
 import java.util.Locale;
 
 public final class ProjectileCollisionBenchmark {
@@ -29,10 +30,10 @@ public final class ProjectileCollisionBenchmark {
                 case MISS -> 3.0D + (projectile & 7) * 0.1D;
                 case MIXED -> (projectile & 3) == 0 ? 2.0D : ((projectile & 31) - 16) * 0.01D;
             };
-            double nearest = SweptCuboid.MISS;
+            double nearest = ToucanSegmentAabbs.MISS;
             for (int part = 0; part < PARTS_PER_ENTITY; part++) {
                 double centerX = 1.0D + part * 0.18D;
-                double time = SweptCuboid.intersect(
+                double time = ToucanSegmentAabbs.intersect(
                         -1.0D, startY, 0.0D, 6.0D, 0.02D, 0.01D,
                         centerX - 0.08D, -0.2D, -0.15D,
                         centerX + 0.08D, 0.2D, 0.15D);

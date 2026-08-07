@@ -1,17 +1,19 @@
 package com.jvn.lodged.client;
 
 import com.jvn.lodged.config.LodgedConfig;
-import com.jvn.lodged.network.ClientArrowState;
 import com.jvn.lodged.network.ClientArrowState.ArmorArrowRemovalState;
 import com.jvn.lodged.network.ClientArrowState.ShieldArrowRemovalState;
+import com.jvn.lodged.network.ClientArrowState;
 import com.jvn.lodged.network.payload.ArmorArrowRemovalActionPayload;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload.Target;
-import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload;
 import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload.Action;
+import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload;
 import com.jvn.lodged.world.LodgedArmorArrowStorage;
 import com.jvn.lodged.world.LodgedArrowRemovalScoring;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import com.jvn.lodged.world.LodgedShieldArrowStorage;
+import com.jvn.toucanlib.client.ToucanEasing;
+import com.jvn.toucanlib.neoforge.network.ToucanNetwork;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
@@ -30,14 +32,13 @@ import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
-import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.EntityHitResult;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.extensions.IKeyMappingExtension;
 import net.neoforged.neoforge.client.settings.KeyConflictContext;
 import net.neoforged.neoforge.common.ItemAbilities;
-import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
 
 public final class LodgedShieldArrowRemovalClient {
@@ -86,7 +87,7 @@ public final class LodgedShieldArrowRemovalClient {
                 activeShieldHand = player.getUsedItemHand();
                 activeTicks = 0;
                 ClientArrowState.setLocalShieldArrowRemoval(player.getId(), activeShieldHand, true);
-                PacketDistributor.sendToServer(new ShieldArrowRemovalActionPayload(Action.START, activeShieldHand));
+                ToucanNetwork.sendToServer(new ShieldArrowRemovalActionPayload(Action.START, activeShieldHand));
             } else if (!activeArmorRemoval && activeShieldHand == null) {
                 InWorldArrowTarget target = priorityInWorldArrow(player, minecraft);
                 if (target == null || !canStartInWorldRemoval(player, minecraft)) {
@@ -102,7 +103,7 @@ public final class LodgedShieldArrowRemovalClient {
                         target.slot(),
                         target.targetEntityId(),
                         target.arrow());
-                PacketDistributor.sendToServer(new ArmorArrowRemovalActionPayload(ArmorArrowRemovalActionPayload.Action.START, target.targetEntityId()));
+                ToucanNetwork.sendToServer(new ArmorArrowRemovalActionPayload(ArmorArrowRemovalActionPayload.Action.START, target.targetEntityId()));
             }
         }
 
@@ -111,7 +112,7 @@ public final class LodgedShieldArrowRemovalClient {
             if (!ClientArrowState.shieldArrowRemoval(player).active()) {
                 clearShieldLocalState();
             } else if (!canContinue(player, minecraft, activeShieldHand) || activeTicks > maxLocalShieldRemovalTicks()) {
-                PacketDistributor.sendToServer(new ShieldArrowRemovalActionPayload(Action.CANCEL, activeShieldHand));
+                ToucanNetwork.sendToServer(new ShieldArrowRemovalActionPayload(Action.CANCEL, activeShieldHand));
                 ClientArrowState.setLocalShieldArrowRemoval(player.getId(), activeShieldHand, false);
                 clearShieldLocalState();
             }
@@ -122,7 +123,7 @@ public final class LodgedShieldArrowRemovalClient {
             if (!ClientArrowState.armorArrowRemoval(player).active()) {
                 clearArmorLocalState();
             } else if (!canContinueInWorldRemoval(player, minecraft) || activeArmorTicks > maxLocalInWorldRemovalTicks()) {
-                PacketDistributor.sendToServer(new ArmorArrowRemovalActionPayload(ArmorArrowRemovalActionPayload.Action.CANCEL, activeTargetEntityId));
+                ToucanNetwork.sendToServer(new ArmorArrowRemovalActionPayload(ArmorArrowRemovalActionPayload.Action.CANCEL, activeTargetEntityId));
                 ClientArrowState.setLocalArmorArrowRemoval(
                         player.getId(),
                         false,
@@ -160,13 +161,13 @@ public final class LodgedShieldArrowRemovalClient {
         float reach = firstPersonPullProgress(handAge);
         float rise = heldItemDropping ? firstPersonHandRiseProgress(handAge) : 1.0F;
         float gripAge = Math.max(handAge - FIRST_PERSON_REACH_TICKS, 0.0F);
-        float grip = smootherStep(Math.min(gripAge / FIRST_PERSON_GRIP_TICKS, 1.0F));
+        float grip = ToucanEasing.smootherstep(Math.min(gripAge / FIRST_PERSON_GRIP_TICKS, 1.0F));
         float pullAge = Math.max(gripAge - FIRST_PERSON_GRIP_TICKS, 0.0F);
-        float pull = smootherStep(Math.min(pullAge / FIRST_PERSON_EXTRACTION_TICKS, 1.0F));
+        float pull = ToucanEasing.smootherstep(Math.min(pullAge / FIRST_PERSON_EXTRACTION_TICKS, 1.0F));
         float effort = firstPersonRemovalEffort(player);
         float tension = Mth.sin(pull * Mth.PI);
         float resistance = tension * effort;
-        float lateStrain = smootherStep(Mth.clamp((pull - 0.55F) / 0.45F, 0.0F, 1.0F));
+        float lateStrain = ToucanEasing.smootherstep(Mth.clamp((pull - 0.55F) / 0.45F, 0.0F, 1.0F));
         float shakeAmount = lateStrain * effort * FIRST_PERSON_SHAKE_SCALE;
         float strain = (Mth.sin(age * 2.2F) + (Mth.sin(age * 4.9F) * 0.35F)) * shakeAmount;
         float lateralStrain = Mth.sin((age * 3.15F) + 1.1F) * shakeAmount;
@@ -221,12 +222,12 @@ public final class LodgedShieldArrowRemovalClient {
 
         float reach = firstPersonPullProgress(handAge);
         float gripAge = Math.max(handAge - FIRST_PERSON_REACH_TICKS, 0.0F);
-        float grip = smootherStep(Math.min(gripAge / FIRST_PERSON_GRIP_TICKS, 1.0F));
+        float grip = ToucanEasing.smootherstep(Math.min(gripAge / FIRST_PERSON_GRIP_TICKS, 1.0F));
         float pullAge = Math.max(gripAge - FIRST_PERSON_GRIP_TICKS, 0.0F);
-        float pull = smootherStep(Math.min(pullAge / FIRST_PERSON_EXTRACTION_TICKS, 1.0F));
+        float pull = ToucanEasing.smootherstep(Math.min(pullAge / FIRST_PERSON_EXTRACTION_TICKS, 1.0F));
         float effort = removalEffort(shieldRemovalArrow(player, state.shieldHand()));
         float resistance = Mth.sin(pull * Mth.PI) * effort;
-        float lateStrain = smootherStep(Mth.clamp((pull - 0.55F) / 0.45F, 0.0F, 1.0F));
+        float lateStrain = ToucanEasing.smootherstep(Mth.clamp((pull - 0.55F) / 0.45F, 0.0F, 1.0F));
         float shakeAmount = lateStrain * effort * FIRST_PERSON_SHAKE_SCALE * 0.12F;
         float strain = Mth.sin((age * 2.2F) + 0.7F) * shakeAmount;
         float lateralStrain = Mth.sin((age * 3.15F) + 1.8F) * shakeAmount;
@@ -249,7 +250,7 @@ public final class LodgedShieldArrowRemovalClient {
                 return 1.0F;
             }
 
-            return smoothStep(Math.min((state.ticks() + partialTick) / FIRST_PERSON_ITEM_DROP_TICKS, 1.0F));
+            return ToucanEasing.smoothstep(Math.min((state.ticks() + partialTick) / FIRST_PERSON_ITEM_DROP_TICKS, 1.0F));
         }
 
         ArmorArrowRemovalState armorState = ClientArrowState.armorArrowRemoval(player);
@@ -257,7 +258,7 @@ public final class LodgedShieldArrowRemovalClient {
             return 1.0F;
         }
 
-        return smoothStep(Math.min((armorState.ticks() + partialTick) / FIRST_PERSON_ITEM_DROP_TICKS, 1.0F));
+        return ToucanEasing.smoothstep(Math.min((armorState.ticks() + partialTick) / FIRST_PERSON_ITEM_DROP_TICKS, 1.0F));
     }
 
     public static HumanoidArm pullingArm(LivingEntity entity) {
@@ -324,14 +325,14 @@ public final class LodgedShieldArrowRemovalClient {
         HumanoidArm arm = handArm(entity, state.shieldHand());
         float side = arm == HumanoidArm.RIGHT ? 1.0F : -1.0F;
         float ticks = state.ticks();
-        float reach = smootherStep(Math.min(ticks / FIRST_PERSON_REACH_TICKS, 1.0F));
+        float reach = ToucanEasing.smootherstep(Math.min(ticks / FIRST_PERSON_REACH_TICKS, 1.0F));
         float gripAge = Math.max(ticks - FIRST_PERSON_REACH_TICKS, 0.0F);
-        float grip = smootherStep(Math.min(gripAge / FIRST_PERSON_GRIP_TICKS, 1.0F));
+        float grip = ToucanEasing.smootherstep(Math.min(gripAge / FIRST_PERSON_GRIP_TICKS, 1.0F));
         float pullAge = Math.max(gripAge - FIRST_PERSON_GRIP_TICKS, 0.0F);
-        float pull = smootherStep(Math.min(pullAge / THIRD_PERSON_EXTRACTION_TICKS, 1.0F));
+        float pull = ToucanEasing.smootherstep(Math.min(pullAge / THIRD_PERSON_EXTRACTION_TICKS, 1.0F));
         float effort = removalEffort(arrow);
         float resistance = Mth.sin(pull * Mth.PI) * effort;
-        float lateStrain = smootherStep(Mth.clamp((pull - 0.55F) / 0.45F, 0.0F, 1.0F));
+        float lateStrain = ToucanEasing.smootherstep(Mth.clamp((pull - 0.55F) / 0.45F, 0.0F, 1.0F));
         float shakeAmount = lateStrain * effort * THIRD_PERSON_SHAKE_SCALE * 0.35F;
         float strain = (Mth.sin(ageInTicks * 2.2F) + (Mth.sin(ageInTicks * 4.9F) * 0.35F)) * shakeAmount;
         float lateralStrain = Mth.sin((ageInTicks * 3.15F) + 1.1F) * shakeAmount;
@@ -354,14 +355,14 @@ public final class LodgedShieldArrowRemovalClient {
             float targetY,
             float targetZ,
             float forwardOffset) {
-        float reach = smootherStep(Math.min(ticks / FIRST_PERSON_REACH_TICKS, 1.0F));
+        float reach = ToucanEasing.smootherstep(Math.min(ticks / FIRST_PERSON_REACH_TICKS, 1.0F));
         float gripAge = Math.max(ticks - FIRST_PERSON_REACH_TICKS, 0.0F);
-        float grip = smootherStep(Math.min(gripAge / FIRST_PERSON_GRIP_TICKS, 1.0F));
+        float grip = ToucanEasing.smootherstep(Math.min(gripAge / FIRST_PERSON_GRIP_TICKS, 1.0F));
         float pullAge = Math.max(gripAge - FIRST_PERSON_GRIP_TICKS, 0.0F);
-        float pull = smootherStep(Math.min(pullAge / THIRD_PERSON_EXTRACTION_TICKS, 1.0F));
+        float pull = ToucanEasing.smootherstep(Math.min(pullAge / THIRD_PERSON_EXTRACTION_TICKS, 1.0F));
         float effort = removalEffort(arrow);
         float resistance = Mth.sin(pull * Mth.PI) * effort;
-        float lateStrain = smootherStep(Mth.clamp((pull - 0.55F) / 0.45F, 0.0F, 1.0F));
+        float lateStrain = ToucanEasing.smootherstep(Mth.clamp((pull - 0.55F) / 0.45F, 0.0F, 1.0F));
         float shakeAmount = lateStrain * effort * THIRD_PERSON_SHAKE_SCALE;
         float strain = (Mth.sin(ageInTicks * 2.2F) + (Mth.sin(ageInTicks * 4.9F) * 0.35F)) * shakeAmount;
         float lateralStrain = Mth.sin((ageInTicks * 3.15F) + 1.1F) * shakeAmount;
@@ -615,19 +616,11 @@ public final class LodgedShieldArrowRemovalClient {
     }
 
     private static float firstPersonPullProgress(float ticks) {
-        return smootherStep(Math.min(ticks / FIRST_PERSON_REACH_TICKS, 1.0F));
+        return ToucanEasing.smootherstep(Math.min(ticks / FIRST_PERSON_REACH_TICKS, 1.0F));
     }
 
     private static float firstPersonHandRiseProgress(float ticks) {
-        return smoothStep(Math.min(ticks / 6.0F, 1.0F));
-    }
-
-    private static float smoothStep(float value) {
-        return value * value * (3.0F - (2.0F * value));
-    }
-
-    private static float smootherStep(float value) {
-        return value * value * value * (value * ((value * 6.0F) - 15.0F) + 10.0F);
+        return ToucanEasing.smoothstep(Math.min(ticks / 6.0F, 1.0F));
     }
 
     private static float firstPersonRemovalEffort(LocalPlayer player) {

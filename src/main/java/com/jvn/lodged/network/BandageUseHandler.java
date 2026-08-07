@@ -5,6 +5,7 @@ import com.jvn.lodged.item.BandageItem;
 import com.jvn.lodged.item.LodgedItems;
 import com.jvn.lodged.network.payload.SyncBandageUsePayload;
 import com.jvn.lodged.network.payload.UseBandagePayload;
+import com.jvn.toucanlib.neoforge.network.ToucanNetwork;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -15,7 +16,6 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public final class BandageUseHandler {
@@ -62,7 +62,7 @@ public final class BandageUseHandler {
 
         InventoryBandageUse use = INVENTORY_USES.get(target.getUUID());
         if (use != null) {
-            PacketDistributor.sendToPlayer(
+            ToucanNetwork.sendToPlayer(
                     viewer,
                     new SyncBandageUsePayload(target.getId(), true, use.hand()));
         }
@@ -191,7 +191,7 @@ public final class BandageUseHandler {
             ServerPlayer player,
             boolean active,
             InteractionHand hand) {
-        PacketDistributor.sendToPlayersTrackingEntityAndSelf(
+        ToucanNetwork.sendToPlayersTrackingEntityAndSelf(
                 player,
                 new SyncBandageUsePayload(player.getId(), active, hand));
     }

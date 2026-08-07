@@ -5,24 +5,25 @@ import com.jvn.lodged.effect.BleedingEvents;
 import com.jvn.lodged.effect.LodgedDamageTypes;
 import com.jvn.lodged.mixin.HorseInventoryMenuAccessor;
 import com.jvn.lodged.network.payload.ArmorArrowRemovalActionPayload;
-import com.jvn.lodged.network.payload.ArrowRemovalResultPayload;
 import com.jvn.lodged.network.payload.ArrowRemovalResultPayload.Result;
+import com.jvn.lodged.network.payload.ArrowRemovalResultPayload;
 import com.jvn.lodged.network.payload.RemoveHorseArmorArrowPayload;
-import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload.Target;
-import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload;
+import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload.Action;
+import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload;
 import com.jvn.lodged.network.payload.SyncArmorArrowRemovalPayload;
 import com.jvn.lodged.network.payload.SyncShieldArrowRemovalPayload;
-import com.jvn.lodged.world.LodgedArmorArrowStorage;
 import com.jvn.lodged.world.LodgedArmorArrowStorage.LodgedArmorArrowData;
+import com.jvn.lodged.world.LodgedArmorArrowStorage;
 import com.jvn.lodged.world.LodgedArrowData;
 import com.jvn.lodged.world.LodgedArrowRemovalScoring;
 import com.jvn.lodged.world.LodgedArrowStacks;
-import com.jvn.lodged.world.LodgedArrowVisual;
 import com.jvn.lodged.world.LodgedArrowStorage;
-import com.jvn.lodged.world.LodgedShieldArrowStorage;
+import com.jvn.lodged.world.LodgedArrowVisual;
 import com.jvn.lodged.world.LodgedShieldArrowStorage.LodgedShieldArrowData;
+import com.jvn.lodged.world.LodgedShieldArrowStorage;
+import com.jvn.toucanlib.neoforge.network.ToucanNetwork;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,9 +36,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.HumanoidArm;
@@ -51,9 +52,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.ItemAbilities;
-import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public final class PlayerArrowRemoval {
@@ -191,13 +191,13 @@ public final class PlayerArrowRemoval {
     public static void syncShieldArrowRemovalToPlayer(ServerPlayer viewer, LivingEntity entity) {
         ShieldArrowRemovalAttempt attempt = SHIELD_ARROW_REMOVALS.get(entity.getUUID());
         if (attempt != null) {
-            PacketDistributor.sendToPlayer(
+            ToucanNetwork.sendToPlayer(
                     viewer,
                     new SyncShieldArrowRemovalPayload(entity.getId(), true, attempt.hand()));
         }
         ArmorArrowRemovalAttempt armorAttempt = ARMOR_ARROW_REMOVALS.get(entity.getUUID());
         if (armorAttempt != null) {
-            PacketDistributor.sendToPlayer(
+            ToucanNetwork.sendToPlayer(
                     viewer,
                     new SyncArmorArrowRemovalPayload(
                             entity.getId(),
@@ -720,7 +720,7 @@ public final class PlayerArrowRemoval {
     }
 
     private static void syncShieldArrowRemoval(ServerPlayer player, boolean active, InteractionHand hand) {
-        PacketDistributor.sendToPlayersTrackingEntityAndSelf(
+        ToucanNetwork.sendToPlayersTrackingEntityAndSelf(
                 player,
                 new SyncShieldArrowRemovalPayload(player.getId(), active, hand));
     }
@@ -732,7 +732,7 @@ public final class PlayerArrowRemoval {
             EquipmentSlot slot,
             int targetEntityId,
             LodgedArrowVisual arrow) {
-        PacketDistributor.sendToPlayersTrackingEntityAndSelf(
+        ToucanNetwork.sendToPlayersTrackingEntityAndSelf(
                 player,
                 new SyncArmorArrowRemovalPayload(player.getId(), active, target, slot, targetEntityId, arrow));
     }
@@ -1239,7 +1239,7 @@ public final class PlayerArrowRemoval {
             InteractionHand hand,
             LodgedArrowVisual arrow,
             int inventorySlot) {
-        PacketDistributor.sendToPlayer(player, new ArrowRemovalResultPayload(result, target, hand, arrow, inventorySlot));
+        ToucanNetwork.sendToPlayer(player, new ArrowRemovalResultPayload(result, target, hand, arrow, inventorySlot));
     }
 
     private record ShieldArrowRemovalAttempt(

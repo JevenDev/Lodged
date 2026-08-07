@@ -13,7 +13,6 @@ import java.util.Map;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public final class ClientArrowState {
     private static List<LodgedArrowVisual> removableArrows = List.of();
@@ -88,13 +87,13 @@ public final class ClientArrowState {
         synced = false;
     }
 
-    static void handleSync(SyncPlayerArrowsPayload payload, IPayloadContext context) {
+    public static void handleSync(SyncPlayerArrowsPayload payload) {
         removableArrows = payload.arrows();
         syncedArrowCount = payload.arrowCount();
         synced = true;
     }
 
-    static void handleSync(SyncEntityArrowsPayload payload, IPayloadContext context) {
+    public static void handleSync(SyncEntityArrowsPayload payload) {
         if (payload.arrowCount() <= 0 || payload.arrows().isEmpty()) {
             ENTITY_ARROWS.remove(payload.entityId());
             return;
@@ -103,15 +102,15 @@ public final class ClientArrowState {
         ENTITY_ARROWS.put(payload.entityId(), new EntityArrows(payload.arrows(), payload.arrowCount()));
     }
 
-    public static void handleSync(SyncShieldArrowRemovalPayload payload, IPayloadContext context) {
+    public static void handleSync(SyncShieldArrowRemovalPayload payload) {
         setShieldArrowRemoval(payload.entityId(), payload.active(), payload.shieldHand());
     }
 
-    public static void handleSync(SyncArmorArrowRemovalPayload payload, IPayloadContext context) {
+    public static void handleSync(SyncArmorArrowRemovalPayload payload) {
         setArmorArrowRemoval(payload.entityId(), payload.active(), payload.target(), payload.slot(), payload.targetEntityId(), payload.arrow());
     }
 
-    public static void handleRemovalResult(ArrowRemovalResultPayload payload, IPayloadContext context) {
+    public static void handleRemovalResult(ArrowRemovalResultPayload payload) {
         com.jvn.lodged.client.LodgedInventoryArrowUi.handleRemovalResult(payload);
     }
 

@@ -1,6 +1,6 @@
 package com.jvn.lodged.network.payload;
 
-import com.jvn.lodged.network.LodgedNetwork;
+import com.jvn.lodged.Lodged;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload.Target;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -16,7 +16,7 @@ public record SyncArmorArrowRemovalPayload(
         EquipmentSlot slot,
         int targetEntityId,
         LodgedArrowVisual arrow) implements CustomPacketPayload {
-    public static final Type<SyncArmorArrowRemovalPayload> TYPE = new Type<>(LodgedNetwork.id("sync_armor_arrow_removal"));
+    public static final Type<SyncArmorArrowRemovalPayload> TYPE = new Type<>(Lodged.IDS.id("sync_armor_arrow_removal"));
     public static final StreamCodec<RegistryFriendlyByteBuf, SyncArmorArrowRemovalPayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.INT,
             SyncArmorArrowRemovalPayload::entityId,

@@ -1,13 +1,13 @@
 package com.jvn.lodged.network.payload;
 
-import com.jvn.lodged.network.LodgedNetwork;
+import com.jvn.lodged.Lodged;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 public record ArmorArrowRemovalActionPayload(Action action, int targetEntityId) implements CustomPacketPayload {
-    public static final Type<ArmorArrowRemovalActionPayload> TYPE = new Type<>(LodgedNetwork.id("armor_arrow_removal_action"));
+    public static final Type<ArmorArrowRemovalActionPayload> TYPE = new Type<>(Lodged.IDS.id("armor_arrow_removal_action"));
     public static final StreamCodec<RegistryFriendlyByteBuf, ArmorArrowRemovalActionPayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.idMapper(Action::byId, Action::id),
             ArmorArrowRemovalActionPayload::action,

@@ -1,26 +1,27 @@
 package com.jvn.lodged.client;
 
-import com.google.gson.JsonSyntaxException;
 import com.jvn.lodged.Lodged;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.effect.BloodColors;
 import com.jvn.lodged.effect.LodgedEffects;
 import com.jvn.lodged.mixin.client.LevelRendererAccessor;
 import com.jvn.lodged.network.ClientArrowState;
-import com.jvn.lodged.network.payload.ArrowRemovalResultPayload;
 import com.jvn.lodged.network.payload.ArrowRemovalResultPayload.Result;
-import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
+import com.jvn.lodged.network.payload.ArrowRemovalResultPayload;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload.Target;
+import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
+import com.jvn.lodged.world.LodgedArmorArrowStorage;
 import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowDepth;
 import com.jvn.lodged.world.LodgedArrowVisual;
-import com.jvn.lodged.world.LodgedArmorArrowStorage;
 import com.jvn.lodged.world.LodgedShieldArrowStorage;
+import com.jvn.toucanlib.client.ToucanEasing;
+import com.jvn.toucanlib.client.render.ToucanPostChain;
+import com.jvn.toucanlib.neoforge.network.ToucanNetwork;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -34,27 +35,25 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.PostChain;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.HumanoidArm;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ScreenEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.common.ItemAbilities;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -102,15 +101,21 @@ public final class LodgedInventoryArrowUi {
     private static final float ITEM_RENDERER_MODEL_OFFSET = -0.5F;
     private static final float ITEM_ARM_X_ROT = -(float) (Math.PI / 10.0D);
     private static final ResourceLocation SHARP_OUTLINE_SHADER =
-            ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "shaders/post/arrow_outline.json");
+            Lodged.IDS.id("shaders/post/arrow_outline.json");
+    private static final ToucanPostChain SHARP_OUTLINE_EFFECT = new ToucanPostChain(
+            SHARP_OUTLINE_SHADER,
+            exception -> Lodged.LOGGER.warn(
+                    "Failed to load sharp arrow hover outline shader: {}",
+                    SHARP_OUTLINE_SHADER,
+                    exception));
     private static final ResourceLocation BLEED_HANG_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "textures/particle/bleed_hang.png");
+            Lodged.IDS.texture("particle/bleed_hang.png");
     private static final ResourceLocation BLEED_FALL_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "textures/particle/bleed_fall.png");
+            Lodged.IDS.texture("particle/bleed_fall.png");
     private static final ResourceLocation BLEED_LAND_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "textures/particle/bleed_land.png");
+            Lodged.IDS.texture("particle/bleed_land.png");
     private static final ResourceLocation INVENTORY_TURN_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "textures/gui/inventory_turn.png");
+            Lodged.IDS.texture("gui/inventory_turn.png");
     private static final int BLOOD_TEXTURE_SIZE = 8;
     private static final int GUI_BLOOD_SIZE = 4;
     private static final int GUI_BLOOD_Z = 300;
@@ -246,11 +251,7 @@ public final class LodgedInventoryArrowUi {
     private static InteractionHand hoveredShieldHand = InteractionHand.MAIN_HAND;
     private static int hoveredArmorArrowIndex = -1;
     private static EquipmentSlot hoveredArmorSlot = EquipmentSlot.CHEST;
-    private static PostChain sharpOutlineEffect;
     private static RenderTarget sharpOutlineTarget;
-    private static int sharpOutlineWidth = -1;
-    private static int sharpOutlineHeight = -1;
-    private static boolean sharpOutlineLoadFailed;
     private static RenderTarget previousEntityTarget;
     private static final List<RemovalAnimation> removalAnimations = new ArrayList<>();
     private static Component removalSubtitle;
@@ -343,7 +344,7 @@ public final class LodgedInventoryArrowUi {
 
         ArrowHitZone hoveredZone = findHoveredZone(screen, player, event.getMouseX(), event.getMouseY());
         if (hoveredZone != null) {
-            PacketDistributor.sendToServer(new RemovePlayerArrowPayload(
+            ToucanNetwork.sendToServer(new RemovePlayerArrowPayload(
                     hoveredZone.index(),
                     hoveredZone.target(),
                     hoveredZone.hand(),
@@ -510,13 +511,12 @@ public final class LodgedInventoryArrowUi {
 
     public static void processArrowOutlineTarget() {
         restoreVanillaEntityTarget();
-        if (sharpOutlineEffect == null || sharpOutlineTarget == null) {
+        if (!SHARP_OUTLINE_EFFECT.isLoaded() || sharpOutlineTarget == null) {
             return;
         }
 
         Minecraft minecraft = Minecraft.getInstance();
-        sharpOutlineEffect.process(0.0F);
-        minecraft.getMainRenderTarget().bindWrite(false);
+        SHARP_OUTLINE_EFFECT.processAndRestore(minecraft, 0.0F);
         RenderSystem.enableBlend();
         RenderSystem.blendFuncSeparate(
                 GlStateManager.SourceFactor.SRC_ALPHA,
@@ -791,7 +791,7 @@ public final class LodgedInventoryArrowUi {
             float progress) {
         Vector3f source = removalAnimationSource(screen, player, payload, mouseX, mouseY);
         Vector3f destination = removalAnimationDestination(screen, payload);
-        float eased = easeOut(progress);
+        float eased = ToucanEasing.easeOutCubic(progress);
         float pop = 1.0F + (float) Math.sin(progress * Math.PI) * 0.35F;
         float arc = -10.0F * (float) Math.sin(progress * Math.PI);
         float x = Mth.lerp(eased, source.x() - 8.0F, destination.x() - 8.0F);
@@ -884,11 +884,6 @@ public final class LodgedInventoryArrowUi {
             return InventoryMenu.SHIELD_SLOT;
         }
         return -1;
-    }
-
-    private static float easeOut(float progress) {
-        float inverse = 1.0F - Mth.clamp(progress, 0.0F, 1.0F);
-        return 1.0F - inverse * inverse * inverse;
     }
 
     private static void renderRemovalSubtitle(GuiGraphics guiGraphics, InventoryScreen screen) {
@@ -1617,45 +1612,19 @@ public final class LodgedInventoryArrowUi {
     }
 
     private static RenderTarget sharpOutlineTarget() {
-        if (sharpOutlineLoadFailed) {
-            return null;
-        }
-
         Minecraft minecraft = Minecraft.getInstance();
-        Window window = minecraft.getWindow();
-        int width = window.getWidth();
-        int height = window.getHeight();
-        if (sharpOutlineEffect != null && width == sharpOutlineWidth && height == sharpOutlineHeight) {
+        if (SHARP_OUTLINE_EFFECT.isLoaded() && SHARP_OUTLINE_EFFECT.matchesWindow(minecraft)) {
             return sharpOutlineTarget;
         }
 
         closeSharpOutlineEffect();
-        try {
-            sharpOutlineEffect = new PostChain(
-                    minecraft.getTextureManager(),
-                    minecraft.getResourceManager(),
-                    minecraft.getMainRenderTarget(),
-                    SHARP_OUTLINE_SHADER);
-            sharpOutlineEffect.resize(width, height);
-            sharpOutlineTarget = sharpOutlineEffect.getTempTarget("final");
-            sharpOutlineWidth = width;
-            sharpOutlineHeight = height;
-        } catch (IOException | JsonSyntaxException exception) {
-            Lodged.LOGGER.warn("Failed to load sharp arrow hover outline shader: {}", SHARP_OUTLINE_SHADER, exception);
-            closeSharpOutlineEffect();
-            sharpOutlineLoadFailed = true;
-        }
+        sharpOutlineTarget = SHARP_OUTLINE_EFFECT.tempTarget(minecraft, "final");
         return sharpOutlineTarget;
     }
 
     private static void closeSharpOutlineEffect() {
-        if (sharpOutlineEffect != null) {
-            sharpOutlineEffect.close();
-        }
-        sharpOutlineEffect = null;
+        SHARP_OUTLINE_EFFECT.close();
         sharpOutlineTarget = null;
-        sharpOutlineWidth = -1;
-        sharpOutlineHeight = -1;
     }
 
     private record ArrowHitZone(

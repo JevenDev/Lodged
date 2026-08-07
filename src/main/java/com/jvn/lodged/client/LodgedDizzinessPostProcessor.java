@@ -1,10 +1,8 @@
 package com.jvn.lodged.client;
 
-import com.google.gson.JsonParseException;
 import com.jvn.lodged.Lodged;
-import java.io.IOException;
+import com.jvn.toucanlib.client.render.ToucanPostChain;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.PostChain;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
@@ -13,17 +11,16 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 public final class LodgedDizzinessPostProcessor {
     public static final LodgedDizzinessPostProcessor INSTANCE = new LodgedDizzinessPostProcessor();
     private static final ResourceLocation POST_CHAIN_LOCATION =
-            ResourceLocation.fromNamespaceAndPath(Lodged.MOD_ID, "shaders/post/dizziness_tint.json");
+            Lodged.IDS.id("shaders/post/dizziness_tint.json");
 
+    private final ToucanPostChain postChain = new ToucanPostChain(
+            POST_CHAIN_LOCATION,
+            exception -> Lodged.LOGGER.error("Failed to load Lodged dizziness post-processing shader", exception));
     private float blend;
     private float tintStrength;
     private float pulseStrength;
     private float time;
-    private PostChain postChain;
     private boolean active;
-    private boolean loadFailed;
-    private int cachedWidth = -1;
-    private int cachedHeight = -1;
 
     private LodgedDizzinessPostProcessor() {
     }
@@ -34,9 +31,8 @@ public final class LodgedDizzinessPostProcessor {
     }
 
     public void reload() {
-        close();
+        postChain.reload();
         time = 0.0F;
-        loadFailed = false;
     }
 
     public void updateState(float blend) {
@@ -61,16 +57,11 @@ public final class LodgedDizzinessPostProcessor {
         }
 
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null || minecraft.player == null) {
+        if (minecraft.level == null || minecraft.player == null || !postChain.ensureLoaded(minecraft)) {
             return;
         }
 
-        ensurePostChain(minecraft);
-        if (postChain == null) {
-            return;
-        }
-
-        resizeIfNeeded(minecraft);
+        postChain.resizeIfNeeded(minecraft);
 
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         time += partialTick / 20.0F;
@@ -79,47 +70,6 @@ public final class LodgedDizzinessPostProcessor {
         postChain.setUniform("Blend", blend);
         postChain.setUniform("TintStrength", tintStrength);
         postChain.setUniform("PulseStrength", pulseStrength);
-        postChain.process(partialTick);
-        minecraft.getMainRenderTarget().bindWrite(false);
-    }
-
-    private void ensurePostChain(Minecraft minecraft) {
-        if (postChain != null || loadFailed) {
-            return;
-        }
-
-        try {
-            postChain = new PostChain(
-                    minecraft.getTextureManager(),
-                    minecraft.getResourceManager(),
-                    minecraft.getMainRenderTarget(),
-                    POST_CHAIN_LOCATION);
-            cachedWidth = minecraft.getWindow().getWidth();
-            cachedHeight = minecraft.getWindow().getHeight();
-            postChain.resize(cachedWidth, cachedHeight);
-        } catch (IOException | JsonParseException exception) {
-            Lodged.LOGGER.error("Failed to load Lodged dizziness post-processing shader", exception);
-            close();
-            loadFailed = true;
-        }
-    }
-
-    private void resizeIfNeeded(Minecraft minecraft) {
-        int width = minecraft.getWindow().getWidth();
-        int height = minecraft.getWindow().getHeight();
-        if (width == cachedWidth && height == cachedHeight) {
-            return;
-        }
-
-        cachedWidth = width;
-        cachedHeight = height;
-        postChain.resize(width, height);
-    }
-
-    private void close() {
-        if (postChain != null) {
-            postChain.close();
-            postChain = null;
-        }
+        postChain.processAndRestore(minecraft, partialTick);
     }
 }

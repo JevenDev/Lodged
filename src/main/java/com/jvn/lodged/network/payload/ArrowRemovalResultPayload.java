@@ -1,6 +1,6 @@
 package com.jvn.lodged.network.payload;
 
-import com.jvn.lodged.network.LodgedNetwork;
+import com.jvn.lodged.Lodged;
 import com.jvn.lodged.world.LodgedArrowVisual;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -14,7 +14,7 @@ public record ArrowRemovalResultPayload(
         InteractionHand hand,
         LodgedArrowVisual arrow,
         int inventorySlot) implements CustomPacketPayload {
-    public static final Type<ArrowRemovalResultPayload> TYPE = new Type<>(LodgedNetwork.id("arrow_removal_result"));
+    public static final Type<ArrowRemovalResultPayload> TYPE = new Type<>(Lodged.IDS.id("arrow_removal_result"));
     public static final StreamCodec<RegistryFriendlyByteBuf, ArrowRemovalResultPayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.idMapper(Result::byId, Result::id),
             ArrowRemovalResultPayload::result,

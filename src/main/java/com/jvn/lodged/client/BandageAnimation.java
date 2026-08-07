@@ -3,6 +3,7 @@ package com.jvn.lodged.client;
 import com.jvn.lodged.item.BandageItem;
 import com.jvn.lodged.item.LodgedItems;
 import com.jvn.lodged.network.ClientBandageState;
+import com.jvn.toucanlib.client.ToucanEasing;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
@@ -193,8 +194,8 @@ public final class BandageAnimation {
     }
 
     private static float movementAmount(float progress) {
-        float enter = smootherStep(Mth.clamp(progress / ENTRY_END, 0.0F, 1.0F));
-        float exit = 1.0F - smootherStep(Mth.clamp(
+        float enter = ToucanEasing.smootherstep(Mth.clamp(progress / ENTRY_END, 0.0F, 1.0F));
+        float exit = 1.0F - ToucanEasing.smootherstep(Mth.clamp(
                 (progress - EXIT_START) / (1.0F - EXIT_START),
                 0.0F,
                 1.0F));
@@ -209,13 +210,9 @@ public final class BandageAnimation {
     }
 
     private static float wrappingEnvelope(float wrappingProgress) {
-        float enter = smootherStep(Mth.clamp(wrappingProgress / 0.12F, 0.0F, 1.0F));
-        float exit = smootherStep(Mth.clamp((1.0F - wrappingProgress) / 0.12F, 0.0F, 1.0F));
+        float enter = ToucanEasing.smootherstep(Mth.clamp(wrappingProgress / 0.12F, 0.0F, 1.0F));
+        float exit = ToucanEasing.smootherstep(Mth.clamp((1.0F - wrappingProgress) / 0.12F, 0.0F, 1.0F));
         return enter * exit;
-    }
-
-    private static float smootherStep(float value) {
-        return value * value * value * (value * (value * 6.0F - 15.0F) + 10.0F);
     }
 
     public record ArmPose(HumanoidArm arm, float amount, float xRot, float yRot, float zRot) {
