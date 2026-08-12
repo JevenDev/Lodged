@@ -17,7 +17,10 @@ java {
 }
 
 repositories {
-    mavenLocal()
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+    }
     mavenCentral()
     maven {
         name = 'NeoForge'
@@ -80,7 +83,8 @@ neoForge {
 }
 
 dependencies {
-    implementation "com.jvn.toucanlib:toucanlib-neoforge-${minecraft_version}:${toucanlib_version}"
+    implementation "maven.modrinth:toucan:${toucanlib_version}"
+    implementation "dev.architectury:architectury-neoforge:${architectury_version}"
 
     implementation "io.wispforest:owo-lib-neoforge:${owo_version}"
     annotationProcessor "io.wispforest:owo-lib-neoforge:${owo_version}"
