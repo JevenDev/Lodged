@@ -106,11 +106,6 @@ sourceSets {
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
         runtimeClasspath += output + compileClasspath
     }
-    modelgen {
-        java.srcDir 'src/modelgen/java'
-        compileClasspath += sourceSets.main.compileClasspath
-        runtimeClasspath += output + compileClasspath
-    }
 }
 
 tasks.named('processResources', ProcessResources).configure {
@@ -156,19 +151,6 @@ tasks.register('projectileCollisionBenchmark', JavaExec) {
     jvmArgs '-Xms256m', '-Xmx256m'
 }
 
-tasks.register('generateVanillaModelHitboxes', JavaExec) {
-    group = 'build setup'
-    description = 'Bakes vanilla client model layers into server-safe collision data.'
-    dependsOn tasks.named('modelgenClasses')
-    classpath = sourceSets.modelgen.runtimeClasspath
-    classpath += fileTree(layout.buildDirectory.dir('moddev/artifacts')) {
-        include '*client-extra*.jar'
-    }
-    mainClass = 'com.jvn.lodged.modelgen.VanillaModelHitboxGenerator'
-    args layout.projectDirectory.file('src/main/resources/assets/lodged/model_hitboxes.tsv').asFile.absolutePath
-    workingDir layout.buildDirectory.dir('modelgen')
-    doFirst { workingDir.mkdirs() }
-}
 tasks.named('jar', Jar).configure {
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${mod_id}" }

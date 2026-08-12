@@ -19,10 +19,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LivingEntityRenderer.class)
 public abstract class LivingEntityRendererMixin {
-    private static final String RENDER_MODEL = "Lnet/minecraft/client/model/EntityModel;renderToBuffer("
-            + "Lcom/mojang/blaze3d/vertex/PoseStack;"
-            + "Lcom/mojang/blaze3d/vertex/VertexConsumer;III)V";
-
     @Inject(method = "<init>", at = @At("TAIL"))
     @SuppressWarnings({"rawtypes", "unchecked"})
     private void lodged$addEntityArrowLayer(
@@ -39,10 +35,8 @@ public abstract class LivingEntityRendererMixin {
                 context.getEntityRenderDispatcher()));
     }
 
-    @Inject(
-            method = "render",
-            at = @At(value = "INVOKE", target = RENDER_MODEL))
-    private void lodged$beginLiveModelHitboxes(
+    @Inject(method = "render", at = @At("TAIL"))
+    private void lodged$renderModelHitboxes(
             LivingEntity entity,
             float entityYaw,
             float partialTicks,
@@ -59,20 +53,6 @@ public abstract class LivingEntityRendererMixin {
                 || !minecraft.getEntityRenderDispatcher().shouldRenderHitBoxes()) {
             return;
         }
-        LodgedModelHitboxRenderer.begin();
-    }
-
-    @Inject(
-            method = "render",
-            at = @At(value = "INVOKE", target = RENDER_MODEL, shift = At.Shift.AFTER))
-    private void lodged$endLiveModelHitboxes(
-            LivingEntity entity,
-            float entityYaw,
-            float partialTicks,
-            PoseStack poseStack,
-            MultiBufferSource buffer,
-            int packedLight,
-            CallbackInfo callbackInfo) {
-        LodgedModelHitboxRenderer.end(buffer);
+        LodgedModelHitboxRenderer.render(entity, partialTicks, poseStack, buffer);
     }
 }

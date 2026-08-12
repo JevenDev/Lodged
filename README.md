@@ -108,9 +108,11 @@ You can tune or disable each major system, including:
 
 ## Model-Accurate Projectile Collision
 
-Lodged tracks arrows against animated model parts instead of only the entity's vanilla bounding box. This keeps hits aligned with visible limbs and poses while leaving movement collision, shield interception, piercing, damage handling, and impact events in their normal paths.
+Lodged can track arrows against hand-matched animated model parts instead of only the entity's vanilla bounding box. This keeps hits aligned with visible limbs while leaving movement collision, shield interception, piercing, damage handling, and impact events in their normal paths.
 
-The feature is enabled by default and falls back to vanilla collision for unsupported modded models or incompatible hooks.
+Model-part collision currently applies to spiders, cave spiders, and players in standing or crouching poses. Other entities and unsupported player poses retain vanilla collision. The F3 + B overlay draws the same cached colliders used by projectile hit detection.
+
+The feature is enabled by default and also falls back to vanilla collision if an incompatible hook fails.
 
 <details>
 <summary><strong>Data-driven pack support</strong></summary>

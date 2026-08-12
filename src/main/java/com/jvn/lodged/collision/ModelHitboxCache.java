@@ -5,6 +5,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.monster.Spider;
 import net.minecraft.world.entity.player.Player;
 
@@ -55,6 +56,8 @@ public final class ModelHitboxCache {
     private int preparedTick = Integer.MIN_VALUE;
     private int preparedPartialBits;
     private int preparedKind;
+    private LivingEntity preparedEntity;
+    private Pose preparedPose;
     private int partCount;
     private double scale;
     private double rootCos;
@@ -65,18 +68,22 @@ public final class ModelHitboxCache {
         int kind = modelKind(entity);
         if (kind == 0) {
             partCount = 0;
+            preparedEntity = null;
             return false;
         }
 
         float clampedPartial = Mth.clamp(partialTick, 0.0F, 1.0F);
         int partialBits = Float.floatToRawIntBits(clampedPartial);
-        if (preparedKind == kind && preparedTick == entity.tickCount && preparedPartialBits == partialBits) {
+        if (preparedEntity == entity && preparedKind == kind && preparedTick == entity.tickCount
+                && preparedPartialBits == partialBits && preparedPose == entity.getPose()) {
             return true;
         }
 
+        preparedEntity = entity;
         preparedKind = kind;
         preparedTick = entity.tickCount;
         preparedPartialBits = partialBits;
+        preparedPose = entity.getPose();
         float bodyYaw = Mth.rotLerp(clampedPartial, entity.yBodyRotO, entity.yBodyRot);
         double yawRadians = bodyYaw * Mth.DEG_TO_RAD;
         rootCos = Math.cos(yawRadians);
@@ -93,9 +100,6 @@ public final class ModelHitboxCache {
         } else if (kind == 2) {
             scale = entityScale * (entity.getType() == EntityType.CAVE_SPIDER ? CAVE_SPIDER_RENDER_SCALE : 1.0D);
             prepareSpider(entity, clampedPartial, bodyYaw);
-        } else {
-            scale = entityScale * VanillaModelHitboxRegistry.renderScale(entity);
-            prepareGenerated(entity, clampedPartial, bodyYaw);
         }
         return true;
     }
@@ -105,59 +109,20 @@ public final class ModelHitboxCache {
     }
 
     private static int modelKind(LivingEntity entity) {
-        if (entity instanceof Player) {
+        if (entity instanceof Player && supportsPlayerPose(entity.getPose())) {
             return 1;
         }
         if (entity instanceof Spider
                 && (entity.getType() == EntityType.SPIDER || entity.getType() == EntityType.CAVE_SPIDER)) {
             return 2;
         }
-        if (VanillaModelHitboxRegistry.supports(entity)) {
-            return 3;
-        }
         return 0;
     }
 
-
-    private void prepareGenerated(LivingEntity entity, float partialTick, float bodyYaw) {
-        ModelColliderPart[] generated = VanillaModelHitboxRegistry.parts(entity);
-        partCount = Math.min(generated.length, MAX_PARTS);
-        float limbSwing = entity.walkAnimation.position(partialTick);
-        float limbAmount = Math.min(entity.walkAnimation.speed(partialTick), 1.0F);
-        float headYaw = Mth.wrapDegrees(Mth.rotLerp(partialTick, entity.yHeadRotO, entity.yHeadRot) - bodyYaw)
-                * Mth.DEG_TO_RAD;
-        float headPitch = Mth.lerp(partialTick, entity.xRotO, entity.getXRot()) * Mth.DEG_TO_RAD;
-        float age = entity.tickCount + partialTick;
-
-        for (int index = 0; index < partCount; index++) {
-            ModelColliderPart part = generated[index];
-            float xRot = 0.0F;
-            float yRot = 0.0F;
-            float zRot = 0.0F;
-            switch (part.bodyPart()) {
-                case HEAD -> {
-                    xRot = headPitch;
-                    yRot = headYaw;
-                }
-                case RIGHT_ARM ->
-                        xRot = Mth.cos(limbSwing * 0.6662F + (float) Math.PI) * limbAmount;
-                case LEFT_ARM -> xRot = Mth.cos(limbSwing * 0.6662F) * limbAmount;
-                case RIGHT_LEG -> xRot = Mth.cos(limbSwing * 0.6662F) * 1.4F * limbAmount;
-                case LEFT_LEG ->
-                        xRot = Mth.cos(limbSwing * 0.6662F + (float) Math.PI) * 1.4F * limbAmount;
-                case CHEST -> {
-                }
-            }
-            if (part.modelPartPath().contains("wing")) {
-                xRot = 0.0F;
-                zRot = Mth.cos(age * 0.9F) * 0.45F;
-                if (part.modelPartPath().contains("right")) {
-                    zRot = -zRot;
-                }
-            }
-            set(index, part, part.pivotX(), part.pivotY(), part.pivotZ(), xRot, yRot, zRot);
-        }
+    private static boolean supportsPlayerPose(Pose pose) {
+        return pose == Pose.STANDING || pose == Pose.CROUCHING;
     }
+
     private void preparePlayer(LivingEntity entity, float partialTick, float bodyYaw) {
         partCount = PLAYER_PARTS.length;
         float limbSwing = entity.walkAnimation.position(partialTick);

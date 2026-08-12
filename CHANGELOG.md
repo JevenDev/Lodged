@@ -4,7 +4,7 @@
 
 ### Added
 
-- Added model-accurate projectile collision for tracked arrows across the all living-entities. Hits use live animated model cuboids, respect shields and piercing, fall back to vanilla collision for unsupported models, and include configurable inflation plus F3 + B visualization
+- Added model-accurate projectile collision for tracked arrows against hand-matched player and spider models. Hits respect shields and piercing, unsupported entities and poses retain vanilla collision, and F3 + B visualizes the actual collision cache
 - Added horse-armor arrow lodging, rendering, durability effects, hover targeting, tooltips, outlines, and removal from the horse inventory, with optional "Ride On" (unreleased) compatibility
 - Added timed body-arrow removal from owned tamed mobs and ridden mounts in the world, with player-first targeting, plus body-arrow removal from mount inventory previews. Ownership, range, timing, success, particles, and bleeding are configurable
 - Added craftable bandages. Craft two from three string and one paper, holding Use bandage (default: V) finds one anywhere in the inventory, plays synchronized first/third-person wrapping animations for two seconds, and patches one bleeding wound
