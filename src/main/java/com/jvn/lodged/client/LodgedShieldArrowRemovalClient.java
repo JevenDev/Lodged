@@ -42,7 +42,6 @@ import net.neoforged.neoforge.common.ItemAbilities;
 import org.lwjgl.glfw.GLFW;
 
 public final class LodgedShieldArrowRemovalClient {
-    private static final int LOCAL_REMOVAL_GRACE_TICKS = 5;
     private static final float FIRST_PERSON_ITEM_DROP_TICKS = 8.0F;
     private static final float FIRST_PERSON_REACH_TICKS = 7.0F;
     private static final float FIRST_PERSON_GRIP_TICKS = 3.0F;
@@ -60,9 +59,7 @@ public final class LodgedShieldArrowRemovalClient {
             "key.categories.lodged");
 
     private static InteractionHand activeShieldHand;
-    private static int activeTicks;
     private static boolean activeArmorRemoval;
-    private static int activeArmorTicks;
     private static int activeTargetEntityId = -1;
 
     private LodgedShieldArrowRemovalClient() {
@@ -85,7 +82,6 @@ public final class LodgedShieldArrowRemovalClient {
         while (REMOVE_SHIELD_ARROW_KEY.consumeClick()) {
             if (activeShieldHand == null && canStart(player, minecraft)) {
                 activeShieldHand = player.getUsedItemHand();
-                activeTicks = 0;
                 ClientArrowState.setLocalShieldArrowRemoval(player.getId(), activeShieldHand, true);
                 ToucanNetwork.sendToServer(new ShieldArrowRemovalActionPayload(Action.START, activeShieldHand));
             } else if (!activeArmorRemoval && activeShieldHand == null) {
@@ -94,7 +90,6 @@ public final class LodgedShieldArrowRemovalClient {
                     continue;
                 }
                 activeArmorRemoval = true;
-                activeArmorTicks = 0;
                 activeTargetEntityId = target.targetEntityId();
                 ClientArrowState.setLocalArmorArrowRemoval(
                         player.getId(),
@@ -108,10 +103,9 @@ public final class LodgedShieldArrowRemovalClient {
         }
 
         if (activeShieldHand != null) {
-            activeTicks++;
             if (!ClientArrowState.shieldArrowRemoval(player).active()) {
                 clearShieldLocalState();
-            } else if (!canContinue(player, minecraft, activeShieldHand) || activeTicks > maxLocalShieldRemovalTicks()) {
+            } else if (!canContinue(player, minecraft, activeShieldHand)) {
                 ToucanNetwork.sendToServer(new ShieldArrowRemovalActionPayload(Action.CANCEL, activeShieldHand));
                 ClientArrowState.setLocalShieldArrowRemoval(player.getId(), activeShieldHand, false);
                 clearShieldLocalState();
@@ -119,10 +113,9 @@ public final class LodgedShieldArrowRemovalClient {
         }
 
         if (activeArmorRemoval) {
-            activeArmorTicks++;
             if (!ClientArrowState.armorArrowRemoval(player).active()) {
                 clearArmorLocalState();
-            } else if (!canContinueInWorldRemoval(player, minecraft) || activeArmorTicks > maxLocalInWorldRemovalTicks()) {
+            } else if (!canContinueInWorldRemoval(player, minecraft)) {
                 ToucanNetwork.sendToServer(new ArmorArrowRemovalActionPayload(ArmorArrowRemovalActionPayload.Action.CANCEL, activeTargetEntityId));
                 ClientArrowState.setLocalArmorArrowRemoval(
                         player.getId(),
@@ -381,18 +374,6 @@ public final class LodgedShieldArrowRemovalClient {
                 && minecraft.options.keyUse.isDown()
                 && player.isUsingItem()
                 && hasShieldArrows(player, player.getUsedItemHand());
-    }
-
-    private static int maxLocalShieldRemovalTicks() {
-        return LodgedConfig.shieldArrowRemovalMaxTicks() + LOCAL_REMOVAL_GRACE_TICKS;
-    }
-
-    private static int maxLocalInWorldRemovalTicks() {
-        return Math.max(
-                LodgedConfig.tamedMobArrowRemovalMaxTicks(),
-                Math.max(
-                        LodgedConfig.armorArrowRemovalTicks(),
-                        LodgedConfig.inWorldBodyArrowRemovalMaxTicks())) + LOCAL_REMOVAL_GRACE_TICKS;
     }
 
     private static boolean canContinue(LocalPlayer player, Minecraft minecraft, InteractionHand shieldHand) {
@@ -673,13 +654,11 @@ public final class LodgedShieldArrowRemovalClient {
 
     private static void clearShieldLocalState() {
         activeShieldHand = null;
-        activeTicks = 0;
     }
 
     private static void clearArmorLocalState() {
         activeArmorRemoval = false;
         activeTargetEntityId = -1;
-        activeArmorTicks = 0;
     }
 
     public record ThirdPersonArmPose(HumanoidArm arm, float reach, float forwardOffset, float xRot, float yRot, float zRot) {

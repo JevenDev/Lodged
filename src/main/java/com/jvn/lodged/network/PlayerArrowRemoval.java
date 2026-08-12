@@ -146,7 +146,9 @@ public final class PlayerArrowRemoval {
             return;
         }
 
-        startShieldArrowRemoval(player, payload.hand());
+        if (!startShieldArrowRemoval(player, payload.hand())) {
+            rejectShieldArrowRemoval(player, payload.hand());
+        }
     }
 
     static void handleArmorAction(ArmorArrowRemovalActionPayload payload, IPayloadContext context) {
@@ -159,7 +161,9 @@ public final class PlayerArrowRemoval {
             return;
         }
 
-        startInWorldArrowRemoval(player, payload.targetEntityId());
+        if (!startInWorldArrowRemoval(player, payload.targetEntityId())) {
+            rejectArmorArrowRemoval(player);
+        }
     }
 
     public static void onEntityTick(EntityTickEvent.Post event) {
@@ -557,36 +561,52 @@ public final class PlayerArrowRemoval {
                         < LodgedArmorArrowStorage.readData(armor, player.registryAccess()).size();
     }
 
-    private static void startShieldArrowRemoval(ServerPlayer player, InteractionHand hand) {
-        if (SHIELD_ARROW_REMOVALS.containsKey(player.getUUID())
-                || ARMOR_ARROW_REMOVALS.containsKey(player.getUUID())) {
-            return;
+    private static boolean startShieldArrowRemoval(ServerPlayer player, InteractionHand hand) {
+        UUID playerUuid = player.getUUID();
+        ShieldArrowRemovalAttempt activeAttempt = SHIELD_ARROW_REMOVALS.get(playerUuid);
+        if (activeAttempt != null) {
+            syncShieldArrowRemoval(player, true, activeAttempt.hand());
+            return true;
+        }
+        if (ARMOR_ARROW_REMOVALS.containsKey(playerUuid)) {
+            return false;
         }
 
         ItemStack shield = player.getItemInHand(hand);
         if (!canAttemptHeldShieldRemoval(player, shield)) {
-            return;
+            return false;
         }
 
         List<LodgedShieldArrowData> arrows = LodgedShieldArrowStorage.readData(shield, player.registryAccess());
         if (arrows.isEmpty()) {
-            return;
+            return false;
         }
 
         int arrowIndex = priorityShieldArrowIndex(arrows);
         long gameTime = player.level().getGameTime();
         long completeTick = gameTime + shieldArrowRemovalTicks(player);
         SHIELD_ARROW_REMOVALS.put(
-                player.getUUID(),
+                playerUuid,
                 new ShieldArrowRemovalAttempt(hand, arrowIndex, completeTick, arrows.get(arrowIndex).visual()));
         syncShieldArrowRemoval(player, true, hand);
+        return true;
     }
 
-    private static void startInWorldArrowRemoval(ServerPlayer player, int targetEntityId) {
-        if (SHIELD_ARROW_REMOVALS.containsKey(player.getUUID())
-                || ARMOR_ARROW_REMOVALS.containsKey(player.getUUID())
-                || player.isUsingItem()) {
-            return;
+    private static boolean startInWorldArrowRemoval(ServerPlayer player, int targetEntityId) {
+        UUID playerUuid = player.getUUID();
+        ArmorArrowRemovalAttempt activeAttempt = ARMOR_ARROW_REMOVALS.get(playerUuid);
+        if (activeAttempt != null) {
+            syncArmorArrowRemoval(
+                    player,
+                    true,
+                    activeAttempt.target(),
+                    activeAttempt.slot(),
+                    activeAttempt.targetEntityId(),
+                    activeAttempt.visual());
+            return true;
+        }
+        if (SHIELD_ARROW_REMOVALS.containsKey(playerUuid) || player.isUsingItem()) {
+            return false;
         }
 
         InWorldArrowTarget target;
@@ -597,23 +617,23 @@ public final class PlayerArrowRemoval {
             }
         } else {
             if (priorityArmorArrow(player) != null || priorityBodyArrow(player) != null) {
-                return;
+                return false;
             }
             Entity entity = player.level().getEntity(targetEntityId);
             if (!(entity instanceof LivingEntity mob)
                     || !canAttemptTamedMobRemoval(player, mob, true)) {
-                return;
+                return false;
             }
             target = priorityMobArrow(player, mob);
         }
         if (target == null) {
-            return;
+            return false;
         }
 
         long gameTime = player.level().getGameTime();
         long completeTick = gameTime + inWorldRemovalTicks(player, target);
         ARMOR_ARROW_REMOVALS.put(
-                player.getUUID(),
+                playerUuid,
                 new ArmorArrowRemovalAttempt(
                         target.target(),
                         target.slot(),
@@ -622,6 +642,7 @@ public final class PlayerArrowRemoval {
                         completeTick,
                         target.visual()));
         syncArmorArrowRemoval(player, true, target.target(), target.slot(), target.targetEntityId(), target.visual());
+        return true;
     }
 
     private static void tickShieldArrowRemoval(ServerPlayer player) {
@@ -735,6 +756,24 @@ public final class PlayerArrowRemoval {
         ToucanNetwork.sendToPlayersTrackingEntityAndSelf(
                 player,
                 new SyncArmorArrowRemovalPayload(player.getId(), active, target, slot, targetEntityId, arrow));
+    }
+
+    private static void rejectShieldArrowRemoval(ServerPlayer player, InteractionHand hand) {
+        ToucanNetwork.sendToPlayer(
+                player,
+                new SyncShieldArrowRemovalPayload(player.getId(), false, hand));
+    }
+
+    private static void rejectArmorArrowRemoval(ServerPlayer player) {
+        ToucanNetwork.sendToPlayer(
+                player,
+                new SyncArmorArrowRemovalPayload(
+                        player.getId(),
+                        false,
+                        Target.ARMOR,
+                        EquipmentSlot.CHEST,
+                        -1,
+                        LodgedArrowVisual.DEFAULT));
     }
 
     private static boolean canAttemptHeldShieldRemoval(ServerPlayer player, ItemStack shield) {

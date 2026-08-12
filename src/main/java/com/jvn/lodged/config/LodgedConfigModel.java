@@ -1,5 +1,6 @@
 package com.jvn.lodged.config;
 
+import io.wispforest.owo.config.Option;
 import io.wispforest.owo.config.annotation.Config;
 import io.wispforest.owo.config.annotation.ExcludeFromScreen;
 import io.wispforest.owo.config.annotation.Modmenu;
@@ -7,6 +8,7 @@ import io.wispforest.owo.config.annotation.Nest;
 import io.wispforest.owo.config.annotation.PredicateConstraint;
 import io.wispforest.owo.config.annotation.RangeConstraint;
 import io.wispforest.owo.config.annotation.SectionHeader;
+import io.wispforest.owo.config.annotation.Sync;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.resources.ResourceLocation;
@@ -18,51 +20,63 @@ public class LodgedConfigModel {
     public int configVersion = 8;
 
     @Nest
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
     @SectionHeader("projectileCollision")
     public ProjectileCollision projectileCollision = new ProjectileCollision();
 
     @Nest
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
     @SectionHeader("arrowRecovery")
     public ArrowRecovery arrowRecovery = new ArrowRecovery();
 
     @Nest
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
     @SectionHeader("arrowBreakage")
     public ArrowBreakage arrowBreakage = new ArrowBreakage();
 
     @Nest
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
     @SectionHeader("playerArrowRemoval")
     public PlayerArrowRemoval playerArrowRemoval = new PlayerArrowRemoval();
 
     @Nest
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
     @SectionHeader("tamedMobArrowRemoval")
     public TamedMobArrowRemoval tamedMobArrowRemoval = new TamedMobArrowRemoval();
 
     @Nest
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
     @SectionHeader("arrowDepth")
     public ArrowDepth arrowDepth = new ArrowDepth();
 
     @Nest
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
     @SectionHeader("shieldArrows")
     public ShieldArrows shieldArrows = new ShieldArrows();
 
     @Nest
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
     @SectionHeader("armorArrows")
     public ArmorArrows armorArrows = new ArmorArrows();
 
     @Nest
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
     @SectionHeader("legShotSlowness")
     public LegShotSlowness legShotSlowness = new LegShotSlowness();
 
     @Nest
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
     @SectionHeader("bleedingRules")
     public BleedingRules bleedingRules = new BleedingRules();
 
     @Nest
+    @Sync(Option.SyncMode.OVERRIDE_CLIENT)
     @SectionHeader("bleedingEffect")
     public BleedingEffect bleedingEffect = new BleedingEffect();
 
     public static class ProjectileCollision {
         public boolean enableModelAccurateProjectileCollision = true;
+        @Sync(Option.SyncMode.NONE)
         public boolean showModelHitboxesInDebug = true;
 
         @RangeConstraint(min = 0.0D, max = 0.25D)
@@ -116,11 +130,15 @@ public class LodgedConfigModel {
 
     public static class PlayerArrowRemoval {
         public boolean enablePlayerArrowRemoval = true;
+        @Sync(Option.SyncMode.NONE)
         public boolean showInventoryTurnHint = true;
+        @Sync(Option.SyncMode.NONE)
         public boolean showInventoryTurnHintTooltip = true;
+        @Sync(Option.SyncMode.NONE)
         public boolean enableArrowRemovalAnimation = true;
 
         @RangeConstraint(min = 0.1D, max = 10.0D)
+        @Sync(Option.SyncMode.NONE)
         public double arrowRemovalAnimationSpeedMultiplier = 1.0D;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
@@ -324,12 +342,15 @@ public class LodgedConfigModel {
         public double deepLodgedBleedingDurationMultiplier = 1.25D;
 
         @RangeConstraint(min = 1, max = 5000)
+        @Sync(Option.SyncMode.NONE)
         public int shallowRemovalAnimationMs = 480;
 
         @RangeConstraint(min = 1, max = 5000)
+        @Sync(Option.SyncMode.NONE)
         public int lodgedRemovalAnimationMs = 620;
 
         @RangeConstraint(min = 1, max = 5000)
+        @Sync(Option.SyncMode.NONE)
         public int deepLodgedRemovalAnimationMs = 1000;
     }
 
@@ -352,12 +373,14 @@ public class LodgedConfigModel {
         @RangeConstraint(min = 0.0D, max = 1.0D)
         public double shieldArrowDurabilityDamageChance = 0.25D;
 
+        @Sync(Option.SyncMode.NONE)
         public boolean renderOwnShieldArrowsInFirstPerson = true;
     }
 
     public static class ArmorArrows {
         public boolean enableArmorArrowLodging = true;
         public boolean recoverMobArmorArrows = true;
+        @Sync(Option.SyncMode.NONE)
         public boolean renderArmorArrows = true;
         public boolean enableArmorArrowDurabilityPenalty = true;
 
@@ -480,26 +503,34 @@ public class LodgedConfigModel {
         @RangeConstraint(min = 0.0D, max = 20.0D)
         public double bleedingStrongDamage = 2.0D;
 
+        @Sync(Option.SyncMode.NONE)
         public boolean bleedingDripParticles = true;
 
+        @Sync(Option.SyncMode.NONE)
         public boolean simpleBloodCompatParticles = true;
 
         @RangeConstraint(min = 0.0D, max = 1.0D)
+        @Sync(Option.SyncMode.NONE)
         public double simpleBloodGroundDecalChance = 0.15D;
 
         @RangeConstraint(min = 0.0D, max = 8.0D)
+        @Sync(Option.SyncMode.NONE)
         public double simpleBloodGroundDecalScaleMultiplier = 1.5D;
 
         @RangeConstraint(min = 0.0D, max = 8.0D)
+        @Sync(Option.SyncMode.NONE)
         public double simpleBloodGroundDecalMinScale = 0.4D;
 
         @RangeConstraint(min = 0.0D, max = 8.0D)
+        @Sync(Option.SyncMode.NONE)
         public double simpleBloodGroundDecalMaxScale = 0.8D;
 
         @RangeConstraint(min = 0.0D, max = 4.0D)
+        @Sync(Option.SyncMode.NONE)
         public double simpleBloodGroundDecalRandomMinScale = 0.82D;
 
         @RangeConstraint(min = 0.0D, max = 4.0D)
+        @Sync(Option.SyncMode.NONE)
         public double simpleBloodGroundDecalRandomMaxScale = 1.18D;
 
         @RangeConstraint(min = 1, max = 1200)
