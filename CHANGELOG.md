@@ -22,6 +22,7 @@
 
 ### Fixed
 
+- Fixed pillager arrow drops replacing the full vanilla loot table; they now use an additive NeoForge loot modifier
 - Fixed piercing arrows duplicating recoverable lodged-arrow data across multiple targets
 - Fixed recovered arrow stacks retaining the intangible projectile marker, which could make returned arrows behave incorrectly
 
