@@ -4,8 +4,13 @@ import com.jvn.lodged.collision.ModelAccurateProjectileCollision;
 import com.jvn.lodged.collision.ModelColliderPart;
 import com.jvn.lodged.collision.ModelHitboxProjectileAccess;
 import com.jvn.lodged.world.LodgedArrowBodyPart;
+import com.jvn.lodged.world.LodgedArrowEvents;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import java.util.function.Predicate;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -14,6 +19,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(AbstractArrow.class)
@@ -36,6 +42,10 @@ public abstract class AbstractArrowMixin implements ModelHitboxProjectileAccess 
     private float lodged$modelHitDirectionY;
     @Unique
     private float lodged$modelHitDirectionZ = 1.0F;
+    @Unique
+    private LivingEntity lodged$resolvedHitTarget;
+    @Unique
+    private boolean lodged$resolvedHitAccepted;
 
     @Shadow
     protected abstract boolean canHitEntity(Entity target);
@@ -56,6 +66,49 @@ public abstract class AbstractArrowMixin implements ModelHitboxProjectileAccess 
         } catch (Throwable throwable) {
             lodged$clearModelHit();
             ModelAccurateProjectileCollision.disableAfterFailure(throwable);
+        }
+    }
+
+    @Inject(method = "onHitEntity", at = @At("HEAD"))
+    private void lodged$beginResolvedEntityHit(
+            EntityHitResult hitResult,
+            CallbackInfo callbackInfo) {
+        lodged$resolvedHitTarget = null;
+        lodged$resolvedHitAccepted = false;
+    }
+
+    @WrapOperation(
+            method = "onHitEntity",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/Entity;hurt"
+                            + "(Lnet/minecraft/world/damagesource/DamageSource;F)Z"))
+    private boolean lodged$captureResolvedEntityHit(
+            Entity target,
+            DamageSource damageSource,
+            float damage,
+            Operation<Boolean> original) {
+        boolean accepted = original.call(target, damageSource, damage);
+        if (target instanceof LivingEntity livingTarget) {
+            lodged$resolvedHitTarget = livingTarget;
+            lodged$resolvedHitAccepted = accepted;
+        }
+        return accepted;
+    }
+
+    @Inject(method = "onHitEntity", at = @At("RETURN"))
+    private void lodged$finishResolvedEntityHit(
+            EntityHitResult hitResult,
+            CallbackInfo callbackInfo) {
+        LivingEntity target = lodged$resolvedHitTarget;
+        boolean accepted = lodged$resolvedHitAccepted;
+        lodged$resolvedHitTarget = null;
+        lodged$resolvedHitAccepted = false;
+        if (target != null) {
+            LodgedArrowEvents.onResolvedEntityHit(
+                    (AbstractArrow) (Object) this,
+                    target,
+                    accepted);
         }
     }
 

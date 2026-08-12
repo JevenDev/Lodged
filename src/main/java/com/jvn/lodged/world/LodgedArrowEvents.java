@@ -7,7 +7,6 @@ import com.jvn.lodged.effect.LodgedTags;
 import com.jvn.lodged.network.LodgedNetwork;
 import com.jvn.lodged.network.PlayerArrowRemoval;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -46,7 +45,6 @@ import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.neoforge.event.entity.ProjectileImpactEvent;
 import net.neoforged.neoforge.event.entity.living.ArmorHurtEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
-import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingShieldBlockEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
@@ -57,6 +55,7 @@ public final class LodgedArrowEvents {
     private static final long BROKEN_ARROW_IMPACT_EXPIRY_TICKS = 20L;
     private static final long SHIELD_ARROW_IMPACT_EXPIRY_TICKS = 20L;
     private static final long ARMOR_ARROW_IMPACT_EXPIRY_TICKS = 20L;
+    private static final long BODY_ARROW_IMPACT_EXPIRY_TICKS = 20L;
     private static final long BLOCK_ARROW_BREAK_DELAY_TICKS = 4L;
     private static final long BLOCK_ARROW_BREAK_EXPIRY_TICKS = 40L;
     private static final int MAX_DIZZINESS_AMPLIFIER = 4;
@@ -64,7 +63,7 @@ public final class LodgedArrowEvents {
     private static final Map<UUID, BrokenArrowImpact> BROKEN_ARROW_IMPACTS = new HashMap<>();
     private static final Map<UUID, ShieldArrowImpact> SHIELD_ARROW_IMPACTS = new HashMap<>();
     private static final Map<UUID, ArmorArrowImpact> ARMOR_ARROW_IMPACTS = new HashMap<>();
-    private static final Map<UUID, Integer> PENDING_ARROW_COUNT_REMOVALS = new HashMap<>();
+    private static final Map<UUID, BodyArrowImpact> BODY_ARROW_IMPACTS = new HashMap<>();
     private static final Map<UUID, PendingBlockArrowBreak> PENDING_BLOCK_ARROW_BREAKS = new HashMap<>();
 
     private LodgedArrowEvents() {
@@ -102,6 +101,8 @@ public final class LodgedArrowEvents {
             return;
         }
 
+        clearPendingEntityImpacts(arrow.getUUID());
+
         boolean canLodge = canLodge(arrow);
         if (!canLodge) {
             if (wouldShieldBlock(target, arrow)) {
@@ -137,7 +138,6 @@ public final class LodgedArrowEvents {
         }
 
         visual = visual.withDepth(arrowDepth(target, arrow, visual));
-        applyLegShotSlowness(target, visual);
         if (LodgedConfig.enableArrowBreakOnEntityHit()
                 && breaksOnImpact(arrow, fromPlayer, fromMob, infinityGenerated, creativeGenerated)) {
             rememberBrokenArrowImpact(arrow, target, visual);
@@ -164,19 +164,68 @@ public final class LodgedArrowEvents {
             return;
         }
 
-        LodgedArrowStorage.add(target, new LodgedArrowData(
-                projectileStack.stack(),
-                projectileStack.recoverable(),
-                causesBleeding(arrow),
-                fromPlayer,
-                infinityGenerated,
-                creativeGenerated,
-                visual));
+        rememberBodyArrowImpact(
+                arrow,
+                target,
+                new LodgedArrowData(
+                        projectileStack.stack(),
+                        projectileStack.recoverable(),
+                        causesBleeding(arrow),
+                        fromPlayer,
+                        infinityGenerated,
+                        creativeGenerated,
+                        visual));
+    }
 
-        LodgedNetwork.syncEntityArrows(target);
-        if (target instanceof ServerPlayer player) {
-            LodgedNetwork.syncPlayerArrows(player);
+    public static void onResolvedEntityHit(
+            AbstractArrow arrow,
+            LivingEntity target,
+            boolean damageAccepted) {
+        if (arrow.level().isClientSide()) {
+            return;
         }
+
+        UUID arrowUuid = arrow.getUUID();
+        UUID targetUuid = target.getUUID();
+        ArmorArrowImpact armorImpact = ArrowImpactConfirmation.consume(
+                ARMOR_ARROW_IMPACTS,
+                arrowUuid,
+                targetUuid,
+                damageAccepted,
+                ArmorArrowImpact::targetUuid);
+        BrokenArrowImpact brokenImpact = ArrowImpactConfirmation.consume(
+                BROKEN_ARROW_IMPACTS,
+                arrowUuid,
+                targetUuid,
+                damageAccepted,
+                BrokenArrowImpact::targetUuid);
+        BodyArrowImpact bodyImpact = ArrowImpactConfirmation.consume(
+                BODY_ARROW_IMPACTS,
+                arrowUuid,
+                targetUuid,
+                damageAccepted,
+                BodyArrowImpact::targetUuid);
+
+        if (armorImpact != null) {
+            processArmorArrowImpact(target, arrow, armorImpact);
+            return;
+        }
+
+        if (brokenImpact != null) {
+            processBrokenArrowImpact(target, arrow, brokenImpact);
+            return;
+        }
+
+        if (bodyImpact == null
+                || !ArrowImpactConfirmation.hasVanillaBodyArrow(
+                        arrow.isRemoved(),
+                        arrow.getPierceLevel())) {
+            return;
+        }
+
+        applyLegShotSlowness(target, bodyImpact.arrowData().visual());
+        LodgedArrowStorage.add(target, bodyImpact.arrowData());
+        syncTrackedArrows(target);
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -253,36 +302,6 @@ public final class LodgedArrowEvents {
         }
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onLivingDamage(LivingDamageEvent.Post event) {
-        LivingEntity target = event.getEntity();
-        if (target.level().isClientSide()
-                || event.getNewDamage() <= 0.0F
-                || !(event.getSource().getDirectEntity() instanceof AbstractArrow arrow)) {
-            return;
-        }
-
-        ArmorArrowImpact armorImpact = ARMOR_ARROW_IMPACTS.remove(arrow.getUUID());
-        if (armorImpact != null && target.getUUID().equals(armorImpact.targetUuid())) {
-            processArmorArrowImpact(target, arrow, armorImpact);
-            return;
-        }
-
-        BrokenArrowImpact brokenImpact = BROKEN_ARROW_IMPACTS.remove(arrow.getUUID());
-        if (brokenImpact == null || !target.getUUID().equals(brokenImpact.targetUuid())) {
-            return;
-        }
-
-        if (brokenImpact.causesBleeding()) {
-            BleedingEvents.tryApplyFromBrokenArrowImpact(target, brokenImpact.visual());
-        }
-        playArrowBreakSound(arrow);
-        discardArrow(arrow);
-        if (arrow.getPierceLevel() <= 0) {
-            PENDING_ARROW_COUNT_REMOVALS.merge(target.getUUID(), 1, Integer::sum);
-        }
-    }
-
     @SubscribeEvent
     public static void onArmorHurt(ArmorHurtEvent event) {
         LivingEntity entity = event.getEntity();
@@ -320,22 +339,14 @@ public final class LodgedArrowEvents {
             return;
         }
 
-        if (!(entity instanceof LivingEntity target)) {
-            return;
-        }
-
-        if (target instanceof ServerPlayer player) {
-            processPendingArrowCountRemovals(player);
+        if (entity instanceof ServerPlayer player) {
             tickPlayerDizziness(player);
-        } else {
-            processPendingArrowCountRemovals(target);
         }
     }
 
     @SubscribeEvent
     public static void onLevelTick(LevelTickEvent.Post event) {
         if (event.getLevel() instanceof ServerLevel level) {
-            processPendingArmorArrowImpacts(level);
             removeExpiredImpacts(level);
         }
     }
@@ -347,7 +358,6 @@ public final class LodgedArrowEvents {
         }
 
         LivingEntity entity = event.getEntity();
-        PENDING_ARROW_COUNT_REMOVALS.remove(entity.getUUID());
         List<LodgedArrowData> lodgedArrows = LodgedArrowStorage.removeAll(entity);
         LodgedNetwork.syncEntityArrows(entity);
         if (entity instanceof ServerPlayer player) {
@@ -408,7 +418,7 @@ public final class LodgedArrowEvents {
         BROKEN_ARROW_IMPACTS.clear();
         SHIELD_ARROW_IMPACTS.clear();
         ARMOR_ARROW_IMPACTS.clear();
-        PENDING_ARROW_COUNT_REMOVALS.clear();
+        BODY_ARROW_IMPACTS.clear();
         PENDING_BLOCK_ARROW_BREAKS.clear();
     }
 
@@ -683,8 +693,9 @@ public final class LodgedArrowEvents {
             playArrowBreakSound(target, arrow);
             maybeDamageArmor(target, armor, impact.slot(), LodgedConfig.armorArrowBreakDurabilityDamageChance());
             target.setItemSlot(impact.slot(), armor);
-            removeVanillaBodyArrowForArmorImpact(target, impact);
+            removeVanillaBodyArrow(target, arrow, impact.pierceLevel());
             discardArrow(arrow);
+            syncTrackedArrows(target);
             return;
         }
 
@@ -703,45 +714,45 @@ public final class LodgedArrowEvents {
                 maybeDamageArmor(target, armor, impact.slot(), LodgedConfig.armorArrowRemovalDurabilityDamageChance());
             }
             target.setItemSlot(impact.slot(), armor);
+            removeVanillaBodyArrow(target, arrow, impact.pierceLevel());
+            discardArrow(arrow);
             if (target instanceof ServerPlayer player) {
                 player.containerMenu.broadcastChanges();
             }
-            LodgedNetwork.syncEntityArrows(target);
-            if (target instanceof ServerPlayer player) {
-                LodgedNetwork.syncPlayerArrows(player);
-            }
-            removeVanillaBodyArrowForArmorImpact(target, impact);
-            discardArrow(arrow);
+            syncTrackedArrows(target);
         }
     }
 
-    private static void processPendingArmorArrowImpacts(ServerLevel level) {
-        Iterator<Map.Entry<UUID, ArmorArrowImpact>> iterator = ARMOR_ARROW_IMPACTS.entrySet().iterator();
-        long gameTime = level.getGameTime();
-        while (iterator.hasNext()) {
-            Map.Entry<UUID, ArmorArrowImpact> entry = iterator.next();
-            ArmorArrowImpact impact = entry.getValue();
-            if (!impact.dimension().equals(level.dimension()) || gameTime <= impact.gameTime()) {
-                continue;
-            }
-
-            iterator.remove();
-            Entity entity = level.getEntity(impact.targetUuid());
-            if (entity instanceof LivingEntity target) {
-                processArmorArrowImpact(target, null, impact);
-            }
+    private static void processBrokenArrowImpact(
+            LivingEntity target,
+            AbstractArrow arrow,
+            BrokenArrowImpact impact) {
+        if (impact.causesBleeding()) {
+            BleedingEvents.tryApplyFromBrokenArrowImpact(target, impact.visual());
         }
+        playArrowBreakSound(arrow);
+        removeVanillaBodyArrow(target, arrow, arrow.getPierceLevel());
+        discardArrow(arrow);
+        syncTrackedArrows(target);
     }
 
-    private static void removeVanillaBodyArrowForArmorImpact(LivingEntity target, ArmorArrowImpact impact) {
-        if (impact.pierceLevel() <= 0) {
-            PENDING_ARROW_COUNT_REMOVALS.merge(target.getUUID(), 1, Integer::sum);
+    private static void removeVanillaBodyArrow(
+            LivingEntity target,
+            AbstractArrow arrow,
+            int pierceLevel) {
+        if (arrow.isRemoved() && pierceLevel <= 0) {
+            target.setArrowCount(Math.max(0, target.getArrowCount() - 1));
         }
     }
 
     private static void discardArrow(AbstractArrow arrow) {
-        if (arrow != null) {
-            arrow.discard();
+        arrow.discard();
+    }
+
+    private static void syncTrackedArrows(LivingEntity target) {
+        LodgedNetwork.syncEntityArrows(target);
+        if (target instanceof ServerPlayer player) {
+            LodgedNetwork.syncPlayerArrows(player);
         }
     }
 
@@ -807,6 +818,26 @@ public final class LodgedArrowEvents {
                         pierceLevel,
                         arrow.level().dimension(),
                         arrow.level().getGameTime()));
+    }
+
+    private static void rememberBodyArrowImpact(
+            AbstractArrow arrow,
+            LivingEntity target,
+            LodgedArrowData arrowData) {
+        BODY_ARROW_IMPACTS.put(
+                arrow.getUUID(),
+                new BodyArrowImpact(
+                        target.getUUID(),
+                        arrowData,
+                        arrow.level().dimension(),
+                        arrow.level().getGameTime()));
+    }
+
+    private static void clearPendingEntityImpacts(UUID arrowUuid) {
+        BROKEN_ARROW_IMPACTS.remove(arrowUuid);
+        SHIELD_ARROW_IMPACTS.remove(arrowUuid);
+        ARMOR_ARROW_IMPACTS.remove(arrowUuid);
+        BODY_ARROW_IMPACTS.remove(arrowUuid);
     }
 
     private static void rememberPendingBlockArrowBreak(AbstractArrow arrow) {
@@ -879,22 +910,12 @@ public final class LodgedArrowEvents {
         ARMOR_ARROW_IMPACTS.entrySet().removeIf(entry ->
                 entry.getValue().dimension().equals(level.dimension())
                         && gameTime - entry.getValue().gameTime() > ARMOR_ARROW_IMPACT_EXPIRY_TICKS);
+        BODY_ARROW_IMPACTS.entrySet().removeIf(entry ->
+                entry.getValue().dimension().equals(level.dimension())
+                        && gameTime - entry.getValue().gameTime() > BODY_ARROW_IMPACT_EXPIRY_TICKS);
         PENDING_BLOCK_ARROW_BREAKS.entrySet().removeIf(entry ->
                 entry.getValue().dimension().equals(level.dimension())
                         && gameTime - entry.getValue().breakTime() > BLOCK_ARROW_BREAK_EXPIRY_TICKS);
-    }
-
-    private static void processPendingArrowCountRemovals(LivingEntity target) {
-        Integer removals = PENDING_ARROW_COUNT_REMOVALS.remove(target.getUUID());
-        if (removals == null || removals <= 0) {
-            return;
-        }
-
-        target.setArrowCount(Math.max(0, target.getArrowCount() - removals));
-        LodgedNetwork.syncEntityArrows(target);
-        if (target instanceof ServerPlayer player) {
-            LodgedNetwork.syncPlayerArrows(player);
-        }
     }
 
     private static void tickPlayerDizziness(ServerPlayer player) {
@@ -1117,6 +1138,13 @@ public final class LodgedArrowEvents {
             stack = stack.copyWithCount(1);
             visual = visual.withStack(stack);
         }
+    }
+
+    private record BodyArrowImpact(
+            UUID targetUuid,
+            LodgedArrowData arrowData,
+            ResourceKey<Level> dimension,
+            long gameTime) {
     }
 
     private record PendingBlockArrowBreak(
