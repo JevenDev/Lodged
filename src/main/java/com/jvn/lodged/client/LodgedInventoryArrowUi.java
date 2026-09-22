@@ -1,6 +1,7 @@
 package com.jvn.lodged.client;
 
 import com.jvn.lodged.Lodged;
+import com.jvn.lodged.compat.PlayerInventoryMenus;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.effect.BloodColors;
 import com.jvn.lodged.effect.LodgedEffects;
@@ -27,12 +28,15 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.OptionalInt;
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
@@ -46,7 +50,6 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
@@ -262,7 +265,9 @@ public final class LodgedInventoryArrowUi {
 
     @SubscribeEvent
     public static void onScreenRenderPre(ScreenEvent.Render.Pre event) {
-        if (!LodgedConfig.enablePlayerArrowRemoval() || !(event.getScreen() instanceof InventoryScreen screen)) {
+        if (!LodgedConfig.enablePlayerArrowRemoval()
+                || !(event.getScreen() instanceof AbstractContainerScreen<?> screen)
+                || !isPlayerInventoryScreen(screen)) {
             clearHoveredArrows();
             return;
         }
@@ -284,7 +289,7 @@ public final class LodgedInventoryArrowUi {
 
     @SubscribeEvent
     public static void onScreenRenderPost(ScreenEvent.Render.Post event) {
-        if (!(event.getScreen() instanceof InventoryScreen screen)) {
+        if (!(event.getScreen() instanceof AbstractContainerScreen<?> screen) || !isPlayerInventoryScreen(screen)) {
             return;
         }
 
@@ -319,7 +324,9 @@ public final class LodgedInventoryArrowUi {
 
     @SubscribeEvent
     public static void onMouseClicked(ScreenEvent.MouseButtonPressed.Pre event) {
-        if (!LodgedConfig.enablePlayerArrowRemoval() || !(event.getScreen() instanceof InventoryScreen screen)) {
+        if (!LodgedConfig.enablePlayerArrowRemoval()
+                || !(event.getScreen() instanceof AbstractContainerScreen<?> screen)
+                || !isPlayerInventoryScreen(screen)) {
             return;
         }
 
@@ -362,7 +369,7 @@ public final class LodgedInventoryArrowUi {
 
     @SubscribeEvent
     public static void onMouseDragged(ScreenEvent.MouseDragged.Pre event) {
-        if (!draggingPreview || event.getMouseButton() != 0 || !(event.getScreen() instanceof InventoryScreen)) {
+        if (!draggingPreview || event.getMouseButton() != 0 || !isPlayerInventoryScreen(event.getScreen())) {
             return;
         }
 
@@ -372,7 +379,9 @@ public final class LodgedInventoryArrowUi {
 
     @SubscribeEvent
     public static void onMouseScrolled(ScreenEvent.MouseScrolled.Pre event) {
-        if (!LodgedConfig.enablePlayerArrowRemoval() || !(event.getScreen() instanceof InventoryScreen screen)) {
+        if (!LodgedConfig.enablePlayerArrowRemoval()
+                || !(event.getScreen() instanceof AbstractContainerScreen<?> screen)
+                || !isPlayerInventoryScreen(screen)) {
             return;
         }
 
@@ -403,7 +412,7 @@ public final class LodgedInventoryArrowUi {
 
     @SubscribeEvent
     public static void onScreenClosing(ScreenEvent.Closing event) {
-        if (event.getScreen() instanceof InventoryScreen) {
+        if (isPlayerInventoryScreen(event.getScreen())) {
             resetPreviewRotation();
         }
     }
@@ -755,7 +764,7 @@ public final class LodgedInventoryArrowUi {
 
     private static void renderRemovalAnimations(
             GuiGraphics guiGraphics,
-            InventoryScreen screen,
+            AbstractContainerScreen<?> screen,
             LocalPlayer player,
             int mouseX,
             int mouseY) {
@@ -783,7 +792,7 @@ public final class LodgedInventoryArrowUi {
 
     private static void renderSuccessfulRemovalAnimation(
             GuiGraphics guiGraphics,
-            InventoryScreen screen,
+            AbstractContainerScreen<?> screen,
             LocalPlayer player,
             ArrowRemovalResultPayload payload,
             int mouseX,
@@ -807,7 +816,7 @@ public final class LodgedInventoryArrowUi {
 
     private static void renderFailedRemovalAnimation(
             GuiGraphics guiGraphics,
-            InventoryScreen screen,
+            AbstractContainerScreen<?> screen,
             LocalPlayer player,
             ArrowRemovalResultPayload payload,
             int mouseX,
@@ -843,7 +852,7 @@ public final class LodgedInventoryArrowUi {
     }
 
     private static Vector3f removalAnimationSource(
-            InventoryScreen screen,
+            AbstractContainerScreen<?> screen,
             LocalPlayer player,
             ArrowRemovalResultPayload payload,
             int mouseX,
@@ -853,7 +862,7 @@ public final class LodgedInventoryArrowUi {
                 : projectArrowToScreen(screen, player, payload.arrow(), mouseX, mouseY);
     }
 
-    private static Vector3f removalAnimationDestination(InventoryScreen screen, ArrowRemovalResultPayload payload) {
+    private static Vector3f removalAnimationDestination(AbstractContainerScreen<?> screen, ArrowRemovalResultPayload payload) {
         Slot slot = inventorySlot(screen, payload.inventorySlot());
         if (slot != null) {
             return new Vector3f(
@@ -865,28 +874,16 @@ public final class LodgedInventoryArrowUi {
         return new Vector3f(screen.getGuiLeft() + 150.0F, screen.getGuiTop() + 71.0F, 0.0F);
     }
 
-    private static Slot inventorySlot(InventoryScreen screen, int inventorySlot) {
-        int menuSlot = menuSlotForInventorySlot(inventorySlot);
-        if (menuSlot < 0 || menuSlot >= screen.getMenu().slots.size()) {
+    private static Slot inventorySlot(AbstractContainerScreen<?> screen, int inventorySlot) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || inventorySlot < 0) {
             return null;
         }
-        return screen.getMenu().slots.get(menuSlot);
+        OptionalInt menuSlot = screen.getMenu().findSlot(player.getInventory(), inventorySlot);
+        return menuSlot.isPresent() ? screen.getMenu().getSlot(menuSlot.getAsInt()) : null;
     }
 
-    private static int menuSlotForInventorySlot(int inventorySlot) {
-        if (inventorySlot >= 0 && inventorySlot < 9) {
-            return InventoryMenu.USE_ROW_SLOT_START + inventorySlot;
-        }
-        if (inventorySlot >= 9 && inventorySlot < 36) {
-            return InventoryMenu.INV_SLOT_START + (inventorySlot - 9);
-        }
-        if (inventorySlot == 40) {
-            return InventoryMenu.SHIELD_SLOT;
-        }
-        return -1;
-    }
-
-    private static void renderRemovalSubtitle(GuiGraphics guiGraphics, InventoryScreen screen) {
+    private static void renderRemovalSubtitle(GuiGraphics guiGraphics, AbstractContainerScreen<?> screen) {
         if (removalSubtitle == null) {
             return;
         }
@@ -964,7 +961,7 @@ public final class LodgedInventoryArrowUi {
         entity.yHeadRot = previousHeadYaw;
     }
 
-    private static ArrowHitZone findHoveredZone(InventoryScreen screen, LocalPlayer player, double mouseX, double mouseY) {
+    private static ArrowHitZone findHoveredZone(AbstractContainerScreen<?> screen, LocalPlayer player, double mouseX, double mouseY) {
         List<LodgedArrowVisual> arrows = ClientArrowState.removableArrows();
         int arrowCount = Math.min(arrows.size(), ClientArrowState.syncedArrowCount());
         arrowCount = Math.min(arrowCount, LodgedConfig.maxRemovablePlayerArrows());
@@ -1018,7 +1015,7 @@ public final class LodgedInventoryArrowUi {
     }
 
     private static ArrowHitZone zoneFor(
-            InventoryScreen screen,
+            AbstractContainerScreen<?> screen,
             LocalPlayer player,
             LodgedArrowVisual arrow,
             int index,
@@ -1036,7 +1033,7 @@ public final class LodgedInventoryArrowUi {
     }
 
     private static ShieldZoneResult findShieldHoveredZone(
-            InventoryScreen screen,
+            AbstractContainerScreen<?> screen,
             LocalPlayer player,
             ItemStack shield,
             InteractionHand hand,
@@ -1070,7 +1067,7 @@ public final class LodgedInventoryArrowUi {
     }
 
     private static ShieldZoneResult findArmorHoveredZone(
-            InventoryScreen screen,
+            AbstractContainerScreen<?> screen,
             LocalPlayer player,
             double mouseX,
             double mouseY,
@@ -1105,7 +1102,7 @@ public final class LodgedInventoryArrowUi {
     }
 
     private static Vector3f projectArrowToScreen(
-            InventoryScreen screen,
+            AbstractContainerScreen<?> screen,
             LocalPlayer player,
             LodgedArrowVisual arrow,
             double mouseX,
@@ -1119,7 +1116,7 @@ public final class LodgedInventoryArrowUi {
     }
 
     private static Vector3f projectShieldArrowToScreen(
-            InventoryScreen screen,
+            AbstractContainerScreen<?> screen,
             LocalPlayer player,
             LodgedArrowVisual arrow,
             InteractionHand hand,
@@ -1381,7 +1378,7 @@ public final class LodgedInventoryArrowUi {
         return -currentPreviewPitchRadians(centerY, mouseY);
     }
 
-    private static boolean isOnRenderedPlayerModel(InventoryScreen screen, LocalPlayer player, double mouseX, double mouseY) {
+    private static boolean isOnRenderedPlayerModel(AbstractContainerScreen<?> screen, LocalPlayer player, double mouseX, double mouseY) {
         int left = screen.getGuiLeft();
         int top = screen.getGuiTop();
         float centerX = left + ((MODEL_LEFT + MODEL_RIGHT) / 2.0F);
@@ -1394,7 +1391,7 @@ public final class LodgedInventoryArrowUi {
         return false;
     }
 
-    private static boolean isInPlayerPreviewArea(InventoryScreen screen, double mouseX, double mouseY) {
+    private static boolean isInPlayerPreviewArea(AbstractContainerScreen<?> screen, double mouseX, double mouseY) {
         int left = screen.getGuiLeft();
         int top = screen.getGuiTop();
         return mouseX >= left + MODEL_LEFT
@@ -1403,7 +1400,13 @@ public final class LodgedInventoryArrowUi {
                 && mouseY < top + MODEL_BOTTOM;
     }
 
-    private static boolean isMouseOverScreenWidget(InventoryScreen screen, double mouseX, double mouseY) {
+    private static boolean isPlayerInventoryScreen(Screen screen) {
+        return screen instanceof InventoryScreen
+                || (screen instanceof AbstractContainerScreen<?> containerScreen
+                        && PlayerInventoryMenus.isModularBackpack(containerScreen.getMenu()));
+    }
+
+    private static boolean isMouseOverScreenWidget(AbstractContainerScreen<?> screen, double mouseX, double mouseY) {
         for (GuiEventListener child : screen.children()) {
             if (child.isMouseOver(mouseX, mouseY)) {
                 return true;
@@ -1412,7 +1415,7 @@ public final class LodgedInventoryArrowUi {
         return false;
     }
 
-    private static boolean isInInventoryTurnHint(InventoryScreen screen, double mouseX, double mouseY) {
+    private static boolean isInInventoryTurnHint(AbstractContainerScreen<?> screen, double mouseX, double mouseY) {
         return isInInventoryTurnHint(
                 screen.getGuiLeft() + MODEL_LEFT,
                 screen.getGuiLeft() + MODEL_RIGHT,

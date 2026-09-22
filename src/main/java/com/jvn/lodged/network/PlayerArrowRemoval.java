@@ -1,5 +1,6 @@
 package com.jvn.lodged.network;
 
+import com.jvn.lodged.compat.PlayerInventoryMenus;
 import com.jvn.lodged.config.LodgedConfig;
 import com.jvn.lodged.effect.BleedingEvents;
 import com.jvn.lodged.effect.LodgedDamageTypes;
@@ -47,7 +48,6 @@ import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.HorseInventoryMenu;
-import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
@@ -512,7 +512,9 @@ public final class PlayerArrowRemoval {
             return false;
         }
 
-        if (LodgedConfig.requireInventoryScreenForRemoval() && !(player.containerMenu instanceof InventoryMenu)) {
+        if (LodgedConfig.requireInventoryScreenForRemoval()
+                && (!PlayerInventoryMenus.supportsArrowRemoval(player.containerMenu)
+                        || !player.containerMenu.stillValid(player))) {
             return false;
         }
 

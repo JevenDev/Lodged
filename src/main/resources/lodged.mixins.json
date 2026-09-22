@@ -19,6 +19,7 @@
     "client.LevelRendererAccessor",
     "client.LivingEntityRendererMixin",
     "client.MinecraftBandageUseMixin",
+    "client.ModularBackpackScreenMixin",
     "client.StuckInBodyLayerMixin"
   ],
   "injectors": {
