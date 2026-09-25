@@ -8,6 +8,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.AbstractArrow;
 import org.jetbrains.annotations.Nullable;
 
 public final class LodgedArrowStorage {
@@ -83,6 +84,15 @@ public final class LodgedArrowStorage {
         writeAll(entity, arrows);
         reconcileRemovedArrows(entity, 1, arrows.size());
         return removedArrow;
+    }
+
+    static void removeVanillaBodyArrow(
+            LivingEntity target,
+            AbstractArrow arrow,
+            int pierceLevel) {
+        if (arrow.isRemoved() && pierceLevel <= 0) {
+            target.setArrowCount(Math.max(0, target.getArrowCount() - 1));
+        }
     }
 
     private static void reconcileRemovedArrows(LivingEntity entity, int removedArrows, int storedArrows) {
