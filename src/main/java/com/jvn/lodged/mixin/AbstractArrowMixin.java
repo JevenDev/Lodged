@@ -3,6 +3,8 @@ package com.jvn.lodged.mixin;
 import com.jvn.lodged.collision.ModelAccurateProjectileCollision;
 import com.jvn.lodged.collision.ModelColliderPart;
 import com.jvn.lodged.collision.ModelHitboxProjectileAccess;
+import com.jvn.lodged.world.ArrowDamageAccess;
+import com.jvn.lodged.world.ArrowDamageConfirmation;
 import com.jvn.lodged.world.LodgedArrowBodyPart;
 import com.jvn.lodged.world.LodgedArrowEvents;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -23,7 +25,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(AbstractArrow.class)
-public abstract class AbstractArrowMixin implements ModelHitboxProjectileAccess {
+public abstract class AbstractArrowMixin implements ModelHitboxProjectileAccess, ArrowDamageAccess {
     @Unique
     private int lodged$modelHitEntityId = Integer.MIN_VALUE;
     @Unique
@@ -46,6 +48,8 @@ public abstract class AbstractArrowMixin implements ModelHitboxProjectileAccess 
     private LivingEntity lodged$resolvedHitTarget;
     @Unique
     private boolean lodged$resolvedHitAccepted;
+    @Unique
+    private ArrowDamageConfirmation lodged$damageConfirmation;
 
     @Shadow
     protected abstract boolean canHitEntity(Entity target);
@@ -75,6 +79,7 @@ public abstract class AbstractArrowMixin implements ModelHitboxProjectileAccess 
             CallbackInfo callbackInfo) {
         lodged$resolvedHitTarget = null;
         lodged$resolvedHitAccepted = false;
+        lodged$damageConfirmation = null;
     }
 
     @WrapOperation(
@@ -88,6 +93,9 @@ public abstract class AbstractArrowMixin implements ModelHitboxProjectileAccess 
             DamageSource damageSource,
             float damage,
             Operation<Boolean> original) {
+        if (target instanceof LivingEntity livingTarget) {
+            lodged$damageConfirmation = new ArrowDamageConfirmation(livingTarget.getUUID());
+        }
         boolean accepted = original.call(target, damageSource, damage);
         if (target instanceof LivingEntity livingTarget) {
             lodged$resolvedHitTarget = livingTarget;
@@ -96,14 +104,39 @@ public abstract class AbstractArrowMixin implements ModelHitboxProjectileAccess 
         return accepted;
     }
 
+    @WrapOperation(
+            method = "onHitEntity",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/LivingEntity;setArrowCount(I)V"))
+    private void lodged$skipRejectedBodyArrow(LivingEntity target, int count, Operation<Void> original) {
+        AbstractArrow arrow = (AbstractArrow) (Object) this;
+        if (!LodgedArrowEvents.isSupportedArrow(arrow) || lodged$hasConfirmedDamage()) {
+            original.call(target, count);
+        }
+    }
+
+    @Unique
+    private boolean lodged$hasConfirmedDamage() {
+        return lodged$resolvedHitAccepted
+                && lodged$damageConfirmation != null
+                && lodged$damageConfirmation.isConfirmed();
+    }
+
+    @Override
+    public ArrowDamageConfirmation lodged$damageConfirmation() {
+        return lodged$damageConfirmation;
+    }
+
     @Inject(method = "onHitEntity", at = @At("RETURN"))
     private void lodged$finishResolvedEntityHit(
             EntityHitResult hitResult,
             CallbackInfo callbackInfo) {
         LivingEntity target = lodged$resolvedHitTarget;
-        boolean accepted = lodged$resolvedHitAccepted;
+        boolean accepted = lodged$hasConfirmedDamage();
         lodged$resolvedHitTarget = null;
         lodged$resolvedHitAccepted = false;
+        lodged$damageConfirmation = null;
         if (target != null) {
             LodgedArrowEvents.onResolvedEntityHit(
                     (AbstractArrow) (Object) this,

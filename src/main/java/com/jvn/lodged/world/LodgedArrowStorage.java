@@ -24,17 +24,23 @@ public final class LodgedArrowStorage {
         }
 
         LodgedArrowBodyPart bodyPart = arrowData.visual().bodyPart();
+        int evictedArrows = 0;
         while (arrowCount(arrows, bodyPart) >= maxTrackedArrowsPerBodyPart) {
             removeOldestArrow(arrows, bodyPart);
+            evictedArrows++;
         }
 
         arrows.add(arrowData.save(entity));
         entity.getPersistentData().put(STORAGE_KEY, arrows);
+        if (evictedArrows > 0) {
+            reconcileRemovedArrows(entity, evictedArrows, arrows.size());
+        }
     }
 
     public static List<LodgedArrowData> removeAll(LivingEntity entity) {
         List<LodgedArrowData> arrows = readAll(entity);
         entity.getPersistentData().remove(STORAGE_KEY);
+        reconcileRemovedArrows(entity, arrows.size(), 0);
         return arrows;
     }
 
@@ -75,7 +81,12 @@ public final class LodgedArrowStorage {
 
         LodgedArrowData removedArrow = arrows.remove(arrowIndex);
         writeAll(entity, arrows);
+        reconcileRemovedArrows(entity, 1, arrows.size());
         return removedArrow;
+    }
+
+    private static void reconcileRemovedArrows(LivingEntity entity, int removedArrows, int storedArrows) {
+        entity.setArrowCount(LodgedArrowCount.afterRemoval(entity.getArrowCount(), removedArrows, storedArrows));
     }
 
     private static void writeAll(LivingEntity entity, List<LodgedArrowData> arrows) {

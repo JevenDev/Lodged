@@ -42,8 +42,10 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.common.ItemAbilities;
+import net.neoforged.neoforge.common.damagesource.DamageContainer;
 import net.neoforged.neoforge.event.entity.ProjectileImpactEvent;
 import net.neoforged.neoforge.event.entity.living.ArmorHurtEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.living.LivingShieldBlockEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -175,6 +177,24 @@ public final class LodgedArrowEvents {
                         infinityGenerated,
                         creativeGenerated,
                         visual));
+    }
+
+    @SubscribeEvent
+    public static void onLivingDamage(LivingDamageEvent.Post event) {
+        if (event.getEntity().level().isClientSide()
+                || !(event.getSource().getDirectEntity() instanceof AbstractArrow arrow)
+                || !isSupportedArrow(arrow)
+                || !(arrow instanceof ArrowDamageAccess access)) {
+            return;
+        }
+
+        ArrowDamageConfirmation confirmation = access.lodged$damageConfirmation();
+        if (confirmation != null) {
+            confirmation.recordDamage(
+                    event.getEntity().getUUID(),
+                    event.getNewDamage(),
+                    event.getReduction(DamageContainer.Reduction.ABSORPTION));
+        }
     }
 
     public static void onResolvedEntityHit(
@@ -1001,7 +1021,7 @@ public final class LodgedArrowEvents {
         return false;
     }
 
-    private static boolean isSupportedArrow(AbstractArrow arrow) {
+    public static boolean isSupportedArrow(AbstractArrow arrow) {
         return arrow.getType().is(LodgedTags.TRACKABLE_PROJECTILES);
     }
 
