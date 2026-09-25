@@ -1,73 +1,24 @@
 package com.jvn.lodged.network;
 
-import com.jvn.lodged.compat.PlayerInventoryMenus;
-import com.jvn.lodged.config.LodgedConfig;
-import com.jvn.lodged.effect.BleedingEvents;
-import com.jvn.lodged.effect.LodgedDamageTypes;
-import com.jvn.lodged.mixin.HorseInventoryMenuAccessor;
 import com.jvn.lodged.network.payload.ArmorArrowRemovalActionPayload;
 import com.jvn.lodged.network.payload.ArrowRemovalResultPayload.Result;
-import com.jvn.lodged.network.payload.ArrowRemovalResultPayload;
 import com.jvn.lodged.network.payload.RemoveHorseArmorArrowPayload;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload.Target;
 import com.jvn.lodged.network.payload.RemovePlayerArrowPayload;
 import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload.Action;
 import com.jvn.lodged.network.payload.ShieldArrowRemovalActionPayload;
-import com.jvn.lodged.network.payload.SyncArmorArrowRemovalPayload;
-import com.jvn.lodged.network.payload.SyncShieldArrowRemovalPayload;
-import com.jvn.lodged.world.LodgedArmorArrowStorage.LodgedArmorArrowData;
-import com.jvn.lodged.world.LodgedArmorArrowStorage;
-import com.jvn.lodged.world.LodgedArrowData;
-import com.jvn.lodged.world.LodgedArrowRemovalScoring;
-import com.jvn.lodged.world.LodgedArrowStacks;
-import com.jvn.lodged.world.LodgedArrowStorage;
 import com.jvn.lodged.world.LodgedArrowVisual;
-import com.jvn.lodged.world.LodgedShieldArrowStorage.LodgedShieldArrowData;
-import com.jvn.lodged.world.LodgedShieldArrowStorage;
-import com.jvn.toucanlib.neoforge.network.ToucanNetwork;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import net.minecraft.core.Holder;
-import net.minecraft.core.particles.BlockParticleOption;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.HorseInventoryMenu;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public final class PlayerArrowRemoval {
-    private static final int REQUEST_COOLDOWN_TICKS = 2;
-    private static final int SHIELD_ARROW_BREAK_PARTICLES = 12;
-    private static final int ARMOR_ARROW_BREAK_PARTICLES = 10;
-    private static final int NO_INVENTORY_SLOT = -1;
-    private static final double SHIELD_CENTER_HEIGHT_RATIO = 0.55D;
-    private static final double SHIELD_CENTER_FORWARD_OFFSET = 0.35D;
-    private static final double SHIELD_HAND_SIDE_OFFSET = 0.28D;
-    private static final Map<UUID, Long> LAST_REQUEST_TICK = new HashMap<>();
-    private static final Map<UUID, ShieldArrowRemovalAttempt> SHIELD_ARROW_REMOVALS = new HashMap<>();
-    private static final Map<UUID, ArmorArrowRemovalAttempt> ARMOR_ARROW_REMOVALS = new HashMap<>();
-
     private PlayerArrowRemoval() {
     }
 
@@ -76,28 +27,28 @@ public final class PlayerArrowRemoval {
             return;
         }
 
-        if (!canAttemptRemoval(player, payload)) {
-            sendRemovalResult(player, Result.CANT_REMOVE_NOW, payload.target(), payload.hand(), LodgedArrowVisual.DEFAULT);
+        if (!ArrowRemovalValidation.canAttemptRemoval(player, payload)) {
+            ArrowRemovalOutcomes.sendRemovalResult(player, Result.CANT_REMOVE_NOW, payload.target(), payload.hand(), LodgedArrowVisual.DEFAULT);
             LodgedNetwork.syncPlayerArrows(player);
             return;
         }
 
-        if (!acceptRequest(player)) {
-            sendRemovalResult(player, Result.CANT_REMOVE_NOW, payload.target(), payload.hand(), LodgedArrowVisual.DEFAULT);
+        if (!ArrowRemovalValidation.acceptRequest(player)) {
+            ArrowRemovalOutcomes.sendRemovalResult(player, Result.CANT_REMOVE_NOW, payload.target(), payload.hand(), LodgedArrowVisual.DEFAULT);
             return;
         }
 
         if (payload.target() == Target.SHIELD) {
-            removeShieldArrow(player, payload.hand(), payload.arrowIndex(), false);
+            ArrowRemovalOutcomes.removeShieldArrow(player, payload.hand(), payload.arrowIndex(), false);
             return;
         }
 
         if (payload.target() == Target.ARMOR) {
-            removeArmorArrow(player, payload.armorSlot(), payload.arrowIndex(), false);
+            ArrowRemovalOutcomes.removeArmorArrow(player, payload.armorSlot(), payload.arrowIndex(), false);
             return;
         }
 
-        removeBodyArrow(player, payload.arrowIndex());
+        ArrowRemovalOutcomes.removeBodyArrow(player, payload.arrowIndex());
     }
 
     static void handleHorseArmorRequest(RemoveHorseArmorArrowPayload payload, IPayloadContext context) {
@@ -105,9 +56,9 @@ public final class PlayerArrowRemoval {
             return;
         }
 
-        AbstractHorse horse = openHorse(player);
-        if (!canAttemptHorseArmorRemoval(player, horse, payload)) {
-            sendRemovalResult(
+        AbstractHorse horse = ArrowRemovalValidation.openHorse(player);
+        if (!ArrowRemovalValidation.canAttemptHorseArmorRemoval(player, horse, payload)) {
+            ArrowRemovalOutcomes.sendRemovalResult(
                     player,
                     Result.CANT_REMOVE_NOW,
                     Target.ARMOR,
@@ -119,8 +70,8 @@ public final class PlayerArrowRemoval {
             return;
         }
 
-        if (!acceptRequest(player)) {
-            sendRemovalResult(
+        if (!ArrowRemovalValidation.acceptRequest(player)) {
+            ArrowRemovalOutcomes.sendRemovalResult(
                     player,
                     Result.CANT_REMOVE_NOW,
                     Target.ARMOR,
@@ -130,9 +81,9 @@ public final class PlayerArrowRemoval {
         }
 
         if (payload.target() == Target.BODY) {
-            removeMobBodyArrow(player, horse, payload.arrowIndex());
+            ArrowRemovalOutcomes.removeMobBodyArrow(player, horse, payload.arrowIndex());
         } else {
-            removeHorseArmorArrow(player, horse, payload.arrowIndex(), false);
+            ArrowRemovalOutcomes.removeHorseArmorArrow(player, horse, payload.arrowIndex(), false);
         }
     }
 
@@ -142,12 +93,12 @@ public final class PlayerArrowRemoval {
         }
 
         if (payload.action() == Action.CANCEL) {
-            stopShieldArrowRemoval(player);
+            ArrowRemovalAttempts.stopShieldArrowRemoval(player);
             return;
         }
 
-        if (!startShieldArrowRemoval(player, payload.hand())) {
-            rejectShieldArrowRemoval(player, payload.hand());
+        if (!ArrowRemovalAttempts.startShieldArrowRemoval(player, payload.hand())) {
+            ArrowRemovalAttempts.rejectShieldArrowRemoval(player, payload.hand());
         }
     }
 
@@ -157,12 +108,12 @@ public final class PlayerArrowRemoval {
         }
 
         if (payload.action() == ArmorArrowRemovalActionPayload.Action.CANCEL) {
-            stopArmorArrowRemoval(player);
+            ArrowRemovalAttempts.stopArmorArrowRemoval(player);
             return;
         }
 
-        if (!startInWorldArrowRemoval(player, payload.targetEntityId())) {
-            rejectArmorArrowRemoval(player);
+        if (!ArrowRemovalAttempts.startInWorldArrowRemoval(player, payload.targetEntityId())) {
+            ArrowRemovalAttempts.rejectArmorArrowRemoval(player);
         }
     }
 
@@ -172,1141 +123,26 @@ public final class PlayerArrowRemoval {
             return;
         }
 
-        tickShieldArrowRemoval(player);
-        tickArmorArrowRemoval(player);
+        ArrowRemovalAttempts.tickShieldArrowRemoval(player);
+        ArrowRemovalAttempts.tickArmorArrowRemoval(player);
     }
 
     public static void onServerStopped(ServerStoppedEvent event) {
-        LAST_REQUEST_TICK.clear();
-        SHIELD_ARROW_REMOVALS.clear();
-        ARMOR_ARROW_REMOVALS.clear();
+        ArrowRemovalValidation.clear();
+        ArrowRemovalAttempts.clear();
     }
 
     static void clearCooldown(ServerPlayer player) {
-        LAST_REQUEST_TICK.remove(player.getUUID());
-        stopShieldArrowRemoval(player);
-        stopArmorArrowRemoval(player);
+        ArrowRemovalValidation.clearCooldown(player);
+        ArrowRemovalAttempts.stopShieldArrowRemoval(player);
+        ArrowRemovalAttempts.stopArmorArrowRemoval(player);
     }
 
     public static boolean isRemovingShieldArrow(LivingEntity entity) {
-        return SHIELD_ARROW_REMOVALS.containsKey(entity.getUUID());
+        return ArrowRemovalAttempts.isRemovingShieldArrow(entity);
     }
 
     public static void syncShieldArrowRemovalToPlayer(ServerPlayer viewer, LivingEntity entity) {
-        ShieldArrowRemovalAttempt attempt = SHIELD_ARROW_REMOVALS.get(entity.getUUID());
-        if (attempt != null) {
-            ToucanNetwork.sendToPlayer(
-                    viewer,
-                    new SyncShieldArrowRemovalPayload(entity.getId(), true, attempt.hand()));
-        }
-        ArmorArrowRemovalAttempt armorAttempt = ARMOR_ARROW_REMOVALS.get(entity.getUUID());
-        if (armorAttempt != null) {
-            ToucanNetwork.sendToPlayer(
-                    viewer,
-                    new SyncArmorArrowRemovalPayload(
-                            entity.getId(),
-                            true,
-                            armorAttempt.target(),
-                            armorAttempt.slot(),
-                            armorAttempt.targetEntityId(),
-                            armorAttempt.visual()));
-        }
-    }
-
-    private static void removeBodyArrow(ServerPlayer player, int arrowIndex) {
-        List<LodgedArrowData> arrows = LodgedArrowStorage.readAll(player);
-        if (arrowIndex >= arrows.size()) {
-            sendRemovalResult(player, Result.CANT_REMOVE_NOW, Target.BODY, InteractionHand.MAIN_HAND, LodgedArrowVisual.DEFAULT);
-            LodgedNetwork.syncPlayerArrows(player);
-            return;
-        }
-
-        LodgedArrowData arrow = arrows.get(arrowIndex);
-        double successChance = removalSuccessChance(arrow);
-        if (successChance <= 0.0D) {
-            sendRemovalResult(player, Result.TOO_RISKY, Target.BODY, InteractionHand.MAIN_HAND, arrow.visual());
-            return;
-        }
-
-        LodgedArrowData removedArrow = LodgedArrowStorage.removeAt(player, arrowIndex);
-        if (removedArrow == null) {
-            sendRemovalResult(player, Result.CANT_REMOVE_NOW, Target.BODY, InteractionHand.MAIN_HAND, arrow.visual());
-            LodgedNetwork.syncPlayerArrows(player);
-            return;
-        }
-
-        boolean safelyRemoved = succeeds(player, successChance);
-        if (safelyRemoved) {
-            sendSuccessfulRemoval(player, Target.BODY, InteractionHand.MAIN_HAND, removedArrow.visual(),
-                    canRecoverArrow(removedArrow) ? removedArrow.stack() : ItemStack.EMPTY);
-            playSound(player, SoundEvents.ITEM_PICKUP, 0.2F, 2.0F);
-        } else {
-            damageForBrokenArrow(player);
-            sendRemovalResult(player, Result.FAILED, Target.BODY, InteractionHand.MAIN_HAND, removedArrow.visual());
-            playSound(player, SoundEvents.ITEM_BREAK, 0.8F, 1.0F);
-        }
-        if (removedArrow.causesBleeding()) {
-            BleedingEvents.tryApplyFromArrowRemoval(player, removedArrow.visual(), !safelyRemoved);
-        }
-
-        LodgedNetwork.syncPlayerArrows(player);
-        LodgedNetwork.syncEntityArrows(player);
-    }
-
-    private static void removeMobBodyArrow(ServerPlayer player, LivingEntity mob, int arrowIndex) {
-        List<LodgedArrowData> arrows = LodgedArrowStorage.readAll(mob);
-        if (arrowIndex < 0 || arrowIndex >= arrows.size()) {
-            sendRemovalResult(player, Result.CANT_REMOVE_NOW, Target.BODY, InteractionHand.MAIN_HAND, LodgedArrowVisual.DEFAULT);
-            LodgedNetwork.syncEntityArrows(mob);
-            return;
-        }
-
-        LodgedArrowData arrow = arrows.get(arrowIndex);
-        double baseChance = LodgedConfig.tamedMobArrowRemovalSuccessChance(arrow.visual().bodyPart())
-                * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.visual().depth());
-        double successChance = removalSuccessChance(arrow.infinityGenerated(), baseChance);
-        if (successChance <= 0.0D) {
-            sendRemovalResult(player, Result.TOO_RISKY, Target.BODY, InteractionHand.MAIN_HAND, arrow.visual());
-            return;
-        }
-
-        LodgedArrowData removedArrow = LodgedArrowStorage.removeAt(mob, arrowIndex);
-        if (removedArrow == null) {
-            sendRemovalResult(player, Result.CANT_REMOVE_NOW, Target.BODY, InteractionHand.MAIN_HAND, arrow.visual());
-            LodgedNetwork.syncEntityArrows(mob);
-            return;
-        }
-
-        boolean safelyRemoved = succeeds(player, successChance);
-        if (safelyRemoved) {
-            sendSuccessfulRemoval(
-                    player,
-                    Target.BODY,
-                    InteractionHand.MAIN_HAND,
-                    removedArrow.visual(),
-                    canRecoverArrow(removedArrow) ? removedArrow.stack() : ItemStack.EMPTY);
-            playSound(mob, SoundEvents.ITEM_PICKUP, 0.2F, 2.0F);
-        } else {
-            sendRemovalResult(player, Result.FAILED, Target.BODY, InteractionHand.MAIN_HAND, removedArrow.visual());
-            playSound(mob, SoundEvents.ITEM_BREAK, 0.8F, 1.0F);
-        }
-
-        if (LodgedConfig.tamedMobArrowRemovalCausesBleeding() && removedArrow.causesBleeding()) {
-            BleedingEvents.tryApplyFromArrowRemoval(mob, removedArrow.visual(), !safelyRemoved);
-        }
-        if (LodgedConfig.tamedMobArrowRemovalParticles() && mob.level() instanceof ServerLevel level) {
-            Vec3 position = bodyArrowWorldPosition(mob, removedArrow.visual());
-            level.sendParticles(ParticleTypes.CRIT, position.x, position.y, position.z, 6, 0.04D, 0.04D, 0.04D, 0.02D);
-        }
-
-        LodgedNetwork.syncEntityArrows(mob);
-    }
-
-    private static void removeShieldArrow(ServerPlayer player, InteractionHand hand, int arrowIndex, boolean spawnBreakParticles) {
-        ItemStack shield = player.getItemInHand(hand);
-        List<LodgedShieldArrowData> arrows = LodgedShieldArrowStorage.readData(shield, player.registryAccess());
-        if (arrowIndex >= arrows.size()) {
-            sendRemovalResult(player, Result.CANT_REMOVE_NOW, Target.SHIELD, hand, LodgedArrowVisual.DEFAULT);
-            LodgedNetwork.syncPlayerArrows(player);
-            return;
-        }
-
-        LodgedShieldArrowData arrow = arrows.get(arrowIndex);
-        double successChance = removalSuccessChance(arrow);
-        if (successChance <= 0.0D) {
-            sendRemovalResult(player, Result.TOO_RISKY, Target.SHIELD, hand, arrow.visual());
-            return;
-        }
-
-        LodgedShieldArrowData removedArrow = LodgedShieldArrowStorage.removeAt(shield, arrowIndex, player.registryAccess());
-        if (removedArrow == null) {
-            sendRemovalResult(player, Result.CANT_REMOVE_NOW, Target.SHIELD, hand, arrow.visual());
-            LodgedNetwork.syncPlayerArrows(player);
-            return;
-        }
-
-        boolean safelyRemoved = succeeds(player, successChance);
-        if (safelyRemoved) {
-            sendSuccessfulRemoval(player, Target.SHIELD, hand, removedArrow.visual(),
-                    canRecoverArrow(removedArrow) ? removedArrow.stack() : ItemStack.EMPTY);
-            playSound(player, SoundEvents.ITEM_PICKUP, 0.2F, 2.0F);
-        } else {
-            sendRemovalResult(player, Result.FAILED, Target.SHIELD, hand, removedArrow.visual());
-            playSound(player, SoundEvents.ITEM_BREAK, 0.8F, 1.0F);
-        }
-
-        if (spawnBreakParticles) {
-            spawnShieldArrowBreakParticles(player, hand, removedArrow.visual());
-        }
-
-        maybeDamageShieldFromArrowRemoval(player, shield, LivingEntity.getSlotForHand(hand));
-        player.setItemInHand(hand, shield);
-        player.containerMenu.broadcastChanges();
-    }
-
-    private static void removeArmorArrow(
-            ServerPlayer player,
-            EquipmentSlot slot,
-            int arrowIndex,
-            boolean spawnBreakParticles) {
-        ItemStack armor = player.getItemBySlot(slot);
-        List<LodgedArmorArrowData> arrows = LodgedArmorArrowStorage.readData(armor, player.registryAccess());
-        if (arrowIndex >= arrows.size()) {
-            sendRemovalResult(player, Result.CANT_REMOVE_NOW, Target.ARMOR, InteractionHand.MAIN_HAND, LodgedArrowVisual.DEFAULT);
-            return;
-        }
-
-        LodgedArmorArrowData arrow = arrows.get(arrowIndex);
-        double successChance = removalSuccessChance(arrow);
-        if (successChance <= 0.0D) {
-            sendRemovalResult(player, Result.TOO_RISKY, Target.ARMOR, InteractionHand.MAIN_HAND, arrow.visual());
-            return;
-        }
-
-        LodgedArmorArrowData removedArrow = LodgedArmorArrowStorage.removeAt(armor, arrowIndex, player.registryAccess());
-        if (removedArrow == null) {
-            sendRemovalResult(player, Result.CANT_REMOVE_NOW, Target.ARMOR, InteractionHand.MAIN_HAND, arrow.visual());
-            return;
-        }
-
-        boolean broke = player.getRandom().nextDouble() < LodgedConfig.armorArrowRemovalBreakChance();
-        boolean safelyRemoved = !broke && succeeds(player, successChance);
-        if (safelyRemoved) {
-            sendSuccessfulRemoval(player, Target.ARMOR, InteractionHand.MAIN_HAND, removedArrow.visual(),
-                    canRecoverArrow(removedArrow) ? removedArrow.stack() : ItemStack.EMPTY);
-            playSound(player, SoundEvents.ITEM_PICKUP, 0.2F, 2.0F);
-            maybeDamageArmorFromArrowRemoval(player, armor, slot, LodgedConfig.armorArrowRemovalDurabilityDamageChance());
-        } else {
-            sendRemovalResult(player, Result.FAILED, Target.ARMOR, InteractionHand.MAIN_HAND, removedArrow.visual());
-            playSound(player, SoundEvents.ITEM_BREAK, 0.8F, 1.0F);
-            maybeDamageArmorFromArrowRemoval(
-                    player,
-                    armor,
-                    slot,
-                    broke
-                            ? LodgedConfig.armorArrowBreakDurabilityDamageChance()
-                            : LodgedConfig.armorArrowRemovalDurabilityDamageChance());
-        }
-
-        if (spawnBreakParticles && !safelyRemoved) {
-            spawnArmorArrowBreakParticles(player, removedArrow.visual());
-        }
-
-        player.setItemSlot(slot, armor);
-        player.containerMenu.broadcastChanges();
-    }
-
-    private static void removeHorseArmorArrow(
-            ServerPlayer player,
-            AbstractHorse horse,
-            int arrowIndex,
-            boolean spawnBreakParticles) {
-        ItemStack armor = horse.getItemBySlot(EquipmentSlot.BODY);
-        List<LodgedArmorArrowData> arrows = LodgedArmorArrowStorage.readData(armor, player.registryAccess());
-        if (arrowIndex < 0 || arrowIndex >= arrows.size()) {
-            sendRemovalResult(
-                    player,
-                    Result.CANT_REMOVE_NOW,
-                    Target.ARMOR,
-                    InteractionHand.MAIN_HAND,
-                    LodgedArrowVisual.DEFAULT);
-            player.containerMenu.broadcastChanges();
-            return;
-        }
-
-        LodgedArmorArrowData arrow = arrows.get(arrowIndex);
-        double successChance = removalSuccessChance(arrow);
-        if (successChance <= 0.0D) {
-            sendRemovalResult(player, Result.TOO_RISKY, Target.ARMOR, InteractionHand.MAIN_HAND, arrow.visual());
-            return;
-        }
-
-        LodgedArmorArrowData removedArrow =
-                LodgedArmorArrowStorage.removeAt(armor, arrowIndex, player.registryAccess());
-        if (removedArrow == null) {
-            sendRemovalResult(player, Result.CANT_REMOVE_NOW, Target.ARMOR, InteractionHand.MAIN_HAND, arrow.visual());
-            player.containerMenu.broadcastChanges();
-            return;
-        }
-
-        boolean broke = player.getRandom().nextDouble() < LodgedConfig.armorArrowRemovalBreakChance();
-        boolean safelyRemoved = !broke && succeeds(player, successChance);
-        if (safelyRemoved) {
-            sendSuccessfulRemoval(
-                    player,
-                    Target.ARMOR,
-                    InteractionHand.MAIN_HAND,
-                    removedArrow.visual(),
-                    canRecoverArrow(removedArrow) ? removedArrow.stack() : ItemStack.EMPTY);
-            playSound(horse, SoundEvents.ITEM_PICKUP, 0.2F, 2.0F);
-            maybeDamageHorseArmor(
-                    horse,
-                    armor,
-                    LodgedConfig.armorArrowRemovalDurabilityDamageChance());
-        } else {
-            sendRemovalResult(player, Result.FAILED, Target.ARMOR, InteractionHand.MAIN_HAND, removedArrow.visual());
-            playSound(horse, SoundEvents.ITEM_BREAK, 0.8F, 1.0F);
-            maybeDamageHorseArmor(
-                    horse,
-                    armor,
-                    broke
-                            ? LodgedConfig.armorArrowBreakDurabilityDamageChance()
-                            : LodgedConfig.armorArrowRemovalDurabilityDamageChance());
-        }
-
-        if (spawnBreakParticles && !safelyRemoved) {
-            spawnArmorArrowBreakParticles(horse, removedArrow.visual());
-        }
-
-        horse.setItemSlot(EquipmentSlot.BODY, armor);
-        player.containerMenu.broadcastChanges();
-        LodgedNetwork.syncEntityArrows(horse);
-    }
-
-    private static boolean acceptRequest(ServerPlayer player) {
-        long gameTime = player.level().getGameTime();
-        Long lastRequestTick = LAST_REQUEST_TICK.get(player.getUUID());
-        if (lastRequestTick != null && gameTime - lastRequestTick < REQUEST_COOLDOWN_TICKS) {
-            return false;
-        }
-
-        LAST_REQUEST_TICK.put(player.getUUID(), gameTime);
-        return true;
-    }
-
-    private static boolean canAttemptRemoval(ServerPlayer player, RemovePlayerArrowPayload payload) {
-        if (!LodgedConfig.enablePlayerArrowRemoval() || !player.isAlive()) {
-            return false;
-        }
-
-        if (payload.arrowIndex() < 0) {
-            return false;
-        }
-
-        if (payload.target() == Target.BODY) {
-            if (payload.arrowIndex() >= LodgedConfig.maxRemovablePlayerArrows()
-                    || payload.arrowIndex() >= LodgedArrowStorage.readAll(player).size()) {
-                return false;
-            }
-        } else if (payload.target() == Target.SHIELD) {
-            int maxShieldArrows = LodgedConfig.maxTrackedArrowsPerShield();
-            ItemStack shield = player.getItemInHand(payload.hand());
-            if (maxShieldArrows <= 0
-                    || payload.arrowIndex() >= maxShieldArrows
-                    || shield.isEmpty()
-                    || !shield.canPerformAction(ItemAbilities.SHIELD_BLOCK)
-                    || payload.arrowIndex() >= LodgedShieldArrowStorage.readData(shield, player.registryAccess()).size()) {
-                return false;
-            }
-        } else if (payload.target() == Target.ARMOR) {
-            if (!isArmorSlot(payload.armorSlot())
-                    || payload.arrowIndex() >= LodgedConfig.maxTrackedArrowsPerArmorPiece()
-                    || !canAttemptArmorRemoval(player, payload.armorSlot(), payload.arrowIndex())) {
-                return false;
-            }
-        } else {
-            return false;
-        }
-
-        if (player.isCreative() && !LodgedConfig.allowArrowRemovalInCreative()) {
-            return false;
-        }
-
-        if (LodgedConfig.requireInventoryScreenForRemoval()
-                && (!PlayerInventoryMenus.supportsArrowRemoval(player.containerMenu)
-                        || !player.containerMenu.stillValid(player))) {
-            return false;
-        }
-
-        return true;
-    }
-
-    private static AbstractHorse openHorse(ServerPlayer player) {
-        if (!(player.containerMenu instanceof HorseInventoryMenu menu) || !menu.stillValid(player)) {
-            return null;
-        }
-        return ((HorseInventoryMenuAccessor) menu).lodged$getHorse();
-    }
-
-    private static boolean canAttemptHorseArmorRemoval(
-            ServerPlayer player,
-            AbstractHorse horse,
-            RemoveHorseArmorArrowPayload payload) {
-        if (!LodgedConfig.enablePlayerArrowRemoval()
-                || !LodgedConfig.enableArmorArrowLodging()
-                || LodgedConfig.maxTrackedArrowsPerArmorPiece() <= 0
-                || !player.isAlive()
-                || horse == null
-                || horse.getId() != payload.horseEntityId()
-                || !horse.isAlive()
-                || payload.arrowIndex() < 0
-                || payload.arrowIndex() >= LodgedConfig.maxTrackedArrowsPerArmorPiece()) {
-            return false;
-        }
-
-        if (player.isCreative() && !LodgedConfig.allowArrowRemovalInCreative()) {
-            return false;
-        }
-
-        if (payload.target() == Target.BODY) {
-            return LodgedConfig.enableTamedMobArrowRemoval()
-                    && canAttemptTamedMobRemoval(player, horse, false)
-                    && payload.arrowIndex() < LodgedArrowStorage.readAll(horse).size();
-        }
-        if (payload.target() != Target.ARMOR) {
-            return false;
-        }
-
-        ItemStack armor = horse.getItemBySlot(EquipmentSlot.BODY);
-        return LodgedArmorArrowStorage.isHorseArmor(armor)
-                && payload.arrowIndex()
-                        < LodgedArmorArrowStorage.readData(armor, player.registryAccess()).size();
-    }
-
-    private static boolean startShieldArrowRemoval(ServerPlayer player, InteractionHand hand) {
-        UUID playerUuid = player.getUUID();
-        ShieldArrowRemovalAttempt activeAttempt = SHIELD_ARROW_REMOVALS.get(playerUuid);
-        if (activeAttempt != null) {
-            syncShieldArrowRemoval(player, true, activeAttempt.hand());
-            return true;
-        }
-        if (ARMOR_ARROW_REMOVALS.containsKey(playerUuid)) {
-            return false;
-        }
-
-        ItemStack shield = player.getItemInHand(hand);
-        if (!canAttemptHeldShieldRemoval(player, shield)) {
-            return false;
-        }
-
-        List<LodgedShieldArrowData> arrows = LodgedShieldArrowStorage.readData(shield, player.registryAccess());
-        if (arrows.isEmpty()) {
-            return false;
-        }
-
-        int arrowIndex = priorityShieldArrowIndex(arrows);
-        long gameTime = player.level().getGameTime();
-        long completeTick = gameTime + shieldArrowRemovalTicks(player);
-        SHIELD_ARROW_REMOVALS.put(
-                playerUuid,
-                new ShieldArrowRemovalAttempt(hand, arrowIndex, completeTick, arrows.get(arrowIndex).visual()));
-        syncShieldArrowRemoval(player, true, hand);
-        return true;
-    }
-
-    private static boolean startInWorldArrowRemoval(ServerPlayer player, int targetEntityId) {
-        UUID playerUuid = player.getUUID();
-        ArmorArrowRemovalAttempt activeAttempt = ARMOR_ARROW_REMOVALS.get(playerUuid);
-        if (activeAttempt != null) {
-            syncArmorArrowRemoval(
-                    player,
-                    true,
-                    activeAttempt.target(),
-                    activeAttempt.slot(),
-                    activeAttempt.targetEntityId(),
-                    activeAttempt.visual());
-            return true;
-        }
-        if (SHIELD_ARROW_REMOVALS.containsKey(playerUuid) || player.isUsingItem()) {
-            return false;
-        }
-
-        InWorldArrowTarget target;
-        if (targetEntityId == player.getId()) {
-            target = priorityArmorArrow(player);
-            if (target == null) {
-                target = priorityBodyArrow(player);
-            }
-        } else {
-            if (priorityArmorArrow(player) != null || priorityBodyArrow(player) != null) {
-                return false;
-            }
-            Entity entity = player.level().getEntity(targetEntityId);
-            if (!(entity instanceof LivingEntity mob)
-                    || !canAttemptTamedMobRemoval(player, mob, true)) {
-                return false;
-            }
-            target = priorityMobArrow(player, mob);
-        }
-        if (target == null) {
-            return false;
-        }
-
-        long gameTime = player.level().getGameTime();
-        long completeTick = gameTime + inWorldRemovalTicks(player, target);
-        ARMOR_ARROW_REMOVALS.put(
-                playerUuid,
-                new ArmorArrowRemovalAttempt(
-                        target.target(),
-                        target.slot(),
-                        target.targetEntityId(),
-                        target.arrowIndex(),
-                        completeTick,
-                        target.visual()));
-        syncArmorArrowRemoval(player, true, target.target(), target.slot(), target.targetEntityId(), target.visual());
-        return true;
-    }
-
-    private static void tickShieldArrowRemoval(ServerPlayer player) {
-        ShieldArrowRemovalAttempt attempt = SHIELD_ARROW_REMOVALS.get(player.getUUID());
-        if (attempt == null) {
-            return;
-        }
-
-        ItemStack shield = player.getItemInHand(attempt.hand());
-        if (!canAttemptHeldShieldRemoval(player, shield, attempt.arrowIndex(), attempt.visual())
-                || !player.isUsingItem()
-                || player.getUsedItemHand() != attempt.hand()) {
-            stopShieldArrowRemoval(player);
-            return;
-        }
-
-        if (player.level().getGameTime() < attempt.completeTick()) {
-            return;
-        }
-
-        stopShieldArrowRemoval(player);
-        removeShieldArrow(player, attempt.hand(), attempt.arrowIndex(), true);
-    }
-
-    private static void tickArmorArrowRemoval(ServerPlayer player) {
-        ArmorArrowRemovalAttempt attempt = ARMOR_ARROW_REMOVALS.get(player.getUUID());
-        if (attempt == null) {
-            return;
-        }
-
-        if (!canAttemptInWorldRemoval(player, attempt) || player.isUsingItem()) {
-            stopArmorArrowRemoval(player);
-            return;
-        }
-
-        if (player.level().getGameTime() < attempt.completeTick()) {
-            return;
-        }
-
-        stopArmorArrowRemoval(player);
-        if (attempt.targetEntityId() != player.getId()) {
-            Entity target = player.level().getEntity(attempt.targetEntityId());
-            if (target instanceof LivingEntity mob) {
-                if (attempt.target() == Target.ARMOR && mob instanceof AbstractHorse horse) {
-                    removeHorseArmorArrow(player, horse, attempt.arrowIndex(), LodgedConfig.tamedMobArrowRemovalParticles());
-                } else {
-                    removeMobBodyArrow(player, mob, attempt.arrowIndex());
-                }
-            }
-            return;
-        }
-        if (attempt.target() == Target.BODY) {
-            removeBodyArrow(player, attempt.arrowIndex());
-        } else {
-            removeArmorArrow(player, attempt.slot(), attempt.arrowIndex(), true);
-        }
-    }
-
-    private static int inWorldRemovalTicks(ServerPlayer player, InWorldArrowTarget target) {
-        if (target.targetEntityId() != player.getId()) {
-            int minTicks = LodgedConfig.tamedMobArrowRemovalMinTicks();
-            int maxTicks = LodgedConfig.tamedMobArrowRemovalMaxTicks();
-            return minTicks + player.getRandom().nextInt(maxTicks - minTicks + 1);
-        }
-        if (target.target() == Target.ARMOR) {
-            return LodgedConfig.armorArrowRemovalTicks();
-        }
-
-        return inWorldBodyArrowRemovalTicks(player);
-    }
-
-    private static int inWorldBodyArrowRemovalTicks(ServerPlayer player) {
-        int minTicks = LodgedConfig.inWorldBodyArrowRemovalMinTicks();
-        int maxTicks = LodgedConfig.inWorldBodyArrowRemovalMaxTicks();
-        return minTicks + player.getRandom().nextInt(maxTicks - minTicks + 1);
-    }
-
-    private static int shieldArrowRemovalTicks(ServerPlayer player) {
-        int minTicks = LodgedConfig.shieldArrowRemovalMinTicks();
-        int maxTicks = LodgedConfig.shieldArrowRemovalMaxTicks();
-        return minTicks + player.getRandom().nextInt(maxTicks - minTicks + 1);
-    }
-
-    private static void stopShieldArrowRemoval(ServerPlayer player) {
-        ShieldArrowRemovalAttempt removed = SHIELD_ARROW_REMOVALS.remove(player.getUUID());
-        if (removed != null) {
-            syncShieldArrowRemoval(player, false, removed.hand());
-        }
-    }
-
-    private static void stopArmorArrowRemoval(ServerPlayer player) {
-        ArmorArrowRemovalAttempt removed = ARMOR_ARROW_REMOVALS.remove(player.getUUID());
-        if (removed != null) {
-            syncArmorArrowRemoval(player, false, removed.target(), removed.slot(), removed.targetEntityId(), removed.visual());
-        }
-    }
-
-    private static void syncShieldArrowRemoval(ServerPlayer player, boolean active, InteractionHand hand) {
-        ToucanNetwork.sendToPlayersTrackingEntityAndSelf(
-                player,
-                new SyncShieldArrowRemovalPayload(player.getId(), active, hand));
-    }
-
-    private static void syncArmorArrowRemoval(
-            ServerPlayer player,
-            boolean active,
-            Target target,
-            EquipmentSlot slot,
-            int targetEntityId,
-            LodgedArrowVisual arrow) {
-        ToucanNetwork.sendToPlayersTrackingEntityAndSelf(
-                player,
-                new SyncArmorArrowRemovalPayload(player.getId(), active, target, slot, targetEntityId, arrow));
-    }
-
-    private static void rejectShieldArrowRemoval(ServerPlayer player, InteractionHand hand) {
-        ToucanNetwork.sendToPlayer(
-                player,
-                new SyncShieldArrowRemovalPayload(player.getId(), false, hand));
-    }
-
-    private static void rejectArmorArrowRemoval(ServerPlayer player) {
-        ToucanNetwork.sendToPlayer(
-                player,
-                new SyncArmorArrowRemovalPayload(
-                        player.getId(),
-                        false,
-                        Target.ARMOR,
-                        EquipmentSlot.CHEST,
-                        -1,
-                        LodgedArrowVisual.DEFAULT));
-    }
-
-    private static boolean canAttemptHeldShieldRemoval(ServerPlayer player, ItemStack shield) {
-        return canAttemptHeldShieldRemoval(player, shield, 0, null);
-    }
-
-    private static boolean canAttemptHeldShieldRemoval(
-            ServerPlayer player,
-            ItemStack shield,
-            int arrowIndex,
-            LodgedArrowVisual expectedVisual) {
-        if (!LodgedConfig.enablePlayerArrowRemoval()
-                || !player.isAlive()
-                || shield.isEmpty()
-                || !shield.canPerformAction(ItemAbilities.SHIELD_BLOCK)
-                || LodgedConfig.maxTrackedArrowsPerShield() <= 0) {
-            return false;
-        }
-
-        if (player.isCreative() && !LodgedConfig.allowArrowRemovalInCreative()) {
-            return false;
-        }
-
-        List<LodgedShieldArrowData> arrows = LodgedShieldArrowStorage.readData(shield, player.registryAccess());
-        return arrowIndex >= 0
-                && arrowIndex < arrows.size()
-                && (expectedVisual == null || arrows.get(arrowIndex).visual().matches(expectedVisual));
-    }
-
-    private static boolean canAttemptArmorRemoval(ServerPlayer player, EquipmentSlot slot, int arrowIndex) {
-        return canAttemptArmorRemoval(player, slot, arrowIndex, null);
-    }
-
-    private static boolean canAttemptArmorRemoval(
-            ServerPlayer player,
-            EquipmentSlot slot,
-            int arrowIndex,
-            LodgedArrowVisual expectedVisual) {
-        if (!LodgedConfig.enablePlayerArrowRemoval()
-                || !LodgedConfig.enableArmorArrowLodging()
-                || !player.isAlive()
-                || LodgedConfig.maxTrackedArrowsPerArmorPiece() <= 0) {
-            return false;
-        }
-
-        if (player.isCreative() && !LodgedConfig.allowArrowRemovalInCreative()) {
-            return false;
-        }
-
-        ItemStack armor = player.getItemBySlot(slot);
-        List<LodgedArmorArrowData> arrows = LodgedArmorArrowStorage.readData(armor, player.registryAccess());
-        return arrowIndex >= 0
-                && arrowIndex < arrows.size()
-                && (expectedVisual == null || arrows.get(arrowIndex).visual().matches(expectedVisual));
-    }
-
-    private static boolean isArmorSlot(EquipmentSlot slot) {
-        return slot == EquipmentSlot.HEAD
-                || slot == EquipmentSlot.CHEST
-                || slot == EquipmentSlot.LEGS
-                || slot == EquipmentSlot.FEET;
-    }
-
-    private static boolean canAttemptInWorldRemoval(ServerPlayer player, ArmorArrowRemovalAttempt attempt) {
-        if (attempt.targetEntityId() != player.getId()) {
-            Entity entity = player.level().getEntity(attempt.targetEntityId());
-            if (!(entity instanceof LivingEntity mob) || !canAttemptTamedMobRemoval(player, mob, false)) {
-                return false;
-            }
-            if (attempt.target() == Target.ARMOR) {
-                return mob instanceof AbstractHorse horse
-                        && hasExpectedMobArmorArrow(horse, attempt.arrowIndex(), attempt.visual());
-            }
-            return hasExpectedMobBodyArrow(mob, attempt.arrowIndex(), attempt.visual());
-        }
-        if (attempt.target() == Target.BODY) {
-            return canAttemptBodyRemoval(player, attempt.arrowIndex(), attempt.visual());
-        }
-
-        return canAttemptArmorRemoval(player, attempt.slot(), attempt.arrowIndex(), attempt.visual());
-    }
-
-    private static boolean canAttemptBodyRemoval(
-            ServerPlayer player,
-            int arrowIndex,
-            LodgedArrowVisual expectedVisual) {
-        if (!LodgedConfig.enablePlayerArrowRemoval() || !player.isAlive() || arrowIndex < 0) {
-            return false;
-        }
-
-        if (player.isCreative() && !LodgedConfig.allowArrowRemovalInCreative()) {
-            return false;
-        }
-
-        List<LodgedArrowData> arrows = LodgedArrowStorage.readAll(player);
-        return arrowIndex < LodgedConfig.maxRemovablePlayerArrows()
-                && arrowIndex < arrows.size()
-                && (expectedVisual == null || arrows.get(arrowIndex).visual().matches(expectedVisual));
-    }
-
-
-    private static boolean canAttemptTamedMobRemoval(ServerPlayer player, LivingEntity mob, boolean requireInitialAim) {
-        if (!LodgedConfig.enableTamedMobArrowRemoval()
-                || !player.isAlive()
-                || !mob.isAlive()
-                || player.getVehicle() != mob
-                && distanceToBounds(player, mob) > LodgedConfig.tamedMobArrowRemovalRange()
-                || !player.hasLineOfSight(mob)) {
-            return false;
-        }
-
-        boolean tamed;
-        boolean owned;
-        if (mob instanceof TamableAnimal tamable) {
-            tamed = tamable.isTame();
-            owned = tamable.isOwnedBy(player);
-        } else if (mob instanceof AbstractHorse horse) {
-            tamed = horse.isTamed();
-            owned = player.getUUID().equals(horse.getOwnerUUID());
-        } else {
-            return false;
-        }
-        if (!tamed || LodgedConfig.requireMobOwnership() && !owned) {
-            return false;
-        }
-        if (player.getVehicle() == mob) {
-            return true;
-        }
-        if (!requireInitialAim) {
-            return true;
-        }
-        Vec3 eye = player.getEyePosition();
-        double aimDistance = LodgedConfig.tamedMobArrowRemovalRange() + player.getEyeHeight();
-        Vec3 end = eye.add(player.getViewVector(1.0F).scale(aimDistance));
-        return mob.getBoundingBox().inflate(0.3D).clip(eye, end).isPresent();
-    }
-
-    private static double distanceToBounds(Entity source, Entity target) {
-        return Math.sqrt(target.getBoundingBox().distanceToSqr(source.position()));
-    }
-
-    private static boolean hasExpectedMobBodyArrow(LivingEntity mob, int arrowIndex, LodgedArrowVisual expectedVisual) {
-        List<LodgedArrowData> arrows = LodgedArrowStorage.readAll(mob);
-        return arrowIndex >= 0
-                && arrowIndex < arrows.size()
-                && arrows.get(arrowIndex).visual().matches(expectedVisual);
-    }
-
-    private static boolean hasExpectedMobArmorArrow(
-            AbstractHorse horse,
-            int arrowIndex,
-            LodgedArrowVisual expectedVisual) {
-        List<LodgedArmorArrowData> arrows =
-                LodgedArmorArrowStorage.readData(horse.getItemBySlot(EquipmentSlot.BODY), horse.registryAccess());
-        return arrowIndex >= 0
-                && arrowIndex < arrows.size()
-                && arrows.get(arrowIndex).visual().matches(expectedVisual);
-    }
-
-    private static InWorldArrowTarget priorityMobArrow(ServerPlayer player, LivingEntity mob) {
-        InWorldArrowTarget best = null;
-        double bestScore = Double.MAX_VALUE;
-        if (mob instanceof AbstractHorse horse) {
-            List<LodgedArmorArrowData> armorArrows =
-                    LodgedArmorArrowStorage.readData(horse.getItemBySlot(EquipmentSlot.BODY), player.registryAccess());
-            for (int index = 0; index < armorArrows.size(); index++) {
-                LodgedArrowVisual visual = armorArrows.get(index).visual();
-                double score = LodgedArrowRemovalScoring.armorArrowPriorityScore(
-                        EquipmentSlot.BODY,
-                        visual,
-                        player.getMainArm());
-                if (score < bestScore) {
-                    bestScore = score;
-                    best = new InWorldArrowTarget(Target.ARMOR, EquipmentSlot.BODY, mob.getId(), index, visual);
-                }
-            }
-        }
-        List<LodgedArrowData> arrows = LodgedArrowStorage.readAll(mob);
-        for (int index = 0; index < arrows.size(); index++) {
-            LodgedArrowData arrow = arrows.get(index);
-            double chance = LodgedConfig.tamedMobArrowRemovalSuccessChance(arrow.visual().bodyPart())
-                    * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.visual().depth());
-            double score = LodgedArrowRemovalScoring.bodyArrowPriorityScore(arrow.visual(), chance);
-            if (score < bestScore) {
-                bestScore = score;
-                best = new InWorldArrowTarget(Target.BODY, EquipmentSlot.CHEST, mob.getId(), index, arrow.visual());
-            }
-        }
-        return best;
-    }
-    private static int priorityShieldArrowIndex(List<LodgedShieldArrowData> arrows) {
-        int bestIndex = 0;
-        double bestScore = Double.MAX_VALUE;
-        for (int index = 0; index < arrows.size(); index++) {
-            LodgedArrowVisual visual = arrows.get(index).visual();
-            double score = Math.abs(visual.modelX()) + Math.abs(visual.modelY() * 0.75D);
-            if (score < bestScore) {
-                bestScore = score;
-                bestIndex = index;
-            }
-        }
-        return bestIndex;
-    }
-
-    private static InWorldArrowTarget priorityArmorArrow(ServerPlayer player) {
-        InWorldArrowTarget best = null;
-        double bestScore = Double.MAX_VALUE;
-        for (EquipmentSlot slot : LodgedArmorArrowStorage.armorSlots()) {
-            ItemStack armor = player.getItemBySlot(slot);
-            List<LodgedArmorArrowData> arrows = LodgedArmorArrowStorage.readData(armor, player.registryAccess());
-            for (int index = 0; index < arrows.size(); index++) {
-                LodgedArrowVisual visual = arrows.get(index).visual();
-                double score = LodgedArrowRemovalScoring.armorArrowPriorityScore(slot, visual, player.getMainArm());
-                if (score < bestScore) {
-                    bestScore = score;
-                    best = new InWorldArrowTarget(Target.ARMOR, slot, player.getId(), index, visual);
-                }
-            }
-        }
-        return best;
-    }
-
-    private static InWorldArrowTarget priorityBodyArrow(ServerPlayer player) {
-        List<LodgedArrowData> arrows = LodgedArrowStorage.readAll(player);
-        int arrowCount = Math.min(arrows.size(), LodgedConfig.maxRemovablePlayerArrows());
-        InWorldArrowTarget best = null;
-        double bestScore = Double.MAX_VALUE;
-        for (int index = 0; index < arrowCount; index++) {
-            LodgedArrowData arrow = arrows.get(index);
-            double score = LodgedArrowRemovalScoring.bodyArrowPriorityScore(
-                    arrow.visual(),
-                    removalSuccessChance(arrow));
-            if (score < bestScore) {
-                bestScore = score;
-                best = new InWorldArrowTarget(Target.BODY, EquipmentSlot.CHEST, player.getId(), index, arrow.visual());
-            }
-        }
-        return best;
-    }
-
-    private static ArrowRecoveryResult recoverArrow(Player player, ItemStack storedStack) {
-        ItemStack recoveredStack = LodgedArrowStacks.copyForRecovery(storedStack);
-        if (recoveredStack.isEmpty()) {
-            return new ArrowRecoveryResult(false, NO_INVENTORY_SLOT);
-        }
-
-        int inventorySlot = player.getInventory().getSlotWithRemainingSpace(recoveredStack);
-        if (inventorySlot == -1) {
-            inventorySlot = player.getInventory().getFreeSlot();
-        }
-
-        if (inventorySlot >= 0 && player.getInventory().add(inventorySlot, recoveredStack)) {
-            return new ArrowRecoveryResult(false, inventorySlot);
-        }
-
-        if (!recoveredStack.isEmpty()) {
-            player.drop(recoveredStack, false);
-            return new ArrowRecoveryResult(true, NO_INVENTORY_SLOT);
-        }
-        return new ArrowRecoveryResult(false, inventorySlot);
-    }
-
-    private static boolean succeeds(ServerPlayer player, double chance) {
-        return chance >= 1.0D || chance > 0.0D && player.getRandom().nextDouble() < chance;
-    }
-
-    private static void sendSuccessfulRemoval(
-            ServerPlayer player,
-            Target target,
-            InteractionHand hand,
-            LodgedArrowVisual arrow,
-            ItemStack recoverableStack) {
-        if (recoverableStack.isEmpty()) {
-            sendRemovalResult(player, Result.REMOVED, target, hand, arrow);
-            return;
-        }
-
-        ArrowRecoveryResult recoveryResult = recoverArrow(player, recoverableStack);
-        sendRemovalResult(
-                player,
-                recoveryResult.inventoryFull() ? Result.INVENTORY_FULL : Result.SUCCESS,
-                target,
-                hand,
-                arrow,
-                recoveryResult.inventorySlot());
-    }
-
-    private static double removalSuccessChance(LodgedArrowData arrow) {
-        double baseSuccessChance = LodgedConfig.playerArrowRemovalSuccessChance(arrow.visual().bodyPart())
-                * LodgedConfig.arrowDepthRemovalSuccessMultiplier(arrow.visual().depth());
-        return removalSuccessChance(arrow.infinityGenerated(), baseSuccessChance);
-    }
-
-    private static double removalSuccessChance(LodgedShieldArrowData arrow) {
-        double successChance = LodgedConfig.shieldArrowRemovalSuccessChance();
-        return removalSuccessChance(arrow.infinityGenerated(), successChance);
-    }
-
-    private static double removalSuccessChance(LodgedArmorArrowData arrow) {
-        double successChance = LodgedConfig.armorArrowRemovalSuccessChance();
-        return removalSuccessChance(arrow.infinityGenerated(), successChance);
-    }
-
-    private static double removalSuccessChance(boolean infinityGenerated, double baseSuccessChance) {
-        if (infinityGenerated && LodgedConfig.recoverInfinityArrows()) {
-            return baseSuccessChance * LodgedConfig.playerArrowRemovalInfinitySuccessMultiplier();
-        }
-        return baseSuccessChance;
-    }
-
-    private static boolean canRecoverArrow(LodgedArrowData arrow) {
-        return arrow.recoverable()
-                && canRecoverArrow(
-                        arrow.fromPlayer(),
-                        arrow.infinityGenerated(),
-                        arrow.creativeGenerated(),
-                        LodgedConfig.recoverMobArrows());
-    }
-
-    private static boolean canRecoverArrow(LodgedShieldArrowData arrow) {
-        return arrow.recoverable()
-                && canRecoverArrow(
-                        arrow.fromPlayer(),
-                        arrow.infinityGenerated(),
-                        arrow.creativeGenerated(),
-                        LodgedConfig.recoverMobShieldArrows());
-    }
-
-    private static boolean canRecoverArrow(LodgedArmorArrowData arrow) {
-        return arrow.recoverable()
-                && canRecoverArrow(
-                        arrow.fromPlayer(),
-                        arrow.infinityGenerated(),
-                        arrow.creativeGenerated(),
-                        LodgedConfig.recoverMobArmorArrows());
-    }
-
-    private static boolean canRecoverArrow(
-            boolean fromPlayer,
-            boolean infinityGenerated,
-            boolean creativeGenerated,
-            boolean recoverMobArrows) {
-        if (!fromPlayer && !recoverMobArrows) {
-            return false;
-        }
-
-        if (infinityGenerated && !LodgedConfig.recoverInfinityArrows()) {
-            return false;
-        }
-
-        return !creativeGenerated || LodgedConfig.recoverCreativeArrows();
-    }
-
-    private static void damageForBrokenArrow(ServerPlayer player) {
-        float damage = LodgedConfig.playerArrowRemovalBreakDamage();
-        if (damage > 0.0F) {
-            Holder<DamageType> arrowRemoval = player.level().registryAccess()
-                    .registryOrThrow(Registries.DAMAGE_TYPE)
-                    .getHolderOrThrow(LodgedDamageTypes.ARROW_REMOVAL);
-            Vec3 previousMovement = player.getDeltaMovement();
-            player.hurt(new DamageSource(arrowRemoval), damage);
-            if (!LodgedConfig.arrowRemovalAppliesKnockback()) {
-                player.setDeltaMovement(previousMovement);
-            }
-        }
-    }
-
-    private static void maybeDamageShieldFromArrowRemoval(ServerPlayer player, ItemStack shield, EquipmentSlot slot) {
-        if (shield.isEmpty()
-                || player.getAbilities().instabuild
-                || player.getRandom().nextDouble() >= LodgedConfig.shieldArrowDurabilityDamageChance()) {
-            return;
-        }
-
-        shield.hurtAndBreak(1, player, slot);
-    }
-
-    private static void maybeDamageArmorFromArrowRemoval(
-            ServerPlayer player,
-            ItemStack armor,
-            EquipmentSlot slot,
-            double chance) {
-        if (armor.isEmpty()
-                || chance <= 0.0D
-                || player.getAbilities().instabuild
-                || player.getRandom().nextDouble() >= chance) {
-            return;
-        }
-
-        armor.hurtAndBreak(1, player, slot);
-    }
-
-    private static void maybeDamageHorseArmor(AbstractHorse horse, ItemStack armor, double chance) {
-        if (armor.isEmpty()
-                || chance <= 0.0D
-                || horse.getRandom().nextDouble() >= chance) {
-            return;
-        }
-
-        armor.hurtAndBreak(1, horse, EquipmentSlot.BODY);
-    }
-
-    private static void spawnShieldArrowBreakParticles(ServerPlayer player, InteractionHand hand, LodgedArrowVisual arrow) {
-        if (!(player.level() instanceof ServerLevel level)) {
-            return;
-        }
-
-        Vec3 location = shieldArrowWorldPosition(player, hand, arrow);
-        level.sendParticles(
-                new BlockParticleOption(ParticleTypes.BLOCK, Blocks.OAK_PLANKS.defaultBlockState()),
-                location.x,
-                location.y,
-                location.z,
-                SHIELD_ARROW_BREAK_PARTICLES,
-                0.04D,
-                0.04D,
-                0.04D,
-                0.04D);
-    }
-
-    private static void spawnArmorArrowBreakParticles(LivingEntity entity, LodgedArrowVisual arrow) {
-        if (!(entity.level() instanceof ServerLevel level)) {
-            return;
-        }
-
-        Vec3 location = armorArrowWorldPosition(entity, arrow);
-        level.sendParticles(
-                new BlockParticleOption(ParticleTypes.BLOCK, Blocks.IRON_BLOCK.defaultBlockState()),
-                location.x,
-                location.y,
-                location.z,
-                ARMOR_ARROW_BREAK_PARTICLES,
-                0.035D,
-                0.035D,
-                0.035D,
-                0.035D);
-    }
-
-    private static Vec3 shieldArrowWorldPosition(ServerPlayer player, InteractionHand hand, LodgedArrowVisual arrow) {
-        float yawRadians = player.getYHeadRot() * ((float) Math.PI / 180.0F);
-        Vec3 right = new Vec3(Math.cos(yawRadians), 0.0D, Math.sin(yawRadians));
-        Vec3 forward = new Vec3(-Math.sin(yawRadians), 0.0D, Math.cos(yawRadians));
-        HumanoidArm shieldArm = hand == InteractionHand.MAIN_HAND
-                ? player.getMainArm()
-                : player.getMainArm().getOpposite();
-        double side = shieldArm == HumanoidArm.RIGHT ? -1.0D : 1.0D;
-        Vec3 shieldCenter = new Vec3(
-                player.getX(),
-                player.getY() + player.getBbHeight() * SHIELD_CENTER_HEIGHT_RATIO,
-                player.getZ())
-                .add(forward.scale(SHIELD_CENTER_FORWARD_OFFSET))
-                .add(right.scale(side * SHIELD_HAND_SIDE_OFFSET));
-        return shieldCenter
-                .add(right.scale(arrow.modelX()))
-                .add(0.0D, -arrow.modelY(), 0.0D)
-                .add(forward.scale(-arrow.modelZ()));
-    }
-
-    private static Vec3 armorArrowWorldPosition(LivingEntity entity, LodgedArrowVisual arrow) {
-        float yawRadians = entity.yBodyRot * ((float) Math.PI / 180.0F);
-        Vec3 right = new Vec3(Math.cos(yawRadians), 0.0D, Math.sin(yawRadians));
-        Vec3 forward = new Vec3(-Math.sin(yawRadians), 0.0D, Math.cos(yawRadians));
-        Vec3 local = arrow.toEntityLocalPosition(entity);
-        return new Vec3(entity.getX(), entity.getY(), entity.getZ())
-                .add(right.scale(local.x))
-                .add(0.0D, local.y, 0.0D)
-                .add(forward.scale(local.z));
-    }
-
-    private static Vec3 bodyArrowWorldPosition(LivingEntity target, LodgedArrowVisual arrow) {
-        float yawRadians = target.yBodyRot * ((float) Math.PI / 180.0F);
-        Vec3 right = new Vec3(Math.cos(yawRadians), 0.0D, Math.sin(yawRadians));
-        Vec3 forward = new Vec3(-Math.sin(yawRadians), 0.0D, Math.cos(yawRadians));
-        Vec3 local = arrow.toEntityLocalPosition(target);
-        return target.position()
-                .add(right.scale(local.x))
-                .add(0.0D, local.y, 0.0D)
-                .add(forward.scale(local.z));
-    }
-
-    private static void playSound(LivingEntity entity, net.minecraft.sounds.SoundEvent sound, float volume, float pitch) {
-        entity.level().playSound(null, entity.getX(), entity.getY(), entity.getZ(), sound, SoundSource.PLAYERS, volume, pitch);
-    }
-
-    private static void playSound(ServerPlayer player, net.minecraft.sounds.SoundEvent sound, float volume, float pitch) {
-        player.level().playSound(null, player.getX(), player.getY(), player.getZ(), sound, SoundSource.PLAYERS, volume, pitch);
-    }
-
-    private static void sendRemovalResult(
-            ServerPlayer player,
-            Result result,
-            Target target,
-            InteractionHand hand,
-            LodgedArrowVisual arrow) {
-        sendRemovalResult(player, result, target, hand, arrow, NO_INVENTORY_SLOT);
-    }
-
-    private static void sendRemovalResult(
-            ServerPlayer player,
-            Result result,
-            Target target,
-            InteractionHand hand,
-            LodgedArrowVisual arrow,
-            int inventorySlot) {
-        ToucanNetwork.sendToPlayer(player, new ArrowRemovalResultPayload(result, target, hand, arrow, inventorySlot));
-    }
-
-    private record ShieldArrowRemovalAttempt(
-            InteractionHand hand,
-            int arrowIndex,
-            long completeTick,
-            LodgedArrowVisual visual) {
-    }
-
-    private record ArmorArrowRemovalAttempt(
-            Target target,
-            EquipmentSlot slot,
-            int targetEntityId,
-            int arrowIndex,
-            long completeTick,
-            LodgedArrowVisual visual) {
-    }
-
-    private record InWorldArrowTarget(
-            Target target,
-            EquipmentSlot slot,
-            int targetEntityId,
-            int arrowIndex,
-            LodgedArrowVisual visual) {
-    }
-
-    private record ArrowRecoveryResult(boolean inventoryFull, int inventorySlot) {
+        ArrowRemovalAttempts.syncShieldArrowRemovalToPlayer(viewer, entity);
     }
 }
