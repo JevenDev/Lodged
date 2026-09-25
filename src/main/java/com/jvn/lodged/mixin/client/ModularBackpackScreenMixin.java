@@ -13,6 +13,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 public abstract class ModularBackpackScreenMixin {
     @Redirect(
             method = "renderBg",
+            require = 0,
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/screens/inventory/InventoryScreen;renderEntityInInventoryFollowsMouse(Lnet/minecraft/client/gui/GuiGraphics;IIIIIFFFLnet/minecraft/world/entity/LivingEntity;)V"))
@@ -27,6 +28,7 @@ public abstract class ModularBackpackScreenMixin {
             float mouseX,
             float mouseY,
             LivingEntity entity) {
+        LodgedInventoryArrowUi.onBackpackPreviewRendered();
         LodgedInventoryArrowUi.renderInventoryPlayer(guiGraphics, x1, y1, x2, y2, scale, size, mouseX, mouseY, entity);
     }
 }

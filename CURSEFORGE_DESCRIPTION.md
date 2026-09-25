@@ -107,7 +107,7 @@ Bandaging takes two seconds and consumes one bandage to patch one bleeding wound
 
 ### Bleeding and Status Effects
 
-Bleeding can result from arrow impacts, risky removal, or weapons selected by tags. Its duration scales with the wound's location and depth. Armor rules, immune entities, damage pulses, particles, and Simple Blood ground decals are configurable.
+Lodged arrows can cause bleeding when pulled out, including after a successful removal. Ordinary lodging does not start bleeding. Broken-arrow impacts and weapons selected by tags can also cause bleeding. Its duration scales with the wound's location and depth. Armor rules, immune entities, damage pulses, particles, and Simple Blood ground decals are configurable.
 
 Players receive a subtle Dizziness effect after carrying four lodged arrows, or half of their configured capacity. Leg hits apply Slowness I for two seconds by default. Both systems can be tuned or disabled.
 

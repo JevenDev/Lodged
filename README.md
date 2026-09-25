@@ -80,7 +80,7 @@ Bandaging takes two seconds and consumes one bandage to patch one bleeding wound
 
 ### Bleeding and Status Effects
 
-Bleeding can result from arrow impacts, risky removal, or weapons selected by tags. Its duration scales with the wound's location and depth. Armor rules, immune entities, damage pulses, particles, and Simple Blood ground decals are configurable.
+Lodged arrows can cause bleeding when pulled out, including after a successful removal. Ordinary lodging does not start bleeding. Broken-arrow impacts and weapons selected by tags can also cause bleeding. Its duration scales with the wound's location and depth. Armor rules, immune entities, damage pulses, particles, and Simple Blood ground decals are configurable.
 
 Players receive a subtle Dizziness effect after carrying four lodged arrows, or half of their configured capacity. Leg hits apply Slowness I for two seconds by default. Both systems can be tuned or disabled.
 
@@ -129,7 +129,7 @@ Lodged exposes tags for datapacks and mod integrations.
 
 - `lodged:trackable_projectiles` opts an `AbstractArrow` entity into impact handling.
 - `lodged:recoverable_projectiles` allows its pickup stack to be stored and returned.
-- `lodged:bleeding_projectiles` allows impacts and removal to cause bleeding.
+- `lodged:bleeding_projectiles` allows broken-arrow impacts and removal to cause bleeding.
 - `lodged:non_lodging_projectiles` keeps other impact behavior without body or shield lodging.
 
 Vanilla arrows and spectral arrows are trackable, recoverable, and bleeding-capable by default.

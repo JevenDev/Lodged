@@ -259,12 +259,16 @@ public final class LodgedInventoryArrowUi {
     private static final List<RemovalAnimation> removalAnimations = new ArrayList<>();
     private static Component removalSubtitle;
     private static long removalSubtitleStartedAtMs;
+    private static Screen supportedBackpackScreen;
+    private static boolean backpackPreviewRendered;
+    private static boolean warnedMissingBackpackPreview;
 
     private LodgedInventoryArrowUi() {
     }
 
     @SubscribeEvent
     public static void onScreenRenderPre(ScreenEvent.Render.Pre event) {
+        backpackPreviewRendered = false;
         if (!LodgedConfig.enablePlayerArrowRemoval()
                 || !(event.getScreen() instanceof AbstractContainerScreen<?> screen)
                 || !isPlayerInventoryScreen(screen)) {
@@ -289,6 +293,18 @@ public final class LodgedInventoryArrowUi {
 
     @SubscribeEvent
     public static void onScreenRenderPost(ScreenEvent.Render.Post event) {
+        if (event.getScreen() instanceof AbstractContainerScreen<?> containerScreen
+                && PlayerInventoryMenus.isModularBackpack(containerScreen.getMenu())
+                && !backpackPreviewRendered) {
+            supportedBackpackScreen = null;
+            clearHoveredArrows();
+            resetPreviewRotation();
+            if (!warnedMissingBackpackPreview) {
+                warnedMissingBackpackPreview = true;
+                Lodged.LOGGER.warn("Disabled Lodged's Modular Backpacks preview controls because its render hook did not run");
+            }
+            return;
+        }
         if (!(event.getScreen() instanceof AbstractContainerScreen<?> screen) || !isPlayerInventoryScreen(screen)) {
             return;
         }
@@ -415,6 +431,15 @@ public final class LodgedInventoryArrowUi {
         if (isPlayerInventoryScreen(event.getScreen())) {
             resetPreviewRotation();
         }
+        if (event.getScreen() == supportedBackpackScreen) {
+            supportedBackpackScreen = null;
+            clearHoveredArrows();
+        }
+    }
+
+    public static void onBackpackPreviewRendered() {
+        backpackPreviewRendered = true;
+        supportedBackpackScreen = Minecraft.getInstance().screen;
     }
 
     public static int hoveredArrowIndex() {
@@ -1402,7 +1427,8 @@ public final class LodgedInventoryArrowUi {
 
     private static boolean isPlayerInventoryScreen(Screen screen) {
         return screen instanceof InventoryScreen
-                || (screen instanceof AbstractContainerScreen<?> containerScreen
+                || (screen == supportedBackpackScreen
+                        && screen instanceof AbstractContainerScreen<?> containerScreen
                         && PlayerInventoryMenus.isModularBackpack(containerScreen.getMenu()));
     }
 
