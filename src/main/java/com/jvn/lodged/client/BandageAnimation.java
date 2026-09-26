@@ -86,40 +86,17 @@ public final class BandageAnimation {
             PoseStack poseStack,
             MultiBufferSource buffer,
             int packedLight) {
-        TreatmentAnimation.BandageMotion motion = TreatmentAnimation.bandage(useProgress(player, partialTick));
-        float amount = holdingBandage ? motion.amount() : motion.supportAmount();
-        float stroke = motion.stroke();
-        float orbit = motion.orbit();
-        float press = motion.press();
-        float directedStroke = holdingBandage ? -stroke : stroke;
-        float side = arm == HumanoidArm.RIGHT ? 1.0F : -1.0F;
-
-        float inward = holdingBandage ? 0.35F : 0.45F;
-        float lift = holdingBandage ? 0.20F : 0.28F;
-        float depth = holdingBandage ? 0.10F : 0.08F;
-        float xMotion = holdingBandage ? directedStroke * 0.09F - press * 0.035F : 0.0F;
-        float yMotion = holdingBandage ? orbit * 0.07F - press * 0.025F : orbit * 0.008F;
-        float zMotion = holdingBandage ? directedStroke * 0.045F - press * 0.04F : 0.0F;
-        float roleXOffset = side * amount * (holdingBandage ? 0.33F : 0.43F);
-        float roleYOffset = amount * (holdingBandage ? 0.0F : -0.34F);
-        float roleDepthOffset = amount * (holdingBandage ? -0.23F : -0.28F);
+        TreatmentAnimation.BandageArmPose pose = TreatmentAnimation.bandageArm(
+                TreatmentAnimation.bandage(useProgress(player, partialTick)),
+                holdingBandage,
+                arm == HumanoidArm.RIGHT,
+                equippedProgress);
 
         poseStack.pushPose();
-        poseStack.translate(
-                side * (0.64F - amount * inward + xMotion) + roleXOffset,
-                -0.60F - equippedProgress * 0.6F * (1.0F - amount)
-                        + amount * lift + yMotion + roleYOffset,
-                -0.72F + amount * depth + zMotion + roleDepthOffset);
-        poseStack.mulPose(Axis.YP.rotationDegrees(
-                side * (45.0F - amount * (holdingBandage ? 32.0F : 50.0F))));
-        poseStack.mulPose(Axis.XP.rotationDegrees(
-                amount * (holdingBandage ? -22.0F : -12.0F)
-                        + orbit * (holdingBandage ? 5.0F : 1.0F)
-                        - press * (holdingBandage ? 7.0F : 0.0F)));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(
-                side * amount * (holdingBandage ? -28.0F : -52.0F)
-                        + side * directedStroke * (holdingBandage ? 16.0F : 1.0F)
-                        - side * press * (holdingBandage ? 5.0F : 0.0F)));
+        poseStack.translate(pose.x(), pose.y(), pose.z());
+        poseStack.mulPose(Axis.YP.rotationDegrees(pose.yRot()));
+        poseStack.mulPose(Axis.XP.rotationDegrees(pose.xRot()));
+        poseStack.mulPose(Axis.ZP.rotationDegrees(pose.zRot()));
         FirstPersonArmRenderer.render(player, arm, poseStack, buffer, packedLight);
         poseStack.popPose();
     }
@@ -146,11 +123,6 @@ public final class BandageAnimation {
                 : side * (0.03F + motion.stroke() * 0.01F);
         float amount = wrappingArm ? motion.amount() : motion.supportAmount();
         return new ArmPose(arm, amount, xRot, yRot, zRot);
-    }
-
-    public static float armPoseAmount(LivingEntity entity, HumanoidArm arm, float partialTick) {
-        TreatmentAnimation.BandageMotion motion = TreatmentAnimation.bandage(useProgress(entity, partialTick));
-        return arm == holdingArm(entity) ? motion.amount() : motion.supportAmount();
     }
 
     private static float useProgress(LivingEntity entity, float partialTick) {

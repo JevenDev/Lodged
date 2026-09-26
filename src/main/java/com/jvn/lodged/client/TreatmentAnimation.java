@@ -54,6 +54,32 @@ final class TreatmentAnimation {
         return new BandageMotion(amount, supportAmount, stroke, orbit, press * amount);
     }
 
+    static BandageArmPose bandageArm(
+            BandageMotion motion, boolean holdingBandage, boolean rightArm, float equippedProgress) {
+        float amount = holdingBandage ? motion.amount() : motion.supportAmount();
+        float side = rightArm ? 1.0F : -1.0F;
+        float stroke = holdingBandage ? -motion.stroke() : motion.stroke();
+        float orbit = motion.orbit();
+        float press = motion.press();
+        float lowering = (1.0F - amount) * (1.2F + equippedProgress * 0.6F);
+        float x = side * (0.62F + (holdingBandage ? stroke * 0.09F - press * 0.035F : 0.0F));
+        float y = (holdingBandage ? -0.40F : -0.66F) - lowering
+                + (holdingBandage ? orbit * 0.07F - press * 0.025F : orbit * 0.008F);
+        float z = (holdingBandage ? -0.85F : -0.92F)
+                + (holdingBandage ? stroke * 0.045F - press * 0.04F : 0.0F);
+        float xRot = (holdingBandage ? -22.0F : -12.0F)
+                + orbit * (holdingBandage ? 5.0F : 1.0F)
+                - press * (holdingBandage ? 7.0F : 0.0F);
+        float yRot = side * (holdingBandage ? 13.0F : -5.0F);
+        float zRot = side * ((holdingBandage ? -28.0F : -52.0F)
+                + stroke * (holdingBandage ? 16.0F : 1.0F)
+                - press * (holdingBandage ? 5.0F : 0.0F));
+        return new BandageArmPose(x, y, z, xRot, yRot, zRot);
+    }
+
+    record BandageArmPose(float x, float y, float z, float xRot, float yRot, float zRot) {
+    }
+
     record BandageMotion(float amount, float supportAmount, float stroke, float orbit, float press) {
     }
 
