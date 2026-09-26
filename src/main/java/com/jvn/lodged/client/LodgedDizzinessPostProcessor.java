@@ -9,9 +9,9 @@ import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 public final class LodgedDizzinessPostProcessor {
-    public static final LodgedDizzinessPostProcessor INSTANCE = new LodgedDizzinessPostProcessor();
     private static final ResourceLocation POST_CHAIN_LOCATION =
             Lodged.IDS.id("shaders/post/dizziness_tint.json");
+    public static final LodgedDizzinessPostProcessor INSTANCE = new LodgedDizzinessPostProcessor();
 
     private final ToucanPostChain postChain = new ToucanPostChain(
             POST_CHAIN_LOCATION,
