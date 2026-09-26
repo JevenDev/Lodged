@@ -8,8 +8,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.client.model.geom.builders.CubeDeformation;
+import net.minecraft.client.model.geom.builders.CubeListBuilder;
 import net.minecraft.client.model.geom.builders.LayerDefinition;
+import net.minecraft.client.model.geom.builders.MeshDefinition;
+import net.minecraft.client.model.geom.builders.PartDefinition;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -27,6 +31,8 @@ import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RenderArmEvent;
 
 public final class BandageOverlayRenderer {
+    private static final float SKIN_SLEEVE_INFLATION = 0.25F;
+    private static final float BANDAGE_CLEARANCE = 0.04F;
     private static final ResourceLocation TEXTURE =
             Lodged.IDS.id("textures/entity/bandage_overlay.png");
     private static final ModelLayerLocation WIDE_LAYER = new ModelLayerLocation(
@@ -124,10 +130,24 @@ public final class BandageOverlayRenderer {
     }
 
     private static LayerDefinition createLayer(boolean slim) {
-        return LayerDefinition.create(
-                PlayerModel.createMesh(new CubeDeformation(0.04F), slim),
-                64,
-                64);
+        CubeDeformation bandage = new CubeDeformation(SKIN_SLEEVE_INFLATION + BANDAGE_CLEARANCE);
+        MeshDefinition mesh = PlayerModel.createMesh(bandage, slim);
+        PartDefinition root = mesh.getRoot();
+        CubeDeformation detail = bandage.extend(BANDAGE_CLEARANCE);
+        float armWidth = slim ? 3.0F : 4.0F;
+        float shoulderY = slim ? 2.5F : 2.0F;
+
+        root.addOrReplaceChild(
+                "left_sleeve",
+                CubeListBuilder.create().texOffs(48, 48)
+                        .addBox(-1.0F, -2.0F, -2.0F, armWidth, 12.0F, 4.0F, detail),
+                PartPose.offset(5.0F, shoulderY, 0.0F));
+        root.addOrReplaceChild(
+                "right_sleeve",
+                CubeListBuilder.create().texOffs(40, 32)
+                        .addBox(slim ? -2.0F : -3.0F, -2.0F, -2.0F, armWidth, 12.0F, 4.0F, detail),
+                PartPose.offset(-5.0F, shoulderY, 0.0F));
+        return LayerDefinition.create(mesh, 64, 64);
     }
 
     private static ModelPart arm(PlayerModel<?> model, HumanoidArm arm) {
