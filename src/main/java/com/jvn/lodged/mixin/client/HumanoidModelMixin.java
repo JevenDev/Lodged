@@ -2,6 +2,7 @@ package com.jvn.lodged.mixin.client;
 
 import com.jvn.lodged.client.BandageAnimation;
 import com.jvn.lodged.client.BandageAnimation.ArmPose;
+import com.jvn.lodged.client.FirstPersonArmRenderer;
 import com.jvn.lodged.client.LodgedShieldArrowRemovalClient;
 import com.jvn.lodged.client.LodgedShieldArrowRemovalClient.ThirdPersonArmPose;
 import net.minecraft.client.model.HumanoidModel;
@@ -32,6 +33,10 @@ public abstract class HumanoidModelMixin<T extends LivingEntity> {
             float netHeadYaw,
             float headPitch,
             CallbackInfo callbackInfo) {
+        if (FirstPersonArmRenderer.isRenderingArm()) {
+            return;
+        }
+
         lodged$applyArmPose(LodgedShieldArrowRemovalClient.thirdPersonShieldArmPose(entity, ageInTicks));
         lodged$applyArmPose(LodgedShieldArrowRemovalClient.thirdPersonRemovalArmPose(entity, ageInTicks));
         lodged$applyArmPose(BandageAnimation.thirdPersonArmPose(entity, HumanoidArm.RIGHT, ageInTicks));

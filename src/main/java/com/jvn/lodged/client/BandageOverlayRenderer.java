@@ -83,10 +83,12 @@ public final class BandageOverlayRenderer {
         playerModel.swimAmount = 0.0F;
         playerModel.setupAnim(player, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F);
 
+        float partialTick = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false);
+        float amount = BandageAnimation.armPoseAmount(player, renderedArm, partialTick);
         ModelPart playerArm = arm(playerModel, renderedArm);
-        playerArm.xRot = renderedArm == treatedArm ? Mth.PI : 0.0F;
+        playerArm.xRot = renderedArm == treatedArm ? Mth.PI * amount : 0.0F;
         playerArm.yRot = 0.0F;
-        playerArm.zRot = renderedArm == treatedArm ? 0.0F : Mth.PI;
+        playerArm.zRot = renderedArm == treatedArm ? 0.0F : Mth.PI * amount;
         playerArm.visible = true;
 
         PoseStack poseStack = event.getPoseStack();

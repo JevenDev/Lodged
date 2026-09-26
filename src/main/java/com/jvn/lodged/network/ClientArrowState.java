@@ -120,7 +120,10 @@ public final class ClientArrowState {
             return;
         }
 
-        SHIELD_ARROW_REMOVALS.put(entityId, new ShieldArrowRemovalState(shieldHand, 0));
+        ShieldArrowRemovalState current = SHIELD_ARROW_REMOVALS.get(entityId);
+        if (current == null || current.shieldHand() != shieldHand) {
+            SHIELD_ARROW_REMOVALS.put(entityId, new ShieldArrowRemovalState(shieldHand, 0));
+        }
     }
 
     private static void setArmorArrowRemoval(
@@ -135,7 +138,15 @@ public final class ClientArrowState {
             return;
         }
 
-        ARMOR_ARROW_REMOVALS.put(entityId, new ArmorArrowRemovalState(target, slot, targetEntityId, arrow, 0));
+        ArmorArrowRemovalState current = ARMOR_ARROW_REMOVALS.get(entityId);
+        int ticks = current != null
+                && current.target() == target
+                && current.slot() == slot
+                && current.targetEntityId() == targetEntityId
+                && current.arrow().matches(arrow)
+                ? current.ticks()
+                : 0;
+        ARMOR_ARROW_REMOVALS.put(entityId, new ArmorArrowRemovalState(target, slot, targetEntityId, arrow, ticks));
     }
 
     public record EntityArrows(List<LodgedArrowVisual> arrows, int arrowCount) {
