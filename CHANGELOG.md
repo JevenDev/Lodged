@@ -1,10 +1,32 @@
 # Changelog
 
+## 3.1.0 - 2026-10-18
+
+### Changed
+
+- Moved shared networking, rendering, collision math, and data helpers to ToucanLib, which is now required at version 0.4.0 or newer
+- Restricted model-accurate projectile collision to standing or crouching players, spiders, and cave spiders. Other entities and poses use vanilla collision (for now, I will come back to this for a later update)
+- Improved first and third-person bandaging animations
+- Improved in-world arrow-removal animations
+- Separated arrow impact handling, removal rules and outcomes, and inventory preview rendering
+
+### Fixed
+
+- Fixed client gameplay settings disagreeing with server rules
+- Fixed arrow removal and player-preview controls not working in Modular Backpacks inventory screens, including rotation, arrow highlighting, and tooltips
+- Fixed body arrows and leg-shot Slowness being applied to rejected or fully prevented hits. Body and armor lodging and broken-arrow effects now wait for confirmed health or absorption damage
+- Fixed vanilla stuck-arrow counts drifting from stored body arrows after removal or eviction
+- Fixed in-world removal being cancelled by client timeouts before the server finishes, rejected starts continuing to animate, and server confirmations restarting ongoing animations
+- Fixed F3 + B model hitboxes showing rendered model parts instead of the colliders used for projectile hit detection
+- Fixed pillager arrow drops replacing the full vanilla loot table
+- Fixed a startup conflict with Simply Swords
+- Fixed bandage overlays rendering beneath player skin sleeves on both wide and slim arms
+
 ## 3.0.0 - 2026-08-06
 
 ### Added
 
-- Added model-accurate projectile collision for tracked arrows against hand-matched player and spider models. Hits respect shields and piercing, unsupported entities and poses retain vanilla collision, and F3 + B visualizes the actual collision cache
+- Added model-accurate projectile collision for tracked arrows, with shield and piercing support, configurable hitbox inflation, vanilla fallback, and F3 + B hitbox visualization
 - Added horse-armor arrow lodging, rendering, durability effects, hover targeting, tooltips, outlines, and removal from the horse inventory, with optional "Ride On" (unreleased) compatibility
 - Added timed body-arrow removal from owned tamed mobs and ridden mounts in the world, with player-first targeting, plus body-arrow removal from mount inventory previews. Ownership, range, timing, success, particles, and bleeding are configurable
 - Added craftable bandages. Craft two from three string and one paper, holding Use bandage (default: V) finds one anywhere in the inventory, plays synchronized first/third-person wrapping animations for two seconds, and patches one bleeding wound
@@ -22,7 +44,6 @@
 
 ### Fixed
 
-- Fixed pillager arrow drops replacing the full vanilla loot table; they now use an additive NeoForge loot modifier
 - Fixed piercing arrows duplicating recoverable lodged-arrow data across multiple targets
 - Fixed recovered arrow stacks retaining the intangible projectile marker, which could make returned arrows behave incorrectly
 
